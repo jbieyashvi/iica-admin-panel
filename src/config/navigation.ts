@@ -50,7 +50,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'manage_archive' },
       { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_events' },
       { label: 'Reviews', to: '/admin/reviews', icon: MessageSquareQuote, permission: 'manage_reviews' },
-      { label: 'Banners', to: '/admin/banners', icon: Megaphone, permission: 'manage_banners' },
     ],
   },
   {
@@ -70,6 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Platform',
     items: [
+      { label: 'Home & App Content', to: '/admin/banners', icon: Megaphone, permission: 'manage_banners' },
       { label: 'Membership Categories', to: '/admin/categories', icon: Tags, permission: 'manage_categories' },
       { label: 'Admin Users', to: '/admin/admin-users', icon: ShieldCheck, permission: 'manage_admins' },
     ],

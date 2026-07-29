@@ -53,7 +53,7 @@ export function BannersPage() {
   return (
     <div>
       <PageHeader
-        title="Banners"
+        title="Home & App Content"
         description="Manage promotional banners displayed on the mobile Home screen."
         actions={
           <div className="flex gap-2">
