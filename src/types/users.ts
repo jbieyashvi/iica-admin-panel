@@ -145,6 +145,8 @@ export interface DataState {
   productOrders: import('./orders').ProductOrder[];
   collaborations: import('./collaborations').CollaborationRecord[];
   collaborationSettings: import('./collaborations').CollaborationSettings;
+  reviews: import('./reviews').ReviewRecord[];
+  testimonials: import('./reviews').TestimonialRecord[];
   version: number;
 }
 

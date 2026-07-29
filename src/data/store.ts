@@ -50,6 +50,13 @@ import type {
   CommType,
   ReportStatus as CollabReportStatus,
 } from '../types/collaborations';
+import type {
+  ReviewRecord,
+  TestimonialRecord,
+  TestimonialPlacement,
+  TestimonialSourceType,
+  TestimonialStatus,
+} from '../types/reviews';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
 import { buildSeedState, SEED_VERSION } from './seed';
@@ -64,7 +71,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings;
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.testimonials);
   if (stored && stored.version === SEED_VERSION && intact) return stored;
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1265,3 +1272,121 @@ export function updateCollaborationSettings(patch: Partial<CollaborationSettings
 }
 
 export type { CollaborationRecord };
+
+// ===========================================================================
+// Reviews & Testimonials
+// ===========================================================================
+
+function replaceReview(list: ReviewRecord[], next: ReviewRecord) {
+  return list.map((r) => (r.id === next.id ? next : r));
+}
+function commitReview(next: ReviewRecord) {
+  commit({ ...state, reviews: replaceReview(state.reviews, { ...next, lastUpdatedAt: now() }) });
+}
+
+// Moderation only — admin never edits review text, rating or reviewer identity.
+export function publishReview(reviewId: string, _actor: AdminActor) {
+  const r = state.reviews.find((x) => x.id === reviewId);
+  if (!r) return;
+  commitReview({ ...r, status: 'published', hiddenReason: null });
+}
+
+export function hideReview(reviewId: string, reason: string, _actor: AdminActor) {
+  const r = state.reviews.find((x) => x.id === reviewId);
+  if (!r) return;
+  commitReview({ ...r, status: 'hidden', hiddenReason: reason });
+}
+
+export function restoreReview(reviewId: string, _actor: AdminActor) {
+  const r = state.reviews.find((x) => x.id === reviewId);
+  if (!r) return;
+  commitReview({ ...r, status: 'published', hiddenReason: null });
+}
+
+function replaceTestimonial(list: TestimonialRecord[], next: TestimonialRecord) {
+  return list.map((t) => (t.id === next.id ? next : t));
+}
+function commitTestimonial(next: TestimonialRecord) {
+  commit({ ...state, testimonials: replaceTestimonial(state.testimonials, { ...next, lastUpdatedAt: now() }) });
+}
+
+export function testimonialTextExists(body: string, exceptId?: string): boolean {
+  const b = body.trim().toLowerCase();
+  return state.testimonials.some((t) => t.body.trim().toLowerCase() === b && t.id !== exceptId);
+}
+
+export interface AddTestimonialInput {
+  personName: string;
+  role: string;
+  body: string;
+  sourceType: TestimonialSourceType;
+  connectedReviewId?: string | null;
+  placement: TestimonialPlacement;
+  displayOrder: number;
+  status: TestimonialStatus;
+}
+
+export function addTestimonial(input: AddTestimonialInput, _actor: AdminActor): TestimonialRecord | null {
+  if (!input.personName.trim() || !input.body.trim() || !input.placement) return null;
+  if (testimonialTextExists(input.body)) return null;
+  const t: TestimonialRecord = {
+    id: uid('tst'),
+    personName: input.personName.trim(),
+    role: input.role.trim(),
+    profileImage: undefined,
+    body: input.body.trim(),
+    sourceType: input.sourceType,
+    connectedReviewId: input.connectedReviewId ?? null,
+    placement: input.placement,
+    displayOrder: input.displayOrder,
+    status: input.status,
+    hiddenReason: null,
+    addedByAdmin: input.sourceType === 'direct',
+    createdAt: now(),
+    lastUpdatedAt: now(),
+  };
+  commit({ ...state, testimonials: [t, ...state.testimonials] });
+  return t;
+}
+
+export interface EditTestimonialInput {
+  personName?: string;
+  role?: string;
+  body?: string;
+  placement?: TestimonialPlacement;
+  displayOrder?: number;
+}
+
+// Editing a testimonial never touches the connected review record.
+export function editTestimonial(id: string, patch: EditTestimonialInput, _actor: AdminActor): boolean {
+  const t = state.testimonials.find((x) => x.id === id);
+  if (!t) return false;
+  if (patch.body != null && testimonialTextExists(patch.body, id)) return false;
+  commitTestimonial({
+    ...t,
+    personName: patch.personName?.trim() ?? t.personName,
+    role: patch.role?.trim() ?? t.role,
+    body: patch.body?.trim() ?? t.body,
+    placement: patch.placement ?? t.placement,
+    displayOrder: patch.displayOrder ?? t.displayOrder,
+  });
+  return true;
+}
+
+export function publishTestimonial(id: string, _actor: AdminActor) {
+  const t = state.testimonials.find((x) => x.id === id);
+  if (!t) return;
+  commitTestimonial({ ...t, status: 'published', hiddenReason: null });
+}
+
+export function hideTestimonial(id: string, reason: string, _actor: AdminActor) {
+  const t = state.testimonials.find((x) => x.id === id);
+  if (!t) return;
+  commitTestimonial({ ...t, status: 'hidden', hiddenReason: reason });
+}
+
+export function restoreTestimonial(id: string, _actor: AdminActor) {
+  const t = state.testimonials.find((x) => x.id === id);
+  if (!t) return;
+  commitTestimonial({ ...t, status: 'published', hiddenReason: null });
+}

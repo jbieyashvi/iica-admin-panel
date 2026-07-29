@@ -11,6 +11,7 @@ import {
   PackagePlus,
   ShoppingBag,
   Handshake,
+  MessageSquareQuote,
   Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -51,6 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
       { label: 'Product Categories', to: '/admin/product-categories', icon: PackagePlus, permission: 'manage_commerce' },
       { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_commerce' },
+      { label: 'Reviews & Testimonials', to: '/admin/reviews-testimonials', icon: MessageSquareQuote, permission: 'manage_reviews' },
     ],
   },
   {

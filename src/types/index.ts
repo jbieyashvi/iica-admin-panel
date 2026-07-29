@@ -28,6 +28,7 @@ export type Permission =
   | 'manage_finance'
   | 'manage_engagement'
   | 'manage_collaborations'
+  | 'manage_reviews'
   | 'manage_platform'
   | 'manage_admins'
   | 'manage_settings';
