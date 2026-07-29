@@ -27,6 +27,14 @@ export interface Abilities {
   manageEventSettings: boolean; // edit controlled event settings
   viewOrders: boolean; // view ticket orders / payment records
   manageProducts: boolean; // add / publish / hide / archive products & categories
+  // Collaborations & Meetings
+  collabView: boolean; // view collaborations, matches and meetings
+  collabReminders: boolean; // send request / meeting reminders & admin notices
+  collabReschedule: boolean; // review reschedule requests
+  collabReports: boolean; // review / note / dismiss collaboration reports
+  collabBlock: boolean; // block / restore collaborations for safety
+  collabCancelMeeting: boolean; // cancel a meeting for a safety reason
+  collabSettings: boolean; // edit matching weights & access settings
 }
 
 const MAP: Record<AdminRole, Abilities> = {
@@ -53,6 +61,13 @@ const MAP: Record<AdminRole, Abilities> = {
     manageEventSettings: true,
     viewOrders: true,
     manageProducts: true,
+    collabView: true,
+    collabReminders: true,
+    collabReschedule: true,
+    collabReports: true,
+    collabBlock: true,
+    collabCancelMeeting: true,
+    collabSettings: true,
   },
   operations_manager: {
     editUsers: true,
@@ -77,6 +92,13 @@ const MAP: Record<AdminRole, Abilities> = {
     manageEventSettings: false,
     viewOrders: true,
     manageProducts: true,
+    collabView: true,
+    collabReminders: true,
+    collabReschedule: true,
+    collabReports: false,
+    collabBlock: false,
+    collabCancelMeeting: false,
+    collabSettings: false,
   },
   finance_manager: {
     editUsers: false,
@@ -101,6 +123,13 @@ const MAP: Record<AdminRole, Abilities> = {
     manageEventSettings: false,
     viewOrders: true,
     manageProducts: false,
+    collabView: true,
+    collabReminders: false,
+    collabReschedule: false,
+    collabReports: false,
+    collabBlock: false,
+    collabCancelMeeting: false,
+    collabSettings: false,
   },
   portfolio_moderator: {
     editUsers: false,
@@ -125,6 +154,13 @@ const MAP: Record<AdminRole, Abilities> = {
     manageEventSettings: false,
     viewOrders: true,
     manageProducts: false,
+    collabView: true,
+    collabReminders: false,
+    collabReschedule: false,
+    collabReports: true,
+    collabBlock: true,
+    collabCancelMeeting: false,
+    collabSettings: false,
   },
 };
 

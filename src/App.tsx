@@ -20,6 +20,9 @@ import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { ProductCategoriesPage } from './features/products/ProductCategoriesPage';
 import { OrdersPage } from './features/orders/OrdersPage';
 import { OrderDetailPage } from './features/orders/OrderDetailPage';
+import { CollaborationsPage } from './features/collaborations/CollaborationsPage';
+import { CollaborationDetailPage } from './features/collaborations/CollaborationDetailPage';
+import { CollaborationSettingsPage } from './features/collaborations/CollaborationSettingsPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
 
@@ -58,6 +61,9 @@ export default function App() {
           <Route path="product-categories" element={<ProductCategoriesPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="collaborations" element={<CollaborationsPage />} />
+          <Route path="collaborations/:collaborationId" element={<CollaborationDetailPage />} />
+          <Route path="collaboration-settings" element={<CollaborationSettingsPage />} />
           <Route path="settings" element={<ComingSoon />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}

@@ -10,6 +10,7 @@ import {
   Package,
   PackagePlus,
   ShoppingBag,
+  Handshake,
   Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -38,10 +39,11 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Users', to: '/admin/users', icon: Users, permission: 'manage_users' },
       { label: 'Catalogue', to: '/admin/catalogue', icon: LayoutGrid, permission: 'manage_catalogue' },
       { label: 'Portfolios', to: '/admin/portfolios', icon: FolderOpen, permission: 'moderate_portfolios' },
+      { label: 'Collaborations', to: '/admin/collaborations', icon: Handshake, permission: 'manage_collaborations' },
     ],
   },
   {
-    title: 'Content',
+    title: 'Content & Commerce',
     items: [
       { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'moderate_portfolios' },
       { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_commerce' },

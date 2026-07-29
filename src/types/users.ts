@@ -143,6 +143,8 @@ export interface DataState {
   products: import('./products').ProductRecord[];
   productCategories: import('./products').ProductCategoryRecord[];
   productOrders: import('./orders').ProductOrder[];
+  collaborations: import('./collaborations').CollaborationRecord[];
+  collaborationSettings: import('./collaborations').CollaborationSettings;
   version: number;
 }
 

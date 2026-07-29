@@ -27,6 +27,7 @@ export type Permission =
   | 'manage_commerce'
   | 'manage_finance'
   | 'manage_engagement'
+  | 'manage_collaborations'
   | 'manage_platform'
   | 'manage_admins'
   | 'manage_settings';

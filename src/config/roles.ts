@@ -32,6 +32,7 @@ const ALL: Permission[] = [
   'manage_commerce',
   'manage_finance',
   'manage_engagement',
+  'manage_collaborations',
   'manage_platform',
   'manage_admins',
   'manage_settings',
@@ -47,10 +48,11 @@ export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'moderate_portfolios',
     'manage_commerce',
     'manage_engagement',
+    'manage_collaborations',
     'manage_platform',
   ],
-  finance_manager: ['view_dashboard', 'manage_finance', 'manage_commerce'],
-  portfolio_moderator: ['view_dashboard', 'moderate_portfolios', 'manage_engagement'],
+  finance_manager: ['view_dashboard', 'manage_finance', 'manage_commerce', 'manage_collaborations'],
+  portfolio_moderator: ['view_dashboard', 'moderate_portfolios', 'manage_engagement', 'manage_collaborations'],
 };
 
 export function hasPermission(role: AdminRole, permission: Permission): boolean {
