@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-cream text-charcoal font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  * {
+    @apply border-cream-200;
+  }
+  /* Accessible focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-magenta-500 ring-offset-2 ring-offset-cream;
+  }
+}
+
+@layer components {
+  .page-title {
+    @apply font-serif text-2xl font-medium tracking-tight text-charcoal;
+  }
+  .card {
+    @apply rounded-xl border border-cream-200 bg-white shadow-card;
+  }
+  .input-base {
+    @apply w-full rounded-lg border border-cream-200 bg-white px-3.5 py-2.5 text-sm text-charcoal
+      placeholder:text-charcoal-muted/60 transition
+      focus:border-magenta-500 focus:ring-2 focus:ring-magenta-500/20;
+  }
+}
+
+/* Thin, unobtrusive scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d9d3ca;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c4bdb2;
+}
