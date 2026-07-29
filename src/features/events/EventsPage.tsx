@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Search,
   Settings,
+  Tag,
   Ticket,
   Upload,
   X,
@@ -164,6 +165,7 @@ export function EventsPage() {
         description="Review events, ticketing, venues and creator submissions."
         actions={
           <>
+            <Button variant="secondary" icon={<Tag className="h-4 w-4" />} onClick={() => navigate('/admin/event-categories')}>Event Categories</Button>
             <Button variant="secondary" icon={<CalendarPlus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Add Admin Event</Button>
             <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
               Event Settings

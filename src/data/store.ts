@@ -19,6 +19,7 @@ import type {
   ArchiveRecord,
   ArchiveStatus,
   BookingStatus,
+  EventCategoryStatus,
   EventFormat,
   EventRecord,
   EventStatus,
@@ -36,7 +37,7 @@ import { buildArchiveSeed, buildEventSeed, buildOrderSeed } from './seedEvents';
 import { computeActivityScore } from './portfolioLogic';
 
 const STORAGE_KEY = 'data_state';
-const SEED_VERSION = 4;
+const SEED_VERSION = 5;
 
 // ---- Store internals -------------------------------------------------------
 
@@ -784,9 +785,10 @@ export function approveProposal(proposalId: string, _actor: AdminActor) {
   const p = state.categoryProposals.find((x) => x.id === proposalId);
   if (!p) return;
   const exists = state.eventCategories.some((c) => c.name.toLowerCase() === p.proposedName.toLowerCase());
+  const newCat = { id: uid('ecat'), name: p.proposedName, description: 'Created from a creator proposal.', order: state.eventCategories.length, isDefault: false, status: 'active' as const, createdAt: now() };
   const newCats = exists
     ? state.eventCategories
-    : [...state.eventCategories.filter((c) => c.name !== 'Others'), { id: uid('ecat'), name: p.proposedName, order: state.eventCategories.length, isDefault: false }, ...state.eventCategories.filter((c) => c.name === 'Others')];
+    : [...state.eventCategories.filter((c) => c.name !== 'Others'), newCat, ...state.eventCategories.filter((c) => c.name === 'Others')];
   const events = state.events.map((e) => (e.id === p.eventId ? { ...e, customCategoryPending: false, category: p.proposedName } : e));
   commit({ ...state, eventCategories: newCats, categoryProposals: setProposal(proposalId, { status: 'approved' }), events });
 }
@@ -808,6 +810,49 @@ export function rejectProposal(proposalId: string, reason: string, _actor: Admin
   const p = state.categoryProposals.find((x) => x.id === proposalId);
   if (!p) return;
   commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'rejected', note: reason }) });
+}
+
+// ---- Event category CRUD ---------------------------------------------------
+
+export function eventCategoryNameExists(name: string, exceptId?: string): boolean {
+  const n = name.trim().toLowerCase();
+  return state.eventCategories.some((c) => c.name.toLowerCase() === n && c.id !== exceptId);
+}
+
+// Number of events currently assigned to a category name.
+export function eventCategoryUsage(name: string): number {
+  return state.events.filter((e) => e.category === name).length;
+}
+
+export function addEventCategory(input: { name: string; description: string; status: EventCategoryStatus }, _actor: AdminActor) {
+  if (!input.name.trim() || eventCategoryNameExists(input.name)) return null;
+  const cat = {
+    id: uid('ecat'),
+    name: input.name.trim(),
+    description: input.description.trim(),
+    order: state.eventCategories.length,
+    isDefault: false,
+    status: input.status,
+    createdAt: now(),
+  };
+  // Keep "Others" last for a tidy list.
+  const cats = [...state.eventCategories.filter((c) => c.name !== 'Others'), cat, ...state.eventCategories.filter((c) => c.name === 'Others')].map((c, i) => ({ ...c, order: i }));
+  commit({ ...state, eventCategories: cats });
+  return cat;
+}
+
+export function editEventCategory(id: string, patch: { name?: string; description?: string }, _actor: AdminActor) {
+  const cat = state.eventCategories.find((c) => c.id === id);
+  if (!cat) return;
+  if (patch.name && eventCategoryNameExists(patch.name, id)) return;
+  const next = { ...cat, name: patch.name?.trim() ?? cat.name, description: patch.description?.trim() ?? cat.description };
+  commit({ ...state, eventCategories: state.eventCategories.map((c) => (c.id === id ? next : c)) });
+}
+
+export function setEventCategoryStatus(id: string, status: EventCategoryStatus, _actor: AdminActor) {
+  const cat = state.eventCategories.find((c) => c.id === id);
+  if (!cat) return;
+  commit({ ...state, eventCategories: state.eventCategories.map((c) => (c.id === id ? { ...c, status } : c)) });
 }
 
 export function updateEventSettings(patch: Partial<DataState['eventSettings']>, _actor: AdminActor) {

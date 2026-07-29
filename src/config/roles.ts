@@ -21,11 +21,6 @@ export const ROLES: Record<AdminRole, RoleMeta> = {
     label: 'Portfolio Moderator',
     description: 'Reviews portfolios and archive submissions.',
   },
-  support_executive: {
-    id: 'support_executive',
-    label: 'Support Executive',
-    description: 'Handles support tickets and member queries.',
-  },
 };
 
 const ALL: Permission[] = [
@@ -56,7 +51,6 @@ export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   ],
   finance_manager: ['view_dashboard', 'manage_finance', 'manage_commerce'],
   portfolio_moderator: ['view_dashboard', 'moderate_portfolios', 'manage_engagement'],
-  support_executive: ['view_dashboard', 'manage_engagement'],
 };
 
 export function hasPermission(role: AdminRole, permission: Permission): boolean {

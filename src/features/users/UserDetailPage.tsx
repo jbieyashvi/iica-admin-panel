@@ -27,7 +27,7 @@ import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import { formatDate, formatDateTime, formatMoney, timeAgo } from '../../lib/format';
 import { PURCHASE_PLATFORM_LABEL } from '../../config/userLabels';
-import { derivePortfolio, deriveOrders, deriveCollab, deriveSupport, totalSpend } from '../../data/derive';
+import { derivePortfolio, deriveOrders, deriveCollab, totalSpend } from '../../data/derive';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -35,7 +35,6 @@ const TABS = [
   { key: 'portfolio', label: 'Portfolio' },
   { key: 'purchases', label: 'Purchases' },
   { key: 'collaborations', label: 'Collaborations' },
-  { key: 'support', label: 'Support' },
   { key: 'activity', label: 'Activity' },
 ];
 
@@ -114,7 +113,6 @@ export function UserDetailPage() {
   const orders = deriveOrders(user);
   const portfolio = derivePortfolio(user, membership);
   const collab = deriveCollab(user);
-  const tickets = deriveSupport(user);
 
   const submitNote = () => {
     if (!noteBody.trim()) return;
@@ -395,44 +393,6 @@ export function UserDetailPage() {
         </div>
       )}
 
-      {tab === 'support' && (
-        <div className="card overflow-hidden">
-          {tickets.length === 0 ? (
-            <EmptyState title="No support tickets" description="This user has not raised any tickets." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead>
-                  <tr className="border-b border-cream-200 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-muted">
-                    <th className="px-4 py-3">Ticket</th>
-                    <th className="px-4 py-3">Subject</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Priority</th>
-                    <th className="px-4 py-3">Assigned</th>
-                    <th className="px-4 py-3">Updated</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-cream-200">
-                  {tickets.map((t) => (
-                    <tr key={t.id} className="hover:bg-cream-100/50">
-                      <td className="px-4 py-3 font-medium text-charcoal">{t.id}</td>
-                      <td className="px-4 py-3 text-charcoal">{t.subject}</td>
-                      <td className="px-4 py-3">
-                        <Badge tone={t.status === 'Open' ? 'amber' : t.status === 'Resolved' ? 'green' : 'blue'}>{t.status}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge tone={t.priority === 'High' ? 'red' : t.priority === 'Medium' ? 'amber' : 'neutral'}>{t.priority}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-charcoal">{t.assignee}</td>
-                      <td className="px-4 py-3 text-charcoal-muted">{formatDate(t.updatedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
 
       {tab === 'activity' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

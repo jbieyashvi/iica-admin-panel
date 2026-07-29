@@ -32,12 +32,4 @@ export const NOTIFICATIONS: AdminNotification[] = [
     unread: true,
     route: '/admin/archive',
   },
-  {
-    id: 'n4',
-    title: 'Support SLA warning',
-    body: '3 tickets approaching their response deadline.',
-    time: '2h ago',
-    unread: false,
-    route: '/admin/support',
-  },
 ];

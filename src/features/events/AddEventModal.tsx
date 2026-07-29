@@ -8,8 +8,11 @@ import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import { priceLabel } from '../../lib/format';
 import { FORMAT_LABEL, EVENT_FORMATS } from '../../config/eventLabels';
+import { EventCategoryFormModal } from './EventCategoryFormModal';
 import type { EventFormat, TicketType } from '../../types/events';
 import { cn } from '../../lib/cn';
+
+const ADD_NEW_CATEGORY = '__add_new_category__';
 
 const STEPS = ['Basic Details', 'Schedule & Location', 'Tickets', 'Review & Publish'];
 
@@ -24,8 +27,10 @@ export function AddEventModal({ open, onClose }: { open: boolean; onClose: () =>
   const { users, eventCategories } = useData();
   const { actor } = useActor();
   const creators = users.filter((u) => u.accountType === 'creator');
+  const activeCategories = eventCategories.filter((c) => c.status === 'active');
 
   const [step, setStep] = useState(0);
+  const [catModalOpen, setCatModalOpen] = useState(false);
   const [form, setForm] = useState({
     title: 'Monsoon Melodies Live',
     hostUserId: creators[0]?.id ?? '',
@@ -137,9 +142,17 @@ export function AddEventModal({ open, onClose }: { open: boolean; onClose: () =>
               {creators.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </Field>
-          <Field label="Category" htmlFor="ae-cat" required>
-            <Select id="ae-cat" value={form.category} onChange={(e) => set('category', e.target.value)}>
-              {eventCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+          <Field label="Category" htmlFor="ae-cat" required hint="Only active categories can be selected.">
+            <Select
+              id="ae-cat"
+              value={form.category}
+              onChange={(e) => {
+                if (e.target.value === ADD_NEW_CATEGORY) setCatModalOpen(true);
+                else set('category', e.target.value);
+              }}
+            >
+              {activeCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              <option value={ADD_NEW_CATEGORY}>＋ Add New Category…</option>
             </Select>
           </Field>
           <Field label="Format" htmlFor="ae-format">
@@ -230,6 +243,16 @@ export function AddEventModal({ open, onClose }: { open: boolean; onClose: () =>
           <p className="pt-2 text-xs text-charcoal-muted">Publishing requires all mandatory fields. Save Draft keeps it hidden until reviewed.</p>
         </div>
       )}
+
+      {/* Add New Category — keeps entered event data intact */}
+      <EventCategoryFormModal
+        target={catModalOpen ? 'new' : null}
+        onClose={() => setCatModalOpen(false)}
+        onCreated={(name) => {
+          set('category', name);
+          setCatModalOpen(false);
+        }}
+      />
     </Modal>
   );
 }

@@ -8,8 +8,7 @@ export type AdminRole =
   | 'super_admin'
   | 'operations_manager'
   | 'finance_manager'
-  | 'portfolio_moderator'
-  | 'support_executive';
+  | 'portfolio_moderator';
 
 export interface RoleMeta {
   id: AdminRole;

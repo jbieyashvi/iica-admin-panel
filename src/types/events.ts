@@ -196,11 +196,16 @@ export interface TicketOrder {
 
 // ---- Event categories & proposals -----------------------------------------
 
+export type EventCategoryStatus = 'active' | 'inactive';
+
 export interface EventCategoryRecord {
   id: string;
   name: string;
+  description: string;
   order: number;
   isDefault: boolean;
+  status: EventCategoryStatus;
+  createdAt: string;
 }
 
 export type ProposalStatus = 'pending' | 'approved' | 'mapped' | 'rejected' | 'needs_name';

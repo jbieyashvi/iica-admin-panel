@@ -15,6 +15,7 @@ import { ArchivePage } from './features/archive/ArchivePage';
 import { ArchiveReviewPage } from './features/archive/ArchiveReviewPage';
 import { EventsPage } from './features/events/EventsPage';
 import { EventDetailPage } from './features/events/EventDetailPage';
+import { EventCategoriesPage } from './features/events/EventCategoriesPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
 
@@ -47,11 +48,13 @@ export default function App() {
           <Route path="archive/:archiveId" element={<ArchiveReviewPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
+          <Route path="event-categories" element={<EventCategoriesPage />} />
           <Route path="settings" element={<ComingSoon />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}
           <Route path="memberships" element={<Navigate to="/admin/users" replace />} />
           <Route path="memberships/:membershipId" element={<Navigate to="/admin/users" replace />} />
+          <Route path="support" element={<Navigate to="/admin/users" replace />} />
           <Route path="audit-log" element={<Navigate to="/admin/users" replace />} />
         </Route>
 

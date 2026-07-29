@@ -291,8 +291,27 @@ export function buildOrderSeed(events: EventRecord[], now: number): TicketOrder[
 
 // ---- Event categories, proposals baseline, settings ------------------------
 
+const EVENT_CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  Concert: 'Live musical concerts and performances.',
+  'LIVE Gig': 'Intimate live gigs and sets.',
+  Workshop: 'Hands-on learning sessions and masterclasses.',
+  'Music Jam': 'Open jams and collaborative music sessions.',
+  'In-door Baithak': 'Traditional indoor musical gatherings.',
+  'Fan Meet n Greet': 'Meet-and-greet events with creators.',
+  'Painting Session': 'Guided painting and art sessions.',
+  Others: 'Uncategorised or one-off event types.',
+};
+
 export function buildEventCategories(): EventCategoryRecord[] {
-  return DEFAULT_EVENT_CATEGORIES.map((name, i) => ({ id: `ecat_${i}`, name, order: i, isDefault: true }));
+  return DEFAULT_EVENT_CATEGORIES.map((name, i) => ({
+    id: `ecat_${i}`,
+    name,
+    description: EVENT_CATEGORY_DESCRIPTIONS[name] ?? '',
+    order: i,
+    isDefault: true,
+    status: 'active',
+    createdAt: '2024-06-01T00:00:00Z',
+  }));
 }
 
 export const EVENT_SETTINGS: EventSettings = {

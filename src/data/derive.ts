@@ -1,7 +1,7 @@
 import type { MembershipRecord, UserRecord } from '../types/users';
 
 // Deterministic pseudo-random derived data for the read-only detail tabs
-// (portfolio stats, orders, collaborations, support). Not persisted — a real
+// (portfolio stats, orders, collaborations). Not persisted — a real
 // backend would serve these. Seeded off the user id so values are stable.
 
 function hash(str: string): number {
@@ -42,15 +42,6 @@ export interface CollabStats {
   reportedInteractions: number;
 }
 
-export interface SupportTicket {
-  id: string;
-  subject: string;
-  status: 'Open' | 'Resolved' | 'Pending';
-  priority: 'Low' | 'Medium' | 'High';
-  assignee: string;
-  updatedAt: string;
-}
-
 const CATALOGUE: { item: string; type: OrderRow['type'] }[] = [
   { item: 'Signature Print', type: 'Physical' },
   { item: 'Digital Preset Pack', type: 'Digital' },
@@ -60,7 +51,6 @@ const CATALOGUE: { item: string; type: OrderRow['type'] }[] = [
   { item: 'Brand Collab Kit', type: 'Physical' },
 ];
 const ORDER_STATUS: OrderRow['status'][] = ['Delivered', 'Processing', 'Awaiting Tracking', 'Completed'];
-const ASSIGNEES = ['Rahul Desai', 'Priya Sharma', 'Imran Q.', 'Unassigned'];
 
 export function derivePortfolio(user: UserRecord, mem?: MembershipRecord): PortfolioStats {
   const s = hash(user.id);
@@ -105,22 +95,6 @@ export function deriveCollab(user: UserRecord): CollabStats {
     upcomingMeetings: creator ? pick(s >> 4, 0, 4) : 0,
     reportedInteractions: user.membershipStatus === 'suspended' ? pick(s >> 5, 1, 3) : 0,
   };
-}
-
-export function deriveSupport(user: UserRecord): SupportTicket[] {
-  const s = hash(user.id + 'support');
-  const count = pick(s, 0, 3);
-  return Array.from({ length: count }, (_, i) => {
-    const k = hash(user.id + 'tkt' + i);
-    return {
-      id: `TCK-${2200 + (k % 700)}`,
-      subject: ['Payment not reflecting', 'Cannot upload archive video', 'IICA ID query', 'Refund request', 'Profile edit help'][k % 5],
-      status: (['Open', 'Resolved', 'Pending'] as const)[k % 3],
-      priority: (['Low', 'Medium', 'High'] as const)[k % 3],
-      assignee: ASSIGNEES[k % ASSIGNEES.length],
-      updatedAt: new Date(2026, 6, 5 + (k % 20)).toISOString(),
-    };
-  });
 }
 
 export function totalSpend(orders: OrderRow[]): number {
