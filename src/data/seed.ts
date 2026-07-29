@@ -19,6 +19,7 @@ import { buildProductOrders } from './seedOrders';
 import { buildCollaborations, DEFAULT_COLLAB_SETTINGS } from './seedCollaborations';
 import { buildReviews } from './seedReviews';
 import { buildBanners } from './seedBanners';
+import { buildCommissionSettings, buildCommissionOverrides, buildPayoutSettings, buildPayouts } from './seedPayouts';
 
 // Region → currency mapping for payment records.
 const CURRENCY: Record<string, { region: string; code: string; symbol: string; amount: number }> = {
@@ -240,7 +241,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 15;
+export const SEED_VERSION = 16;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);
@@ -249,6 +250,7 @@ export function buildSeedState(): DataState {
   const now = Date.now();
   const { events, proposals } = buildEventSeed(users, now);
   const products = buildProducts(users, now);
+  const payoutSettings = buildPayoutSettings();
   return {
     users,
     memberships,
@@ -268,6 +270,10 @@ export function buildSeedState(): DataState {
     collaborationSettings: DEFAULT_COLLAB_SETTINGS,
     reviews: buildReviews(now),
     banners: buildBanners(now),
+    commissionSettings: buildCommissionSettings(),
+    commissionOverrides: buildCommissionOverrides(),
+    payoutSettings,
+    payouts: buildPayouts(payoutSettings, now),
     version: SEED_VERSION,
   };
 }

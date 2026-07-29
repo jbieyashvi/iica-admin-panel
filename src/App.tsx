@@ -24,6 +24,8 @@ import { CollaborationSettingsPage } from './features/collaborations/Collaborati
 import { ReviewsPage } from './features/reviews/ReviewsPage';
 import { TransactionsPage } from './features/transactions/TransactionsPage';
 import { TransactionDetailPage } from './features/transactions/TransactionDetailPage';
+import { CommissionsPayoutsPage } from './features/commissions/CommissionsPayoutsPage';
+import { PayoutDetailPage } from './features/commissions/PayoutDetailPage';
 import { BannersPage } from './features/appcontent/BannersPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="transactions/:transactionId" element={<TransactionDetailPage />} />
+          <Route path="commissions-payouts" element={<CommissionsPayoutsPage />} />
+          <Route path="commissions-payouts/:payoutId" element={<PayoutDetailPage />} />
           <Route path="collaborations" element={<CollaborationsPage />} />
           <Route path="collaborations/:collaborationId" element={<CollaborationDetailPage />} />
           <Route path="collaboration-settings" element={<CollaborationSettingsPage />} />

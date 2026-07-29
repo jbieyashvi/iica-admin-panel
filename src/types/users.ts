@@ -147,6 +147,10 @@ export interface DataState {
   collaborationSettings: import('./collaborations').CollaborationSettings;
   reviews: import('./reviews').ReviewRecord[];
   banners: import('./banners').BannerRecord[];
+  commissionSettings: import('./payouts').CommissionConfig[];
+  commissionOverrides: import('./payouts').CommissionOverride[];
+  payoutSettings: import('./payouts').CreatorPayoutSettings[];
+  payouts: import('./payouts').PayoutRecord[];
   version: number;
 }
 

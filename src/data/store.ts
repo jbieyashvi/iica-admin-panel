@@ -45,6 +45,7 @@ import type {
 } from '../types/orders';
 import type { CollaborationSettings } from '../types/collaborations';
 import type { BannerLinkType, BannerRecord } from '../types/banners';
+import type { CommissionConfig, CommissionOverride, PayoutRecord, PayoutStatus, RevenueType } from '../types/payouts';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
 import { buildSeedState, SEED_VERSION } from './seed';
@@ -75,7 +76,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners);
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings);
   if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1221,3 +1222,102 @@ export function moveBanner(id: string, dir: 'up' | 'down', _actor: AdminActor) {
   [sorted[idx].displayOrder, sorted[swap].displayOrder] = [sorted[swap].displayOrder, sorted[idx].displayOrder];
   commitBanners(normalizeOrder(sorted));
 }
+
+// ===========================================================================
+// Commissions & Payouts
+// ===========================================================================
+
+// Commission config edits apply only to NEW payouts — historical capturedRate is
+// never rewritten. Validation: rate 0–100%, holding >= 0, min >= 0.
+export interface CommissionConfigPatch {
+  defaultRate?: number; // 0..1
+  holdingDays?: number;
+  minPayout?: number;
+  status?: 'active' | 'inactive';
+}
+
+export function updateCommissionConfig(type: RevenueType, patch: CommissionConfigPatch, _reason: string, _actor: AdminActor): boolean {
+  const cfg = state.commissionSettings.find((c) => c.type === type);
+  if (!cfg) return false;
+  if (patch.defaultRate != null && (patch.defaultRate < 0 || patch.defaultRate > 1)) return false;
+  if (patch.holdingDays != null && patch.holdingDays < 0) return false;
+  if (patch.minPayout != null && patch.minPayout < 0) return false;
+  const next: CommissionConfig = {
+    ...cfg,
+    defaultRate: patch.defaultRate ?? cfg.defaultRate,
+    holdingDays: patch.holdingDays ?? cfg.holdingDays,
+    minPayout: patch.minPayout ?? cfg.minPayout,
+    status: patch.status ?? cfg.status,
+  };
+  commit({ ...state, commissionSettings: state.commissionSettings.map((c) => (c.type === type ? next : c)) });
+  return true;
+}
+
+// One active override per category. Adding for an existing category replaces it.
+export function upsertCommissionOverride(input: { id?: string; type: RevenueType; category: string; overrideRate: number }, _actor: AdminActor): boolean {
+  if (input.overrideRate < 0 || input.overrideRate > 1) return false;
+  if (!input.category.trim()) return false;
+  const existing = state.commissionOverrides.find(
+    (o) => o.id !== input.id && o.type === input.type && o.category.toLowerCase() === input.category.trim().toLowerCase(),
+  );
+  let list: CommissionOverride[];
+  if (input.id) {
+    // Edit — drop any duplicate for the same category, then update.
+    list = state.commissionOverrides
+      .filter((o) => o.id === input.id || !(o.type === input.type && o.category.toLowerCase() === input.category.trim().toLowerCase()))
+      .map((o) => (o.id === input.id ? { ...o, type: input.type, category: input.category.trim(), overrideRate: input.overrideRate } : o));
+  } else if (existing) {
+    list = state.commissionOverrides.map((o) => (o.id === existing.id ? { ...o, overrideRate: input.overrideRate } : o));
+  } else {
+    list = [...state.commissionOverrides, { id: uid('ovr'), type: input.type, category: input.category.trim(), overrideRate: input.overrideRate, status: 'active' }];
+  }
+  commit({ ...state, commissionOverrides: list });
+  return true;
+}
+
+export function removeCommissionOverride(id: string, _actor: AdminActor) {
+  commit({ ...state, commissionOverrides: state.commissionOverrides.filter((o) => o.id !== id) });
+}
+
+function replacePayout(list: PayoutRecord[], next: PayoutRecord) {
+  return list.map((p) => (p.id === next.id ? next : p));
+}
+function commitPayout(next: PayoutRecord) {
+  commit({ ...state, payouts: replacePayout(state.payouts, next) });
+}
+
+// Eligible → Processing (records the processing date).
+export function startPayoutProcessing(payoutId: string, _actor: AdminActor): boolean {
+  const p = state.payouts.find((x) => x.id === payoutId);
+  if (!p || p.status !== 'eligible') return false;
+  commitPayout({ ...p, status: 'processing', processingAt: now(), failedAt: null, failureReason: null });
+  return true;
+}
+
+// Processing → Paid (requires reference + method + paid date).
+export function markPayoutPaid(payoutId: string, input: { reference: string; method: string }, _actor: AdminActor): boolean {
+  const p = state.payouts.find((x) => x.id === payoutId);
+  if (!p || p.status !== 'processing') return false;
+  if (!input.reference.trim() || !input.method.trim()) return false;
+  commitPayout({ ...p, status: 'paid', paidAt: now(), payoutReference: input.reference.trim(), payoutMethodUsed: input.method.trim() });
+  return true;
+}
+
+// Processing → Failed (requires reason + date).
+export function markPayoutFailed(payoutId: string, reason: string, _actor: AdminActor): boolean {
+  const p = state.payouts.find((x) => x.id === payoutId);
+  if (!p || p.status !== 'processing') return false;
+  if (!reason.trim()) return false;
+  commitPayout({ ...p, status: 'failed', failedAt: now(), failureReason: reason.trim() });
+  return true;
+}
+
+// Failed → Processing (retry; keeps the prior failure reason for the record).
+export function retryPayout(payoutId: string, _actor: AdminActor): boolean {
+  const p = state.payouts.find((x) => x.id === payoutId);
+  if (!p || p.status !== 'failed') return false;
+  commitPayout({ ...p, status: 'processing', processingAt: now() });
+  return true;
+}
+
+export type { PayoutStatus };

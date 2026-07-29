@@ -30,6 +30,7 @@ export type Permission =
   | 'manage_collaborations'
   | 'manage_reviews'
   | 'manage_transactions'
+  | 'manage_payouts'
   | 'manage_platform'
   | 'manage_admins'
   | 'manage_settings';

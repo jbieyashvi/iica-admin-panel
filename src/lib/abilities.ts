@@ -41,6 +41,10 @@ export interface Abilities {
   // Transactions (view-only financial records)
   txnView: boolean; // access the transactions module
   txnFinancials: boolean; // see payment references + commission breakdown
+  // Commissions & Payouts
+  payoutsView: boolean; // access the Commissions & Payouts module
+  payoutsProcess: boolean; // start / mark paid / mark failed / retry payouts
+  commissionsEdit: boolean; // edit commission settings & category overrides
 }
 
 const MAP: Record<AdminRole, Abilities> = {
@@ -78,6 +82,9 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewsModerate: true,
     txnView: true,
     txnFinancials: true,
+    payoutsView: true,
+    payoutsProcess: true,
+    commissionsEdit: true,
   },
   operations_manager: {
     editUsers: true,
@@ -113,6 +120,9 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewsModerate: true,
     txnView: true,
     txnFinancials: false,
+    payoutsView: true,
+    payoutsProcess: false,
+    commissionsEdit: false,
   },
   finance_manager: {
     editUsers: false,
@@ -148,6 +158,9 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewsModerate: false,
     txnView: true,
     txnFinancials: true,
+    payoutsView: true,
+    payoutsProcess: true,
+    commissionsEdit: false,
   },
   portfolio_moderator: {
     editUsers: false,
@@ -183,6 +196,9 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewsModerate: true,
     txnView: false,
     txnFinancials: false,
+    payoutsView: false,
+    payoutsProcess: false,
+    commissionsEdit: false,
   },
 };
 
