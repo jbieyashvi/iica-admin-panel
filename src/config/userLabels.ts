@@ -69,9 +69,8 @@ export const PURCHASE_STATUS_TONE: Record<PurchaseStatus, Tone> = {
   restored: 'blue',
 };
 
-// Ordered lists for filter dropdowns. Guests are not registered records, so the
-// Users table only filters Registered User + Creator Member.
-export const ACCOUNT_TYPES: AccountType[] = ['registered', 'creator'];
+// Ordered lists for filter dropdowns.
+export const ACCOUNT_TYPES: AccountType[] = ['guest', 'registered', 'creator'];
 export const MEMBERSHIP_STATUSES: MembershipStatus[] = [
   'not_started',
   'form_submitted',

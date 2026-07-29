@@ -43,9 +43,7 @@ const SORTS = [
 ];
 
 export function UsersPage() {
-  const { users: allUsers } = useData();
-  // Guests are not registered records — never shown as Users.
-  const users = useMemo(() => allUsers.filter((u) => u.accountType !== 'guest'), [allUsers]);
+  const { users } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,6 +107,7 @@ export function UsersPage() {
   const summary = useMemo(() => {
     return {
       total: users.length,
+      guests: users.filter((u) => u.accountType === 'guest').length,
       registered: users.filter((u) => u.accountType === 'registered').length,
       creators: users.filter((u) => u.accountType === 'creator' && u.membershipStatus === 'active').length,
       suspended: users.filter((u) => u.membershipStatus === 'suspended').length,
@@ -149,6 +148,7 @@ export function UsersPage() {
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {[
           { label: 'Total Users', value: summary.total },
+          { label: 'Guests', value: summary.guests },
           { label: 'Registered Users', value: summary.registered },
           { label: 'Active Creators', value: summary.creators },
           { label: 'Suspended Accounts', value: summary.suspended },

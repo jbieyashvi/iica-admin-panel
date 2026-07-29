@@ -51,6 +51,11 @@ interface Row {
 
 // prettier-ignore
 const ROWS: Row[] = [
+  // --- Guests (browse / guest checkout, no membership) ---
+  { id: 'usr_rohit',  name: 'Rohit Sharma',   email: 'rohit.sharma@example.com',   phone: '+91 98200 11223', country: 'India', city: 'Mumbai',    accountType: 'guest', status: 'not_started', joinedAt: '2026-07-20', lastActiveAt: '2026-07-26T18:40:00Z' },
+  { id: 'usr_sneha',  name: 'Sneha Iyer',     email: 'sneha.iyer@example.com',     phone: '+91 98410 55210', country: 'India', city: 'Chennai',   accountType: 'guest', status: 'not_started', joinedAt: '2026-07-18', lastActiveAt: '2026-07-25T09:10:00Z' },
+  { id: 'usr_imran',  name: 'Imran Sheikh',   email: 'imran.sheikh@example.com',   phone: '+91 90030 44119', country: 'India', city: 'Hyderabad', accountType: 'guest', status: 'not_started', joinedAt: '2026-06-30', lastActiveAt: '2026-07-11T12:00:00Z' },
+
   // --- Registered buyers (account created, no membership started) ---
   { id: 'usr_nisha',  name: 'Nisha Reddy',    email: 'nisha.reddy@example.com',    phone: '+91 99000 88771', country: 'India', city: 'Bengaluru', accountType: 'registered', status: 'not_started', joinedAt: '2026-05-14', lastActiveAt: '2026-07-27T06:20:00Z' },
   { id: 'usr_arjun',  name: 'Arjun Bhatia',   email: 'arjun.bhatia@example.com',   phone: '+91 98110 23456', country: 'India', city: 'Delhi',     accountType: 'registered', status: 'not_started', joinedAt: '2026-04-02', lastActiveAt: '2026-07-24T14:30:00Z' },
@@ -246,7 +251,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 19;
+export const SEED_VERSION = 20;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);

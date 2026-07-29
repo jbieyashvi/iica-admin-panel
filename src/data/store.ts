@@ -68,21 +68,21 @@ function migrateStatuses(s: DataState): DataState {
   const remapMs = (st: string): MembershipStatus =>
     (st === 'not_applicable' ? 'not_started' : st === 'iica_id_generated' ? 'form_submitted' : st) as MembershipStatus;
 
-  const guestIds = new Set(s.users.filter((u) => u.accountType === 'guest').map((u) => u.id));
-  let users = s.users;
-  if (guestIds.size > 0) { changed = true; users = users.filter((u) => u.accountType !== 'guest'); }
-  users = users.map((u) => {
+  const users = s.users.map((u) => {
     const ms = remapMs(u.membershipStatus as string);
+    // Guests stay guests with no membership / IICA ID.
+    if (u.accountType === 'guest') {
+      if (ms !== u.membershipStatus || u.iicaId) changed = true;
+      return { ...u, membershipStatus: ms, iicaId: undefined };
+    }
     const paid = PAID.has(ms);
-    const accountType = paid ? 'creator' : 'registered';
+    const accountType: AccountType = paid ? 'creator' : 'registered';
     const iicaId = paid ? u.iicaId : undefined;
     if (ms !== u.membershipStatus || accountType !== u.accountType || iicaId !== u.iicaId) changed = true;
     return { ...u, membershipStatus: ms, accountType, iicaId };
   });
 
-  let memberships = s.memberships;
-  if (guestIds.size > 0) memberships = memberships.filter((m) => !guestIds.has(m.userId));
-  memberships = memberships.map((m) => {
+  const memberships = s.memberships.map((m) => {
     const ms = remapMs(m.membershipStatus as string);
     const paid = PAID.has(ms) && m.purchaseStatus === 'completed';
     const iicaId = paid ? m.iicaId : undefined;
