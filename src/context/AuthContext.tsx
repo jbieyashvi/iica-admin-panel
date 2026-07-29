@@ -10,11 +10,8 @@ interface AuthContextValue {
   user: AdminUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ email: string }>;
-  verifyOtp: (code: string) => Promise<void>;
-  resendOtp: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  getPendingEmail: () => string | null;
   can: (permission: Permission) => boolean;
 }
 
@@ -30,13 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = useCallback(
-    (email: string, password: string) => authService.login(email, password),
-    [],
-  );
-
-  const verifyOtp = useCallback(async (code: string) => {
-    const next = await authService.verifyOtp(code);
+  const login = useCallback(async (email: string, password: string) => {
+    const next = await authService.login(email, password);
     recordAdminLogin(next.user.id);
     setSession(next);
   }, []);
@@ -58,13 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!session,
       loading,
       login,
-      verifyOtp,
-      resendOtp: authService.resendOtp,
       logout,
-      getPendingEmail: authService.getPendingEmail,
       can,
     }),
-    [session, loading, login, verifyOtp, logout, can],
+    [session, loading, login, logout, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

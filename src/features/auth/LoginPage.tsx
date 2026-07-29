@@ -22,7 +22,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/admin/verify');
+      navigate('/admin/dashboard', { replace: true });
     } catch (err) {
       setError(err instanceof AuthError ? err.message : 'Something went wrong. Please try again.');
     } finally {
@@ -90,7 +90,7 @@ export function LoginPage() {
         </div>
 
         <Button type="submit" size="lg" loading={loading} className="w-full">
-          {loading ? 'Verifying…' : 'Continue'}
+          {loading ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
 
@@ -98,7 +98,6 @@ export function LoginPage() {
         <p className="font-medium text-charcoal">Demo credentials</p>
         <p className="mt-1">Email: {DEMO.email}</p>
         <p>Password: {DEMO.password}</p>
-        <p>OTP: {DEMO.otp}</p>
       </div>
     </AuthShell>
   );

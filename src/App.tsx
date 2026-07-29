@@ -3,7 +3,6 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { LoginPage } from './features/auth/LoginPage';
-import { VerifyPage } from './features/auth/VerifyPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { UsersPage } from './features/users/UsersPage';
 import { UserDetailPage } from './features/users/UserDetailPage';
@@ -44,7 +43,8 @@ export default function App() {
       <Routes>
         {/* Public auth routes */}
         <Route path="/admin/login" element={<LoginPage />} />
-        <Route path="/admin/verify" element={<VerifyPage />} />
+        {/* OTP removed — old verify URL now returns to login. */}
+        <Route path="/admin/verify" element={<Navigate to="/admin/login" replace />} />
 
         {/* Protected admin shell */}
         <Route
