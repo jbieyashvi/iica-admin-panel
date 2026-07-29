@@ -66,8 +66,9 @@ export default function App() {
           <Route path="collaboration-settings" element={<CollaborationSettingsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="reviews-testimonials" element={<Navigate to="/admin/reviews" replace />} />
-          <Route path="content-management" element={<BannersPage />} />
-          <Route path="app-content" element={<Navigate to="/admin/content-management" replace />} />
+          <Route path="banners" element={<BannersPage />} />
+          <Route path="content-management" element={<Navigate to="/admin/banners" replace />} />
+          <Route path="app-content" element={<Navigate to="/admin/banners" replace />} />
           <Route path="settings" element={<ComingSoon />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}

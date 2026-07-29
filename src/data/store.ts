@@ -1143,7 +1143,7 @@ export function deleteReview(reviewId: string, _reason: string, _actor: AdminAct
 }
 
 // ===========================================================================
-// Home banners (Content Management)
+// Home banners (Banners)
 // ===========================================================================
 
 function commitBanners(list: BannerRecord[]) {

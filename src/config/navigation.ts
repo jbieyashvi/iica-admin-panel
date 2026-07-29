@@ -50,12 +50,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
       { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_commerce' },
       { label: 'Reviews', to: '/admin/reviews', icon: MessageSquareQuote, permission: 'manage_reviews' },
-      { label: 'Content Management', to: '/admin/content-management', icon: Megaphone, permission: 'manage_commerce' },
     ],
   },
   {
     title: 'Platform',
     items: [
+      { label: 'Banners', to: '/admin/banners', icon: Megaphone, permission: 'manage_commerce' },
       { label: 'Membership Categories', to: '/admin/categories', icon: Tags, permission: 'manage_catalogue' },
       { label: 'Settings', to: '/admin/settings', icon: Settings, permission: 'manage_settings' },
     ],
