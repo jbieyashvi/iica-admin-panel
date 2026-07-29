@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, ShoppingBag } from 'lucide-react';
 import type { MetricCardData } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../data/store';
@@ -24,8 +25,19 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { users, memberships, portfolios, archives, events } = useData();
+  const { users, memberships, portfolios, archives, events, productOrders } = useData();
+  const navigate = useNavigate();
   const [range, setRange] = useState<RangeKey>('mtd');
+
+  const ordersOverview = useMemo(() => {
+    const openIssues = (o: (typeof productOrders)[number]) => o.issues.filter((i) => !['closed', 'rejected', 'refunded'].includes(i.status)).length;
+    return [
+      { label: 'Total Orders', value: productOrders.length, bucket: 'all' },
+      { label: 'Awaiting Seller Action', value: productOrders.filter((o) => o.fulfilmentStatus === 'awaiting_acceptance').length, bucket: 'awaiting' },
+      { label: 'In Transit', value: productOrders.filter((o) => o.fulfilmentStatus === 'in_transit').length, bucket: 'transit' },
+      { label: 'Issues & Requests', value: productOrders.filter((o) => openIssues(o) > 0).length, bucket: 'issues' },
+    ];
+  }, [productOrders]);
 
   const metrics: MetricCardData[] = useMemo(() => {
     const activeCreators = memberships.filter((m) => m.membershipStatus === 'active').length;
@@ -121,6 +133,26 @@ export function DashboardPage() {
           {metrics.map((m) => (
             <MetricCard key={m.id} metric={m} />
           ))}
+        </div>
+
+        {/* Orders overview (compact, clickable) */}
+        <div className="card p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-magenta-600" />
+            <h3 className="text-sm font-semibold text-charcoal">Orders Overview</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {ordersOverview.map((o) => (
+              <button
+                key={o.label}
+                onClick={() => navigate(o.bucket === 'all' ? '/admin/orders' : `/admin/orders?bucket=${o.bucket}`)}
+                className="rounded-lg border border-cream-200 bg-cream-100/50 p-3 text-left transition-colors hover:border-magenta-200"
+              >
+                <p className="font-serif text-xl font-medium text-charcoal">{o.value}</p>
+                <p className="text-xs text-charcoal-muted">{o.label}</p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Charts */}

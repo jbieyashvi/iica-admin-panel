@@ -36,6 +36,13 @@ import type {
   ProductStatus,
   ProductType,
 } from '../types/products';
+import type {
+  CommEntry,
+  FulfilmentStatus,
+  IssueStatus,
+  IssueType,
+  ProductOrder,
+} from '../types/orders';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
 import { buildSeedState, SEED_VERSION } from './seed';
@@ -974,3 +981,139 @@ export function addProductNote(productId: string, body: string, actor: AdminActo
 }
 
 export type { ProductStatus };
+
+// ===========================================================================
+// Product Orders
+// ===========================================================================
+
+function replaceOrderRecord(list: ProductOrder[], next: ProductOrder) {
+  return list.map((o) => (o.id === next.id ? next : o));
+}
+function pushOrderTimeline(o: ProductOrder, key: string, label: string, detail?: string): ProductOrder {
+  return { ...o, timeline: [...o.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
+}
+function commitOrder(next: ProductOrder) {
+  commit({ ...state, productOrders: replaceOrderRecord(state.productOrders, next) });
+}
+
+function deriveOrderStatus(to: FulfilmentStatus): ProductOrder['orderStatus'] {
+  if (['delivered', 'buyer_confirmed', 'completed', 'returned'].includes(to)) return 'completed';
+  return 'processing';
+}
+
+export function advanceFulfilment(orderId: string, to: FulfilmentStatus, _actor: AdminActor, reason?: string) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o) return;
+  let next: ProductOrder = {
+    ...o,
+    fulfilmentStatus: to,
+    orderStatus: deriveOrderStatus(to),
+    sellerAcceptedAt: o.sellerAcceptedAt ?? (to !== 'awaiting_acceptance' ? now() : null),
+    lastUpdatedAt: now(),
+  };
+  // Type-specific timestamps.
+  if (next.shipment) {
+    const s = { ...next.shipment };
+    if (to === 'dispatched' && !s.dispatchedAt) s.dispatchedAt = now();
+    if (to === 'delivered') s.deliveredAt = now();
+    next.shipment = s;
+  }
+  if (next.digital) {
+    const d = { ...next.digital };
+    if (to === 'delivery_sent' && !d.deliverySentAt) d.deliverySentAt = now();
+    if (to === 'buyer_confirmed') d.buyerAccessConfirmed = true;
+    next.digital = d;
+  }
+  if (next.masterclass) {
+    const m = { ...next.masterclass };
+    if (to === 'delivery_sent' && !m.linkSentAt) m.linkSentAt = now();
+    if (to === 'buyer_confirmed') m.buyerAccessConfirmed = true;
+    next.masterclass = m;
+  }
+  next = pushOrderTimeline(next, 'fulfilment', `Fulfilment: ${to.replace(/_/g, ' ')}`, reason);
+  commitOrder(next);
+}
+
+export function correctTracking(orderId: string, patch: { courier?: string; trackingId?: string; trackingUrl?: string; estimatedDeliveryAt?: string | null }, reason: string, _actor: AdminActor) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o || !o.shipment) return;
+  const shipment = {
+    ...o.shipment,
+    courier: patch.courier ?? o.shipment.courier,
+    trackingId: patch.trackingId ?? o.shipment.trackingId,
+    trackingUrl: patch.trackingUrl ?? o.shipment.trackingUrl,
+    estimatedDeliveryAt: patch.estimatedDeliveryAt ?? o.shipment.estimatedDeliveryAt,
+  };
+  commitOrder(pushOrderTimeline({ ...o, shipment, lastUpdatedAt: now() }, 'tracking', 'Tracking details corrected', reason));
+}
+
+export function markOrderDelivered(orderId: string, reason: string, actor: AdminActor) {
+  advanceFulfilment(orderId, 'delivered', actor, `Marked delivered: ${reason}`);
+}
+
+export function addOrderCommunication(orderId: string, entry: { channel: 'Email' | 'Phone'; recipient: string; messageType: string; body?: string }, actor: AdminActor) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o) return;
+  const comm: CommEntry = {
+    id: uid('comm'),
+    at: now(),
+    sender: actor.name,
+    recipient: entry.recipient,
+    channel: entry.channel,
+    messageType: entry.messageType,
+    deliveryStatus: entry.channel === 'Email' ? 'Sent' : 'Logged',
+    body: entry.body,
+  };
+  commitOrder({ ...o, communications: [comm, ...o.communications], lastUpdatedAt: now() });
+}
+
+export function addOrderNote(orderId: string, body: string, actor: AdminActor) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o) return;
+  commitOrder({ ...o, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...o.notes] });
+}
+
+export function openIssue(orderId: string, input: { type: IssueType; reason: string }, actor: AdminActor) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o) return;
+  const issue = {
+    id: uid('iss'),
+    type: input.type,
+    buyerReason: input.reason,
+    sellerResponse: null,
+    status: 'new' as IssueStatus,
+    assignedAdmin: actor.name,
+    evidence: [] as string[],
+    notes: [],
+    decisions: [],
+    createdAt: now(),
+  };
+  commitOrder(pushOrderTimeline({ ...o, issues: [issue, ...o.issues], lastUpdatedAt: now() }, 'issue', `Issue opened: ${input.type.replace(/_/g, ' ')}`));
+}
+
+// Move an issue to a new status with a logged decision. Approving NEVER changes
+// payment status; refunds are handled separately (Sent to Finance → …).
+export function setIssueStatus(orderId: string, issueId: string, action: string, statusAfter: IssueStatus, actor: AdminActor, reason?: string) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o) return;
+  const issues = o.issues.map((i) =>
+    i.id === issueId
+      ? {
+          ...i,
+          status: statusAfter,
+          assignedAdmin: i.assignedAdmin ?? actor.name,
+          decisions: [...i.decisions, { id: uid('dec'), action, reason, by: actor.name, at: now(), statusAfter }],
+        }
+      : i,
+  );
+  commitOrder({ ...o, issues, lastUpdatedAt: now() });
+}
+
+export function addIssueNote(orderId: string, issueId: string, body: string, actor: AdminActor) {
+  const o = state.productOrders.find((x) => x.id === orderId);
+  if (!o) return;
+  const issues = o.issues.map((i) => (i.id === issueId ? { ...i, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...i.notes] } : i));
+  commitOrder({ ...o, issues });
+}
+
+export type { FulfilmentStatus, IssueStatus };

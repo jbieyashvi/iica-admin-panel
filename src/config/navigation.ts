@@ -9,6 +9,7 @@ import {
   Tag,
   Package,
   PackagePlus,
+  ShoppingBag,
   Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -47,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Event Categories', to: '/admin/event-categories', icon: Tag, permission: 'manage_commerce' },
       { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
       { label: 'Product Categories', to: '/admin/product-categories', icon: PackagePlus, permission: 'manage_commerce' },
+      { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_commerce' },
     ],
   },
   {

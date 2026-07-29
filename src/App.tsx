@@ -18,6 +18,8 @@ import { EventCategoriesPage } from './features/events/EventCategoriesPage';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { ProductCategoriesPage } from './features/products/ProductCategoriesPage';
+import { OrdersPage } from './features/orders/OrdersPage';
+import { OrderDetailPage } from './features/orders/OrderDetailPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
 
@@ -54,6 +56,8 @@ export default function App() {
           <Route path="products" element={<ProductsPage />} />
           <Route path="products/:productId" element={<ProductDetailPage />} />
           <Route path="product-categories" element={<ProductCategoriesPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:orderId" element={<OrderDetailPage />} />
           <Route path="settings" element={<ComingSoon />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}

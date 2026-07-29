@@ -15,6 +15,7 @@ import type {
 import { buildCategorySeed, buildPortfolioSeed } from './seedPortfolios';
 import { buildArchiveSeed, buildEventSeed, buildOrderSeed, buildEventCategories, EVENT_SETTINGS } from './seedEvents';
 import { buildProductCategories, buildProducts } from './seedProducts';
+import { buildProductOrders } from './seedOrders';
 
 // Region → currency mapping for payment records.
 const CURRENCY: Record<string, { region: string; code: string; symbol: string; amount: number }> = {
@@ -236,7 +237,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 7;
+export const SEED_VERSION = 9;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);
@@ -244,6 +245,7 @@ export function buildSeedState(): DataState {
   const portfolios = buildPortfolioSeed(users, memberships);
   const now = Date.now();
   const { events, proposals } = buildEventSeed(users, now);
+  const products = buildProducts(users, now);
   return {
     users,
     memberships,
@@ -256,8 +258,9 @@ export function buildSeedState(): DataState {
     eventCategories: buildEventCategories(),
     categoryProposals: proposals,
     eventSettings: EVENT_SETTINGS,
-    products: buildProducts(users, now),
+    products,
     productCategories: buildProductCategories(),
+    productOrders: buildProductOrders(products, users, now),
     version: SEED_VERSION,
   };
 }

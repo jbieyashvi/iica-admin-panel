@@ -142,6 +142,7 @@ export interface DataState {
   eventSettings: import('./events').EventSettings;
   products: import('./products').ProductRecord[];
   productCategories: import('./products').ProductCategoryRecord[];
+  productOrders: import('./orders').ProductOrder[];
   version: number;
 }
 
