@@ -3,13 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity as ActivityIcon,
   Eye,
-  EyeOff,
   FolderOpen,
   Gauge,
   Info,
   MapPin,
-  Pencil,
-  RotateCcw,
   Search,
   Settings,
   X,
@@ -23,17 +20,12 @@ import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { Field, Input } from '../../components/ui/Field';
-import { CorrectLocationModal, EditDiscoveryModal, ActivityScoreDrawer } from './CatalogueDrawers';
-import { useData, setCatalogueHidden } from '../../data/store';
-import { useActor } from '../../lib/useActor';
-import { toast } from '../../components/ui/toast';
+import { ActivityScoreDrawer } from './CatalogueDrawers';
+import { useData } from '../../data/store';
 import { timeAgo, formatNumber } from '../../lib/format';
 import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
 import { PORTFOLIO_STATUSES, PORTFOLIO_STATUS_LABEL, VISIBILITIES, VISIBILITY_LABEL } from '../../config/portfolioLabels';
 import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
-import { RESTRICTED_HINT } from '../../lib/abilities';
 import type { PortfolioRecord } from '../../types/portfolio';
 import type { MembershipRecord, UserRecord } from '../../types/users';
 
@@ -65,17 +57,12 @@ interface Row {
 
 export function CataloguePage() {
   const { portfolios, users, memberships } = useData();
-  const { abilities, actor } = useActor();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [locationTarget, setLocationTarget] = useState<Row | null>(null);
-  const [discoveryTarget, setDiscoveryTarget] = useState<PortfolioRecord | null>(null);
   const [activityTarget, setActivityTarget] = useState<Row | null>(null);
-  const [hideTarget, setHideTarget] = useState<Row | null>(null);
-  const [restoreTarget, setRestoreTarget] = useState<Row | null>(null);
-  const [hideReason, setHideReason] = useState('');
+  const [unavailable, setUnavailable] = useState<Row | null>(null);
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
@@ -180,22 +167,13 @@ export function CataloguePage() {
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
   const openReview = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: '/admin/catalogue' } });
 
-  const doHide = () => {
-    if (!hideTarget) return;
-    if (!hideReason.trim()) {
-      toast('A reason is required to hide a profile.', 'error');
+  // Open the connected portfolio; a not-started profile has no portfolio to open.
+  const openPortfolio = (row: Row) => {
+    if (row.p.status === 'not_started') {
+      setUnavailable(row);
       return;
     }
-    setCatalogueHidden(hideTarget.p.id, true, hideReason.trim(), actor);
-    toast(`${hideTarget.u?.name ?? 'Profile'} hidden from catalogue.`, 'info');
-    setHideTarget(null);
-    setHideReason('');
-  };
-  const doRestore = () => {
-    if (!restoreTarget) return;
-    setCatalogueHidden(restoreTarget.p.id, false, 'Restored to catalogue', actor);
-    toast(`${restoreTarget.u?.name ?? 'Profile'} restored to catalogue.`);
-    setRestoreTarget(null);
+    openReview(row.p.id);
   };
 
   const selectCls = 'text-sm';
@@ -204,7 +182,7 @@ export function CataloguePage() {
     <div>
       <PageHeader
         title="Profile Catalogue"
-        description="Manage catalogue visibility, profile information and discovery data."
+        description="Browse creator catalogue profiles, portfolios and activity."
         actions={
           <>
             <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
@@ -344,14 +322,8 @@ export function CataloguePage() {
                         <DropdownMenu
                           items={[
                             { label: 'View Catalogue Profile', icon: <Eye className="h-4 w-4" />, onClick: () => openReview(p.id) },
-                            { label: 'Open Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => openReview(p.id) },
+                            { label: 'Open Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => openPortfolio(row) },
                             { label: 'View Activity Breakdown', icon: <ActivityIcon className="h-4 w-4" />, onClick: () => setActivityTarget(row) },
-                            { divider: true, label: 'd' },
-                            { label: 'Edit Discovery Data', icon: <Pencil className="h-4 w-4" />, disabled: !abilities.manageCatalogue, disabledHint: RESTRICTED_HINT, onClick: () => setDiscoveryTarget(p) },
-                            { label: 'Correct Location', icon: <MapPin className="h-4 w-4" />, disabled: !abilities.correctLocation, disabledHint: RESTRICTED_HINT, onClick: () => setLocationTarget(row) },
-                            row.visibility === 'hidden'
-                              ? { label: 'Restore to Catalogue', icon: <RotateCcw className="h-4 w-4" />, disabled: !abilities.manageCatalogue, disabledHint: RESTRICTED_HINT, onClick: () => setRestoreTarget(row) }
-                              : { label: 'Hide from Catalogue', icon: <EyeOff className="h-4 w-4" />, danger: true, disabled: !abilities.manageCatalogue || row.visibility === 'ineligible', disabledHint: row.visibility === 'ineligible' ? 'Ineligible profiles are already excluded.' : RESTRICTED_HINT, onClick: () => setHideTarget(row) },
                           ]}
                         />
                       </div>
@@ -371,35 +343,20 @@ export function CataloguePage() {
         )}
       </div>
 
-      {/* Modals & drawers */}
-      <CorrectLocationModal portfolio={locationTarget?.p ?? null} user={locationTarget?.u} onClose={() => setLocationTarget(null)} />
-      <EditDiscoveryModal portfolio={discoveryTarget} onClose={() => setDiscoveryTarget(null)} />
+      {/* Drawers & modals */}
       <ActivityScoreDrawer portfolio={activityTarget?.p ?? null} user={activityTarget?.u} onClose={() => setActivityTarget(null)} />
 
-      <ConfirmDialog
-        open={!!restoreTarget}
-        title={`Restore ${restoreTarget?.u?.name ?? 'profile'} to catalogue?`}
-        description="The profile becomes visible in discovery again (subject to eligibility)."
-        confirmLabel="Restore"
-        onConfirm={doRestore}
-        onCancel={() => setRestoreTarget(null)}
-      />
-
       <Modal
-        open={!!hideTarget}
-        onClose={() => { setHideTarget(null); setHideReason(''); }}
-        title={`Hide ${hideTarget?.u?.name ?? 'profile'} from catalogue?`}
-        description="The profile stays intact but won't appear in discovery."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => { setHideTarget(null); setHideReason(''); }}>Cancel</Button>
-            <Button variant="danger" onClick={doHide}>Hide profile</Button>
-          </>
-        }
+        open={!!unavailable}
+        onClose={() => setUnavailable(null)}
+        title="Portfolio not available"
+        description={`${unavailable?.u?.name ?? 'This creator'} has not published a portfolio yet.`}
+        footer={<Button onClick={() => setUnavailable(null)}>Close</Button>}
       >
-        <Field label="Reason" htmlFor="hide-reason" required>
-          <Input id="hide-reason" value={hideReason} onChange={(e) => setHideReason(e.target.value)} placeholder="Why is this profile being hidden?" />
-        </Field>
+        <div className="flex items-start gap-2.5 rounded-lg border border-cream-200 bg-cream-100/50 px-3.5 py-3 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-charcoal-muted" />
+          <p className="text-charcoal-muted">There is no portfolio to open for this profile yet. It becomes available once the creator starts and submits one.</p>
+        </div>
       </Modal>
 
       <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Catalogue Settings" description="How discovery & catalogue visibility work.">
@@ -415,7 +372,7 @@ export function CataloguePage() {
           <ul className="list-inside list-disc space-y-1 text-charcoal-muted">
             <li>Featured placement is earned automatically through activity — there is no manual "featured" override.</li>
             <li>Discovery ranking uses activity signals, never follower count.</li>
-            <li>Admins may correct inaccurate self-reported locations through the logged correction flow.</li>
+            <li>This page is view-only — catalogue visibility, location and discovery data are managed elsewhere.</li>
           </ul>
         </div>
       </Modal>
