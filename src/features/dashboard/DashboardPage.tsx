@@ -1,117 +1,201 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, ShoppingBag } from 'lucide-react';
-import type { MetricCardData } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import { Calendar } from 'lucide-react';
 import { useData } from '../../data/store';
-import { formatNumber } from '../../lib/format';
+import { formatNumber, formatINR } from '../../lib/format';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { MetricCard } from '../../components/ui/MetricCard';
-import { UserGrowthChart, ProfilesByCategoryChart, EventsOverviewChart } from './sections/DashboardCharts';
-import { EVENT_STATUS_LABEL, EVENT_STATUSES } from '../../config/eventLabels';
-import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
+import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
+import {
+  CommerceSnapshotChart,
+  CollaborationSnapshotChart,
+  ProfilesByLocationChart,
+  MembershipCategoryChart,
+  RevenueOverviewChart,
+} from './sections/DashboardCharts';
 import { cn } from '../../lib/cn';
 
-const RANGE_LABELS = [
-  { key: 'today', label: 'Today' },
-  { key: 'wtd', label: 'This week' },
-  { key: 'mtd', label: 'This month' },
-  { key: 'qtd', label: 'This quarter' },
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const RANGES = [
+  { key: '30d', label: 'Last 30 Days' },
+  { key: '3m', label: 'Last 3 Months' },
+  { key: '6m', label: 'Last 6 Months' },
+  { key: 'year', label: 'This Year' },
+  { key: 'all', label: 'All Time' },
+] as const;
+type RangeKey = (typeof RANGES)[number]['key'];
+
+function rangeStart(key: RangeKey): number {
+  const d = new Date();
+  if (key === '30d') return d.getTime() - 30 * 86400000;
+  if (key === '3m') { const x = new Date(d); x.setMonth(x.getMonth() - 3); return x.getTime(); }
+  if (key === '6m') { const x = new Date(d); x.setMonth(x.getMonth() - 6); return x.getTime(); }
+  if (key === 'year') return new Date(d.getFullYear(), 0, 1).getTime();
+  return 0;
+}
+const monthKey = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const monthLabel = (key: string) => { const [y, m] = key.split('-'); return `${MONTHS[Number(m) - 1]} ${y.slice(2)}`; };
+
+// Completed-refund total (product orders use "Completed", event orders use "completed").
+const completed = (list: { amount: number; status: string }[]) =>
+  list.filter((r) => r.status.toLowerCase() === 'completed').reduce((s, r) => s + r.amount, 0);
+
+const PRODUCT_TYPES = [
+  { key: 'physical', label: 'Physical' },
+  { key: 'digital', label: 'Digital' },
+  { key: 'masterclass', label: 'Masterclass' },
 ] as const;
 
-type RangeKey = (typeof RANGE_LABELS)[number]['key'];
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 export function DashboardPage() {
-  const { user } = useAuth();
-  const { users, memberships, portfolios, archives, events, productOrders } = useData();
-  const navigate = useNavigate();
-  const [range, setRange] = useState<RangeKey>('mtd');
+  const { users, memberships, portfolios, products, productOrders, orders, collaborations, categories } = useData();
+  const [range, setRange] = useState<RangeKey>('6m');
 
-  const ordersOverview = useMemo(() => {
-    const openIssues = (o: (typeof productOrders)[number]) => o.issues.filter((i) => !['closed', 'rejected', 'refunded'].includes(i.status)).length;
+  const now = Date.now();
+  const start = useMemo(() => rangeStart(range), [range]);
+  const inPeriod = (iso?: string | null) => !!iso && new Date(iso).getTime() >= start && new Date(iso).getTime() <= now;
+
+  // ---- Retained (paid) revenue per record ----
+  const productRev = (o: (typeof productOrders)[number]) =>
+    (o.paymentStatus === 'paid' || o.paymentStatus === 'partially_refunded') ? Math.max(0, o.total - completed(o.refundHistory)) : 0;
+  const eventRev = (o: (typeof orders)[number]) =>
+    (o.paymentStatus === 'paid' || o.paymentStatus === 'partially_refunded') ? Math.max(0, o.total - completed(o.refundHistory)) : 0;
+  const membershipRev = (m: (typeof memberships)[number]) =>
+    m.payment.purchaseStatus === 'completed' && !m.payment.refundStatus ? m.payment.amount : 0;
+
+  // ---- Summary cards ----
+  const cards = useMemo(() => {
+    const totalUsers = users.filter((u) => u.accountType !== 'guest').length;
+    const activeCreators = users.filter((u) => u.accountType === 'creator' && u.membershipStatus === 'active').length;
+    const totalOrders = productOrders.filter((o) => inPeriod(o.orderedAt)).length;
+    let revenue = 0;
+    productOrders.forEach((o) => { if (inPeriod(o.orderedAt)) revenue += productRev(o); });
+    orders.forEach((o) => { if (inPeriod(o.bookingDate)) revenue += eventRev(o); });
+    memberships.forEach((m) => { if (inPeriod(m.payment.purchaseDate)) revenue += membershipRev(m); });
     return [
-      { label: 'Total Orders', value: productOrders.length, bucket: 'all' },
-      { label: 'Awaiting Seller Action', value: productOrders.filter((o) => o.fulfilmentStatus === 'awaiting_acceptance').length, bucket: 'awaiting' },
-      { label: 'In Transit', value: productOrders.filter((o) => o.fulfilmentStatus === 'in_transit').length, bucket: 'transit' },
-      { label: 'Issues & Requests', value: productOrders.filter((o) => openIssues(o) > 0).length, bucket: 'issues' },
+      { label: 'Total Users', value: formatNumber(totalUsers) },
+      { label: 'Active Creators', value: formatNumber(activeCreators) },
+      { label: 'Total Orders', value: formatNumber(totalOrders) },
+      { label: 'Total Revenue', value: formatINR(revenue) },
     ];
-  }, [productOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, memberships, productOrders, orders, range]);
 
-  const metrics: MetricCardData[] = useMemo(() => {
-    const activeCreators = memberships.filter((m) => m.membershipStatus === 'active').length;
-    const publishedProfiles = portfolios.filter((p) => p.status === 'published').length;
-    const archiveVideos = archives.length;
-    const totalEvents = events.length;
-    const upcomingEvents = events.filter((e) => new Date(e.startAt).getTime() > Date.now() && ['published', 'sold_out'].includes(e.status)).length;
-    const freeEvents = events.filter((e) => e.ticketType === 'free').length;
-    const paidEvents = events.filter((e) => e.ticketType === 'paid').length;
-
-    const m = (id: string, label: string, value: number, change: number, hint: string): MetricCardData => ({
-      id, label, value: formatNumber(value), rawValue: value, change,
-      direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat', hint,
-    });
-    return [
-      m('users', 'Total Users', users.length, 6.4, 'All registered app users'),
-      m('creators', 'Active Creators', activeCreators, 4.1, 'Memberships currently active'),
-      m('profiles', 'Published Profiles', publishedProfiles, 3.2, 'Catalogue-visible portfolios'),
-      m('archive', 'Archive Videos', archiveVideos, 5.1, 'YouTube videos in the directory'),
-      m('events_total', 'Total Events', totalEvents, 2.4, 'All events on the platform'),
-      m('events_upcoming', 'Upcoming Events', upcomingEvents, 0, 'Published & scheduled ahead'),
-      m('events_free', 'Free Events', freeEvents, 1.8, 'Events with free entry'),
-      m('events_paid', 'Paid Events', paidEvents, 3.6, 'Events with paid tickets'),
+  // ---- Commerce Snapshot ----
+  const commerce = useMemo(() => {
+    const rows = PRODUCT_TYPES.map((t) => ({
+      type: t.label,
+      products: products.filter((p) => p.type === t.key).length,
+      orders: productOrders.filter((o) => o.productType === t.key).length,
+    }));
+    const footnote = [
+      { label: 'Published Products', value: products.filter((p) => p.status === 'published').length },
+      { label: 'Paid Orders', value: productOrders.filter((o) => o.paymentStatus === 'paid' || o.paymentStatus === 'partially_refunded').length },
+      { label: 'Free Orders', value: productOrders.filter((o) => o.total === 0).length },
     ];
-  }, [users.length, memberships, portfolios, archives, events]);
+    return { rows, footnote };
+  }, [products, productOrders]);
 
-  // User Growth — cumulative registered users by join month.
-  const growth = useMemo(() => {
-    const byMonth = new Map<string, number>();
-    users.forEach((u) => {
-      const d = new Date(u.joinedAt);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+  // ---- Collaboration Snapshot (each collab counted once) ----
+  const collab = useMemo(() => {
+    const b = { Suggested: 0, Pending: 0, Accepted: 0, Meeting: 0, Active: 0, Completed: 0 };
+    collaborations.forEach((c) => {
+      if (c.progress === 'completed') b.Completed++;
+      else if (c.meeting?.status === 'scheduled') b.Meeting++;
+      else if (['discussion_scheduled', 'in_discussion', 'confirmed'].includes(c.progress)) b.Active++;
+      else if (c.requestStatus === 'accepted') b.Accepted++;
+      else if (c.requestStatus === 'request_sent' || c.requestStatus === 'pending_response') b.Pending++;
+      else if (c.requestStatus === 'suggested') b.Suggested++;
     });
-    const keys = [...byMonth.keys()].sort();
-    let cumulative = 0;
-    return keys.map((k) => {
-      cumulative += byMonth.get(k) ?? 0;
-      const [y, mo] = k.split('-');
-      return { label: `${MONTHS[Number(mo) - 1]} ${y.slice(2)}`, users: cumulative };
+    const data = [
+      { name: 'Suggested Match', value: b.Suggested },
+      { name: 'Pending Request', value: b.Pending },
+      { name: 'Accepted', value: b.Accepted },
+      { name: 'Meeting Scheduled', value: b.Meeting },
+      { name: 'Active', value: b.Active },
+      { name: 'Completed', value: b.Completed },
+    ];
+    return { data, total: data.reduce((s, d) => s + d.value, 0) };
+  }, [collaborations]);
+
+  // ---- Profiles by Location (visible creator profiles only) ----
+  const location = useMemo(() => {
+    const counts = new Map<string, number>();
+    portfolios.forEach((p) => {
+      const u = users.find((x) => x.id === p.userId);
+      const m = memberships.find((x) => x.userId === p.userId);
+      if (catalogueVisibility(p, u, m) !== 'visible') return;
+      const city = effectiveLocation(p, u).city?.trim() || 'Not Specified';
+      counts.set(city, (counts.get(city) ?? 0) + 1);
     });
-  }, [users]);
+    const specified = [...counts.entries()].filter(([c]) => c !== 'Not Specified').sort((a, b) => b[1] - a[1]);
+    const top = specified.slice(0, 6);
+    const otherCount = specified.slice(6).reduce((s, [, n]) => s + n, 0);
+    const rows = top.map(([city, count]) => ({ city, count }));
+    if (otherCount > 0) rows.push({ city: 'Other', count: otherCount });
+    const notSpecified = counts.get('Not Specified') ?? 0;
+    if (notSpecified > 0) rows.push({ city: 'Not Specified', count: notSpecified });
+    return rows;
+  }, [portfolios, users, memberships]);
 
-  // Profiles by category.
-  const byCategory = useMemo(
-    () =>
-      MEMBERSHIP_CATEGORIES.map((category) => ({
-        category,
-        count: users.filter((u) => u.membershipCategory === category).length,
-      })).filter((c) => c.count > 0),
-    [users],
-  );
+  // ---- Membership Category Distribution (active creators only) ----
+  const category = useMemo(() => {
+    const activeCreators = users.filter((u) => u.accountType === 'creator' && u.membershipStatus === 'active');
+    const data = categories
+      .map((c) => ({ name: String(c.name), value: activeCreators.filter((u) => u.membershipCategory === c.name).length }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
+    return { data, total: data.reduce((s, d) => s + d.value, 0) };
+  }, [users, categories]);
 
-  // Events overview by status.
-  const byStatus = useMemo(
-    () =>
-      EVENT_STATUSES.map((status) => ({
-        status: EVENT_STATUS_LABEL[status],
-        count: events.filter((e) => e.status === status).length,
-      })).filter((s) => s.count > 0),
-    [events],
-  );
+  // ---- Revenue Overview (monthly, 3 sources) ----
+  const revenue = useMemo(() => {
+    // Effective start for month axis (All Time → earliest paid transaction).
+    let axisStart = start;
+    if (range === 'all') {
+      const dates: number[] = [];
+      productOrders.forEach((o) => { if (productRev(o) > 0) dates.push(new Date(o.orderedAt).getTime()); });
+      orders.forEach((o) => { if (eventRev(o) > 0) dates.push(new Date(o.bookingDate).getTime()); });
+      memberships.forEach((m) => { if (membershipRev(m) && m.payment.purchaseDate) dates.push(new Date(m.payment.purchaseDate).getTime()); });
+      axisStart = dates.length ? Math.min(...dates) : new Date(new Date().setMonth(new Date().getMonth() - 6)).getTime();
+    }
+    // Month key list from axisStart..now.
+    const keys: string[] = [];
+    const cur = new Date(axisStart); cur.setDate(1);
+    const endD = new Date(now);
+    while (cur.getFullYear() < endD.getFullYear() || (cur.getFullYear() === endD.getFullYear() && cur.getMonth() <= endD.getMonth())) {
+      keys.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    const bucket = new Map<string, { product: number; event: number; membership: number }>();
+    keys.forEach((k) => bucket.set(k, { product: 0, event: 0, membership: 0 }));
+    const add = (iso: string | null | undefined, field: 'product' | 'event' | 'membership', amt: number) => {
+      if (amt <= 0 || !iso) return;
+      const k = monthKey(iso);
+      const row = bucket.get(k);
+      if (row) row[field] += amt;
+    };
+    productOrders.forEach((o) => { if (inPeriodAxis(o.orderedAt, axisStart)) add(o.orderedAt, 'product', productRev(o)); });
+    orders.forEach((o) => { if (inPeriodAxis(o.bookingDate, axisStart)) add(o.bookingDate, 'event', eventRev(o)); });
+    memberships.forEach((m) => { if (inPeriodAxis(m.payment.purchaseDate, axisStart)) add(m.payment.purchaseDate, 'membership', membershipRev(m)); });
+    const rows = keys.map((k) => ({ month: monthLabel(k), ...bucket.get(k)! }));
+    const total = rows.reduce((s, r) => s + r.product + r.event + r.membership, 0);
+    return { rows, total };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productOrders, orders, memberships, range]);
 
-  const firstName = user?.name.split(' ')[0] ?? 'there';
+  function inPeriodAxis(iso: string | null | undefined, axisStart: number) {
+    if (!iso) return false;
+    const t = new Date(iso).getTime();
+    return t >= axisStart && t <= now;
+  }
 
   return (
     <div>
       <PageHeader
-        title={`Good day, ${firstName}`}
-        description="Here's what's happening across IICA today."
+        title="Dashboard"
+        description="Overview of platform users, commerce, collaborations and revenue."
         actions={
           <div className="flex items-center rounded-lg border border-cream-200 bg-white p-0.5">
             <Calendar className="mx-2 h-4 w-4 text-charcoal-muted" aria-hidden />
-            {RANGE_LABELS.map((r) => (
+            {RANGES.map((r) => (
               <button
                 key={r.key}
                 onClick={() => setRange(r.key)}
@@ -128,39 +212,30 @@ export function DashboardPage() {
       />
 
       <div className="space-y-6">
-        {/* Metric cards */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {metrics.map((m) => (
-            <MetricCard key={m.id} metric={m} />
+        {/* Four summary cards */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {cards.map((c) => (
+            <div key={c.label} className="rounded-lg border border-cream-200 bg-white p-4">
+              <p className="text-sm text-charcoal-muted">{c.label}</p>
+              <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
+            </div>
           ))}
         </div>
 
-        {/* Orders overview (compact, clickable) */}
-        <div className="card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-magenta-600" />
-            <h3 className="text-sm font-semibold text-charcoal">Orders Overview</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {ordersOverview.map((o) => (
-              <button
-                key={o.label}
-                onClick={() => navigate(o.bucket === 'all' ? '/admin/orders' : `/admin/orders?bucket=${o.bucket}`)}
-                className="rounded-lg border border-cream-200 bg-cream-100/50 p-3 text-left transition-colors hover:border-magenta-200"
-              >
-                <p className="font-serif text-xl font-medium text-charcoal">{o.value}</p>
-                <p className="text-xs text-charcoal-muted">{o.label}</p>
-              </button>
-            ))}
-          </div>
+        {/* Row 1 */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2"><CommerceSnapshotChart data={commerce.rows} footnote={commerce.footnote} /></div>
+          <CollaborationSnapshotChart data={collab.data} total={collab.total} />
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <UserGrowthChart data={growth} />
-          <EventsOverviewChart data={byStatus} />
+        {/* Row 2 */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <ProfilesByLocationChart data={location} />
+          <MembershipCategoryChart data={category.data} total={category.total} />
         </div>
-        <ProfilesByCategoryChart data={byCategory} />
+
+        {/* Row 3 */}
+        <RevenueOverviewChart data={revenue.rows} total={revenue.total} />
       </div>
     </div>
   );
