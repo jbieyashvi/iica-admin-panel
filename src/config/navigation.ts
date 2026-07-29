@@ -7,6 +7,8 @@ import {
   CalendarDays,
   Tags,
   Tag,
+  Package,
+  PackagePlus,
   Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -43,6 +45,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'moderate_portfolios' },
       { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_commerce' },
       { label: 'Event Categories', to: '/admin/event-categories', icon: Tag, permission: 'manage_commerce' },
+      { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
+      { label: 'Product Categories', to: '/admin/product-categories', icon: PackagePlus, permission: 'manage_commerce' },
     ],
   },
   {

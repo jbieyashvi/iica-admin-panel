@@ -15,6 +15,9 @@ import { ArchivePage } from './features/archive/ArchivePage';
 import { EventsPage } from './features/events/EventsPage';
 import { EventDetailPage } from './features/events/EventDetailPage';
 import { EventCategoriesPage } from './features/events/EventCategoriesPage';
+import { ProductsPage } from './features/products/ProductsPage';
+import { ProductDetailPage } from './features/products/ProductDetailPage';
+import { ProductCategoriesPage } from './features/products/ProductCategoriesPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
 
@@ -48,6 +51,9 @@ export default function App() {
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="event-categories" element={<EventCategoriesPage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:productId" element={<ProductDetailPage />} />
+          <Route path="product-categories" element={<ProductCategoriesPage />} />
           <Route path="settings" element={<ComingSoon />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}

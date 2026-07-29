@@ -26,6 +26,7 @@ export interface Abilities {
   reviewProposals: boolean; // review custom event-category proposals
   manageEventSettings: boolean; // edit controlled event settings
   viewOrders: boolean; // view ticket orders / payment records
+  manageProducts: boolean; // add / publish / hide / archive products & categories
 }
 
 const MAP: Record<AdminRole, Abilities> = {
@@ -51,6 +52,7 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewProposals: true,
     manageEventSettings: true,
     viewOrders: true,
+    manageProducts: true,
   },
   operations_manager: {
     editUsers: true,
@@ -74,6 +76,7 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewProposals: true,
     manageEventSettings: false,
     viewOrders: true,
+    manageProducts: true,
   },
   finance_manager: {
     editUsers: false,
@@ -97,6 +100,7 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewProposals: false,
     manageEventSettings: false,
     viewOrders: true,
+    manageProducts: false,
   },
   portfolio_moderator: {
     editUsers: false,
@@ -120,6 +124,7 @@ const MAP: Record<AdminRole, Abilities> = {
     reviewProposals: false,
     manageEventSettings: false,
     viewOrders: true,
+    manageProducts: false,
   },
 };
 

@@ -140,6 +140,8 @@ export interface DataState {
   eventCategories: import('./events').EventCategoryRecord[];
   categoryProposals: import('./events').CustomCategoryProposal[];
   eventSettings: import('./events').EventSettings;
+  products: import('./products').ProductRecord[];
+  productCategories: import('./products').ProductCategoryRecord[];
   version: number;
 }
 

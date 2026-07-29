@@ -27,14 +27,22 @@ import type {
   TicketTier,
   TicketType,
 } from '../types/events';
+import type {
+  DigitalDetails,
+  MasterclassDetails,
+  PhysicalDetails,
+  ProductCategoryStatus,
+  ProductRecord,
+  ProductStatus,
+  ProductType,
+} from '../types/products';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
-import { buildSeedState } from './seed';
+import { buildSeedState, SEED_VERSION } from './seed';
 import { buildArchiveSeed, buildEventSeed, buildOrderSeed } from './seedEvents';
 import { computeActivityScore } from './portfolioLogic';
 
 const STORAGE_KEY = 'data_state';
-const SEED_VERSION = 6;
 
 // ---- Store internals -------------------------------------------------------
 
@@ -830,3 +838,139 @@ export function resetArchiveEventDemo(_actor: AdminActor) {
 }
 
 export type { EventStatus, BookingStatus };
+
+// ===========================================================================
+// Products & Product categories
+// ===========================================================================
+
+export function productCategoryNameExists(name: string, type: ProductType, exceptId?: string): boolean {
+  const n = name.trim().toLowerCase();
+  return state.productCategories.some((c) => c.type === type && c.name.toLowerCase() === n && c.id !== exceptId);
+}
+
+export function productCategoryUsage(name: string, type: ProductType): number {
+  return state.products.filter((p) => p.type === type && p.category === name).length;
+}
+
+export function addProductCategory(input: { name: string; type: ProductType; description: string; status: ProductCategoryStatus }, _actor: AdminActor) {
+  if (!input.name.trim() || productCategoryNameExists(input.name, input.type)) return null;
+  const cat = {
+    id: uid('pcat'),
+    name: input.name.trim(),
+    type: input.type,
+    description: input.description.trim(),
+    status: input.status,
+    createdAt: now(),
+  };
+  commit({ ...state, productCategories: [...state.productCategories, cat] });
+  return cat;
+}
+
+export function editProductCategory(id: string, patch: { name?: string; description?: string }, _actor: AdminActor) {
+  const cat = state.productCategories.find((c) => c.id === id);
+  if (!cat) return;
+  if (patch.name && productCategoryNameExists(patch.name, cat.type, id)) return;
+  const next = { ...cat, name: patch.name?.trim() ?? cat.name, description: patch.description?.trim() ?? cat.description };
+  commit({ ...state, productCategories: state.productCategories.map((c) => (c.id === id ? next : c)) });
+}
+
+export function setProductCategoryStatus(id: string, status: ProductCategoryStatus, _actor: AdminActor) {
+  const cat = state.productCategories.find((c) => c.id === id);
+  if (!cat) return;
+  commit({ ...state, productCategories: state.productCategories.map((c) => (c.id === id ? { ...c, status } : c)) });
+}
+
+function replaceProduct(list: ProductRecord[], next: ProductRecord) {
+  return list.map((p) => (p.id === next.id ? next : p));
+}
+function pushProdTimeline(p: ProductRecord, key: string, label: string, detail?: string): ProductRecord {
+  return { ...p, timeline: [...p.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
+}
+function commitProduct(next: ProductRecord) {
+  commit({ ...state, products: replaceProduct(state.products, next) });
+}
+
+export interface AddProductInput {
+  type: ProductType;
+  sellerUserId: string;
+  category: string;
+  title: string;
+  description: string;
+  price: number;
+  discountPrice?: number | null;
+  physical?: PhysicalDetails;
+  masterclass?: MasterclassDetails;
+  digital?: DigitalDetails;
+  publish: boolean;
+}
+
+export function addProduct(input: AddProductInput, _actor: AdminActor): ProductRecord {
+  const id = uid('prod');
+  const seller = state.users.find((u) => u.id === input.sellerUserId);
+  const product: ProductRecord = {
+    id,
+    sellerUserId: input.sellerUserId,
+    sellerName: seller?.name ?? 'Creator',
+    sellerIicaId: seller?.iicaId,
+    type: input.type,
+    category: input.category,
+    title: input.title.trim(),
+    description: input.description.trim(),
+    images: ['img_new_1', 'img_new_2', 'img_new_3'],
+    price: input.price,
+    discountPrice: input.discountPrice ?? null,
+    currency: 'INR',
+    status: input.publish ? 'published' : 'draft',
+    createdAt: now(),
+    lastUpdatedAt: now(),
+    timeline: [
+      { id: uid('tl'), key: 'created', label: 'Product created by admin', at: now() },
+      ...(input.publish ? [{ id: uid('tl'), key: 'published', label: 'Product published', at: now() }] : []),
+    ],
+    notes: [],
+    physical: input.physical,
+    masterclass: input.masterclass,
+    digital: input.digital,
+  };
+  commit({ ...state, products: [product, ...state.products] });
+  return product;
+}
+
+export function publishProduct(productId: string, _actor: AdminActor) {
+  const p = state.products.find((x) => x.id === productId);
+  if (!p) return;
+  commitProduct(pushProdTimeline({ ...p, status: 'published', lastUpdatedAt: now() }, 'published', 'Product published'));
+}
+
+export function requestProductChanges(productId: string, input: { fields: string[]; message: string; note?: string }, actor: AdminActor) {
+  const p = state.products.find((x) => x.id === productId);
+  if (!p) return;
+  const notes = input.note ? [{ id: uid('note'), body: input.note, author: actor.name, role: actor.role, at: now() }, ...p.notes] : p.notes;
+  commitProduct(pushProdTimeline({ ...p, status: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${input.fields.join(', ')} — ${input.message}`));
+}
+
+export function hideProduct(productId: string, reason: string, _actor: AdminActor) {
+  const p = state.products.find((x) => x.id === productId);
+  if (!p) return;
+  commitProduct(pushProdTimeline({ ...p, status: 'hidden', lastUpdatedAt: now() }, 'hidden', 'Hidden from Shop', reason));
+}
+
+export function restoreProduct(productId: string, _actor: AdminActor) {
+  const p = state.products.find((x) => x.id === productId);
+  if (!p) return;
+  commitProduct(pushProdTimeline({ ...p, status: 'published', lastUpdatedAt: now() }, 'restored', 'Restored to Shop'));
+}
+
+export function archiveProduct(productId: string, reason: string, _actor: AdminActor) {
+  const p = state.products.find((x) => x.id === productId);
+  if (!p) return;
+  commitProduct(pushProdTimeline({ ...p, status: 'archived', lastUpdatedAt: now() }, 'archived', 'Product archived', reason));
+}
+
+export function addProductNote(productId: string, body: string, actor: AdminActor) {
+  const p = state.products.find((x) => x.id === productId);
+  if (!p) return;
+  commitProduct({ ...p, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...p.notes] });
+}
+
+export type { ProductStatus };
