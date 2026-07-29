@@ -144,15 +144,6 @@ export function CataloguePage() {
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
 
-  const summary = useMemo(() => {
-    const published = rows.filter((r) => r.p.status === 'published').length;
-    const draft = rows.filter((r) => r.p.status === 'draft').length;
-    const hidden = rows.filter((r) => r.visibility === 'hidden').length;
-    const attention = rows.filter((r) => r.p.status === 'submitted' || r.p.status === 'changes_requested' || r.p.reports.some((x) => x.status === 'open')).length;
-    const recent = rows.filter((r) => (Date.now() - new Date(r.p.lastUpdatedAt).getTime()) / 86400000 <= 7).length;
-    return { published, draft, hidden, attention, recent };
-  }, [rows]);
-
   const chips: { key: string; label: string }[] = [];
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
   if (cat !== 'all') chips.push({ key: 'cat', label: cat });
@@ -191,21 +182,6 @@ export function CataloguePage() {
           </>
         }
       />
-
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        {[
-          { label: 'Published Profiles', value: summary.published },
-          { label: 'Draft Profiles', value: summary.draft },
-          { label: 'Hidden Profiles', value: summary.hidden },
-          { label: 'Needing Attention', value: summary.attention },
-          { label: 'Recently Updated', value: summary.recent },
-        ].map((c) => (
-          <div key={c.label} className="card p-4">
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
-          </div>
-        ))}
-      </div>
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

@@ -31,9 +31,6 @@ const SORTS = [
   { key: 'updated', label: 'Recently Updated' },
 ];
 
-const isPending = (c: CollaborationRecord) => c.requestStatus === 'request_sent' || c.requestStatus === 'pending_response';
-const isActive = (c: CollaborationRecord) => ['discussion_scheduled', 'in_discussion', 'confirmed'].includes(c.progress);
-const isMeetingScheduled = (c: CollaborationRecord) => c.meeting?.status === 'scheduled';
 const openReports = (c: CollaborationRecord) => c.reports.filter((r) => r.status !== 'dismissed').length;
 
 export function CollaborationsPage() {
@@ -43,7 +40,6 @@ export function CollaborationsPage() {
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
-  const bucket = get('bucket', 'all');
   const req = get('req', 'all');
   const prog = get('prog', 'all');
   const meet = get('meet', 'all');
@@ -63,23 +59,6 @@ export function CollaborationsPage() {
     setParams(next, { replace: true });
   };
 
-  const applyBucket = (b: string) => {
-    const next = new URLSearchParams();
-    if (b !== 'all') next.set('bucket', b);
-    setParams(next, { replace: true });
-  };
-
-  const inBucket = (c: CollaborationRecord): boolean => {
-    switch (bucket) {
-      case 'pending': return isPending(c);
-      case 'accepted': return c.requestStatus === 'accepted';
-      case 'meetings': return isMeetingScheduled(c);
-      case 'active': return isActive(c);
-      case 'reported': return openReports(c) > 0;
-      default: return true;
-    }
-  };
-
   const categories = useMemo(() => {
     const set = new Set<string>();
     collaborations.forEach((c) => {
@@ -92,7 +71,6 @@ export function CollaborationsPage() {
   const filtered = useMemo(() => {
     const minScore = SCORE_RANGES.find((r) => r.key === score)?.min ?? 0;
     let list = collaborations.filter((c) => {
-      if (!inBucket(c)) return false;
       if (q) {
         const hay = `${c.id} ${c.initiator.name} ${c.invited.name} ${c.proposalTitle}`.toLowerCase();
         if (!hay.includes(q.toLowerCase())) return false;
@@ -115,33 +93,13 @@ export function CollaborationsPage() {
       }
     });
     return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collaborations, q, bucket, req, prog, meet, cat, score, sort]);
+  }, [collaborations, q, req, prog, meet, cat, score, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
 
-  const summary = useMemo(() => ({
-    total: collaborations.length,
-    pending: collaborations.filter(isPending).length,
-    accepted: collaborations.filter((c) => c.requestStatus === 'accepted').length,
-    meetings: collaborations.filter(isMeetingScheduled).length,
-    active: collaborations.filter(isActive).length,
-    reported: collaborations.filter((c) => openReports(c) > 0).length,
-  }), [collaborations]);
-
-  const cards = [
-    { label: 'Total Collaborations', value: summary.total, bucket: 'all' },
-    { label: 'Pending Requests', value: summary.pending, bucket: 'pending' },
-    { label: 'Accepted', value: summary.accepted, bucket: 'accepted' },
-    { label: 'Meetings Scheduled', value: summary.meetings, bucket: 'meetings' },
-    { label: 'Active Collaborations', value: summary.active, bucket: 'active' },
-    { label: 'Reported', value: summary.reported, bucket: 'reported' },
-  ];
-
   const chips: { key: string; label: string }[] = [];
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
-  if (bucket !== 'all') chips.push({ key: 'bucket', label: cards.find((c) => c.bucket === bucket)?.label ?? bucket });
   if (req !== 'all') chips.push({ key: 'req', label: REQUEST_STATUS_LABEL[req as never] });
   if (prog !== 'all') chips.push({ key: 'prog', label: PROGRESS_LABEL[prog as never] });
   if (meet !== 'all') chips.push({ key: 'meet', label: MEETING_STATUS_LABEL[meet as never] });
@@ -159,19 +117,6 @@ export function CollaborationsPage() {
         description="Monitor creator matches, collaboration requests and scheduled meetings."
         actions={<Button variant="secondary" icon={<SlidersHorizontal className="h-4 w-4" />} onClick={() => navigate('/admin/collaboration-settings')}>Matching Settings</Button>}
       />
-
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {cards.map((c) => (
-          <button
-            key={c.label}
-            onClick={() => applyBucket(c.bucket)}
-            className={`card p-4 text-left transition-colors hover:border-magenta-200 ${bucket === c.bucket ? 'ring-1 ring-magenta-300' : ''}`}
-          >
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
-          </button>
-        ))}
-      </div>
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

@@ -162,17 +162,6 @@ export function PortfoliosPage() {
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
 
-  const summary = useMemo(
-    () => ({
-      published: rows.filter((r) => r.p.status === 'published').length,
-      draft: rows.filter((r) => r.p.status === 'draft').length,
-      submitted: rows.filter((r) => r.p.status === 'submitted').length,
-      changes: rows.filter((r) => r.p.status === 'changes_requested').length,
-      reported: rows.reduce((s, r) => s + r.openReports, 0),
-    }),
-    [rows],
-  );
-
   const chips: { key: string; label: string }[] = [];
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
   if (cat !== 'all') chips.push({ key: 'cat', label: cat });
@@ -203,21 +192,6 @@ export function PortfoliosPage() {
           <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Portfolio Guidelines</Button>
         }
       />
-
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        {[
-          { label: 'Published', value: summary.published },
-          { label: 'Draft', value: summary.draft },
-          { label: 'Submitted', value: summary.submitted },
-          { label: 'Changes Requested', value: summary.changes },
-          { label: 'Reported Content', value: summary.reported },
-        ].map((c) => (
-          <div key={c.label} className="card p-4">
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
-          </div>
-        ))}
-      </div>
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
