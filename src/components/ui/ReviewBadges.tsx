@@ -1,14 +1,4 @@
 import { Star } from 'lucide-react';
-import { Badge } from './Badge';
-import {
-  TESTIMONIAL_STATUS_LABEL,
-  TESTIMONIAL_STATUS_TONE,
-} from '../../config/reviewLabels';
-import type { TestimonialStatus } from '../../types/reviews';
-
-export function TestimonialStatusBadge({ status }: { status: TestimonialStatus }) {
-  return <Badge tone={TESTIMONIAL_STATUS_TONE[status]}>{TESTIMONIAL_STATUS_LABEL[status]}</Badge>;
-}
 
 export function StarRating({ value, size = 'sm' }: { value: number; size?: 'sm' | 'md' }) {
   const px = size === 'md' ? 'h-4 w-4' : 'h-3.5 w-3.5';

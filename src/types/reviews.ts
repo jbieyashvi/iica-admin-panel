@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// Reviews & Testimonials domain. Reviews are tied to a completed interaction
-// (product order, event booking or completed collaboration) via shared IDs.
-// Testimonials are curated display quotes that may originate from a review.
+// Reviews domain. Reviews are tied to a completed interaction (product order,
+// event booking or completed collaboration) via shared IDs. They need no
+// admin approval — visible immediately; admin may only view or delete.
 // ---------------------------------------------------------------------------
 
 export type ReviewType = 'creator' | 'product' | 'event' | 'masterclass';
@@ -33,25 +33,4 @@ export interface ReviewRecord {
   submittedAt: string;
   lastUpdatedAt: string;
   source: ReviewSource;
-}
-
-export type TestimonialStatus = 'draft' | 'published' | 'hidden';
-export type TestimonialSourceType = 'creator_review' | 'product_review' | 'event_review' | 'direct';
-export type TestimonialPlacement = 'mobile_app' | 'website' | 'creator_discovery' | 'events' | 'shop';
-
-export interface TestimonialRecord {
-  id: string;
-  personName: string;
-  role: string; // creator category / role label
-  profileImage?: string;
-  body: string; // display excerpt, max 300 chars
-  sourceType: TestimonialSourceType;
-  connectedReviewId?: string | null; // preserved link to the original review
-  placement: TestimonialPlacement;
-  displayOrder: number;
-  status: TestimonialStatus;
-  hiddenReason?: string | null;
-  addedByAdmin: boolean; // true for Direct Testimonials
-  createdAt: string;
-  lastUpdatedAt: string;
 }

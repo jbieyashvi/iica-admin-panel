@@ -1,4 +1,4 @@
-import type { ReviewRecord, ReviewSourceKind, ReviewType, ReviewerType, TestimonialRecord, TestimonialPlacement, TestimonialSourceType, TestimonialStatus } from '../types/reviews';
+import type { ReviewRecord, ReviewSourceKind, ReviewType, ReviewerType } from '../types/reviews';
 
 const DAY = 86400000;
 
@@ -77,50 +77,3 @@ export function buildReviews(now: number): ReviewRecord[] {
   }));
 }
 
-// ---- Testimonials ----------------------------------------------------------
-
-interface TSpec {
-  id: string;
-  person: string;
-  role: string;
-  body: string;
-  sourceType: TestimonialSourceType;
-  reviewId?: string;
-  placement: TestimonialPlacement;
-  order: number;
-  status: TestimonialStatus;
-  daysAgo: number;
-  direct?: boolean;
-}
-
-const TESTIMONIALS: TSpec[] = [
-  { id: 'tst_01', person: 'Ira Nair', role: 'Masterclass Participant', body: 'Meera is an incredible teacher — the Bharatanatyam foundations masterclass left me with a real practice plan.', sourceType: 'product_review', reviewId: 'rev_m01', placement: 'mobile_app', order: 1, status: 'published', daysAgo: 26 },
-  { id: 'tst_02', person: 'Nisha Reddy', role: 'Verified Buyer', body: 'The handcrafted folk art journal is even lovelier in person — beautiful cover, lovely paper, arrived on time.', sourceType: 'product_review', reviewId: 'rev_p01', placement: 'shop', order: 2, status: 'published', daysAgo: 19 },
-  { id: 'tst_03', person: 'Ananya Rao', role: 'Artist', body: 'The Royal Courtyard workshop was beautifully curated — music, stories and craft in one magical evening.', sourceType: 'event_review', reviewId: 'rev_m05', placement: 'events', order: 3, status: 'published', daysAgo: 5 },
-  { id: 'tst_04', person: 'Vikram Sport Lab', role: 'Sports Coach', body: 'Abhishek is a dedicated collaborator — professional, punctual and genuinely great with young athletes.', sourceType: 'creator_review', reviewId: 'rev_c01', placement: 'creator_discovery', order: 4, status: 'published', daysAgo: 8 },
-  { id: 'tst_05', person: 'Karan Shah', role: 'App Member', body: 'The free Yoga Mobility Guide is a fantastic resource — genuinely helpful routines I use every week.', sourceType: 'product_review', reviewId: 'rev_d02', placement: 'mobile_app', order: 5, status: 'published', daysAgo: 10 },
-  { id: 'tst_06', person: 'Sophia Nguyen', role: 'Artist', body: 'IICA gave my work a stage and a community. The platform truly celebrates creators from every discipline.', sourceType: 'direct', placement: 'website', order: 6, status: 'published', daysAgo: 14, direct: true },
-  { id: 'tst_07', person: 'Nikhil Kapoor', role: 'VIP Host', body: 'Hosting through IICA connected me with audiences who value craft and culture. A wonderful creative home.', sourceType: 'direct', placement: 'creator_discovery', order: 7, status: 'draft', daysAgo: 12, direct: true },
-  { id: 'tst_08', person: 'Royal Courtyard', role: 'VIP Venue', body: 'Our heritage venue found the right creators and events through IICA. Every collaboration has been memorable.', sourceType: 'direct', placement: 'events', order: 8, status: 'draft', daysAgo: 9, direct: true },
-  { id: 'tst_09', person: 'Arjun Bhatia', role: 'Event Attendee', body: 'The sprint clinic was intense and incredibly well organised — drills I am still using weeks later.', sourceType: 'event_review', reviewId: 'rev_e01', placement: 'events', order: 9, status: 'hidden', daysAgo: 8 },
-  { id: 'tst_10', person: 'Meera Kulkarni', role: 'Yoga Coach', body: 'Teaching on IICA lets me reach students who really want to learn. The tools make sharing my practice easy.', sourceType: 'direct', placement: 'mobile_app', order: 10, status: 'draft', daysAgo: 6, direct: true },
-];
-
-export function buildTestimonials(now: number): TestimonialRecord[] {
-  return TESTIMONIALS.map((t) => ({
-    id: t.id,
-    personName: t.person,
-    role: t.role,
-    profileImage: `tstimg_${t.id}`,
-    body: t.body,
-    sourceType: t.sourceType,
-    connectedReviewId: t.reviewId ?? null,
-    placement: t.placement,
-    displayOrder: t.order,
-    status: t.status,
-    hiddenReason: t.status === 'hidden' ? 'Irrelevant Content' : null,
-    addedByAdmin: !!t.direct,
-    createdAt: new Date(now - t.daysAgo * DAY).toISOString(),
-    lastUpdatedAt: new Date(now - Math.max(0, t.daysAgo - 1) * DAY).toISOString(),
-  }));
-}

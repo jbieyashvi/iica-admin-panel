@@ -35,10 +35,9 @@ export interface Abilities {
   collabBlock: boolean; // block / restore collaborations for safety
   collabCancelMeeting: boolean; // cancel a meeting for a safety reason
   collabSettings: boolean; // edit matching weights & access settings
-  // Reviews & Testimonials
-  reviewsView: boolean; // view reviews & testimonials
-  reviewsModerate: boolean; // publish / hide / restore reviews
-  testimonialsManage: boolean; // add / edit / publish / hide / restore testimonials
+  // Reviews
+  reviewsView: boolean; // view reviews
+  reviewsModerate: boolean; // delete reviews
 }
 
 const MAP: Record<AdminRole, Abilities> = {
@@ -74,7 +73,6 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: true,
     reviewsView: true,
     reviewsModerate: true,
-    testimonialsManage: true,
   },
   operations_manager: {
     editUsers: true,
@@ -108,7 +106,6 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: false,
     reviewsView: true,
     reviewsModerate: true,
-    testimonialsManage: false,
   },
   finance_manager: {
     editUsers: false,
@@ -142,7 +139,6 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: false,
     reviewsView: true,
     reviewsModerate: false,
-    testimonialsManage: false,
   },
   portfolio_moderator: {
     editUsers: false,
@@ -176,7 +172,6 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: false,
     reviewsView: true,
     reviewsModerate: true,
-    testimonialsManage: true,
   },
 };
 

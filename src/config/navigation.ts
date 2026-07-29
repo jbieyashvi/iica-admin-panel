@@ -53,8 +53,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
       { label: 'Product Categories', to: '/admin/product-categories', icon: PackagePlus, permission: 'manage_commerce' },
       { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_commerce' },
-      { label: 'Reviews & Testimonials', to: '/admin/reviews-testimonials', icon: MessageSquareQuote, permission: 'manage_reviews' },
-      { label: 'Home & App Content', to: '/admin/app-content', icon: Megaphone, permission: 'manage_commerce' },
+      { label: 'Reviews', to: '/admin/reviews', icon: MessageSquareQuote, permission: 'manage_reviews' },
+      { label: 'Content Management', to: '/admin/content-management', icon: Megaphone, permission: 'manage_commerce' },
     ],
   },
   {

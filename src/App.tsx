@@ -23,7 +23,7 @@ import { OrderDetailPage } from './features/orders/OrderDetailPage';
 import { CollaborationsPage } from './features/collaborations/CollaborationsPage';
 import { CollaborationDetailPage } from './features/collaborations/CollaborationDetailPage';
 import { CollaborationSettingsPage } from './features/collaborations/CollaborationSettingsPage';
-import { ReviewsTestimonialsPage } from './features/reviews/ReviewsTestimonialsPage';
+import { ReviewsPage } from './features/reviews/ReviewsPage';
 import { BannersPage } from './features/appcontent/BannersPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
@@ -66,8 +66,10 @@ export default function App() {
           <Route path="collaborations" element={<CollaborationsPage />} />
           <Route path="collaborations/:collaborationId" element={<CollaborationDetailPage />} />
           <Route path="collaboration-settings" element={<CollaborationSettingsPage />} />
-          <Route path="reviews-testimonials" element={<ReviewsTestimonialsPage />} />
-          <Route path="app-content" element={<BannersPage />} />
+          <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="reviews-testimonials" element={<Navigate to="/admin/reviews" replace />} />
+          <Route path="content-management" element={<BannersPage />} />
+          <Route path="app-content" element={<Navigate to="/admin/content-management" replace />} />
           <Route path="settings" element={<ComingSoon />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}

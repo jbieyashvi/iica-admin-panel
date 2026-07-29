@@ -17,7 +17,7 @@ import { buildArchiveSeed, buildEventSeed, buildOrderSeed, buildEventCategories,
 import { buildProductCategories, buildProducts } from './seedProducts';
 import { buildProductOrders } from './seedOrders';
 import { buildCollaborations, DEFAULT_COLLAB_SETTINGS } from './seedCollaborations';
-import { buildReviews, buildTestimonials } from './seedReviews';
+import { buildReviews } from './seedReviews';
 import { buildBanners } from './seedBanners';
 
 // Region → currency mapping for payment records.
@@ -240,7 +240,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 12;
+export const SEED_VERSION = 13;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);
@@ -267,7 +267,6 @@ export function buildSeedState(): DataState {
     collaborations: buildCollaborations(users, portfolios, now),
     collaborationSettings: DEFAULT_COLLAB_SETTINGS,
     reviews: buildReviews(now),
-    testimonials: buildTestimonials(now),
     banners: buildBanners(now),
     version: SEED_VERSION,
   };

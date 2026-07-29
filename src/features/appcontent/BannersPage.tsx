@@ -71,8 +71,8 @@ export function BannersPage() {
   return (
     <div>
       <PageHeader
-        title="Home & App Content"
-        description="Manage the promotional banners displayed at the top of the mobile Home screen."
+        title="Content Management"
+        description="Manage promotional banners displayed on the mobile Home screen."
         actions={
           <div className="flex gap-2">
             <Button variant="secondary" icon={<Smartphone className="h-4 w-4" />} onClick={() => openPreview()}>Preview Carousel</Button>
