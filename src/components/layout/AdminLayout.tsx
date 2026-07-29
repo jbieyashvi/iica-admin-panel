@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { AccessGuard } from './AccessGuard';
 import { Toaster } from '../ui/toast';
 import { readStorage, writeStorage } from '../../lib/storage';
 
@@ -32,7 +33,7 @@ export function AdminLayout() {
         <Topbar onOpenMobile={() => setMobileOpen(true)} />
         <main className="flex-1 px-4 py-6 lg:px-8">
           <div className="mx-auto max-w-[1400px]">
-            <Outlet />
+            <AccessGuard />
           </div>
         </main>
       </div>

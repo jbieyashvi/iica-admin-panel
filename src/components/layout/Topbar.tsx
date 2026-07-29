@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Bell, ChevronRight, LogOut, Menu, Search, Settings, UserCircle } from 'lucide-react';
+import { Bell, ChevronRight, LogOut, Menu, Search, UserCircle } from 'lucide-react';
 import { NAV_GROUPS, NAV_LOOKUP } from '../../config/navigation';
 import { NOTIFICATIONS } from '../../mock/notifications';
 import { ROLES } from '../../config/roles';
@@ -24,7 +24,7 @@ function initials(name: string) {
 export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
 
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -42,8 +42,9 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return ALL_ITEMS.filter((i) => i.label.toLowerCase().includes(q)).slice(0, 6);
-  }, [query]);
+    // Hide modules the current role cannot access.
+    return ALL_ITEMS.filter((i) => (!i.permission || can(i.permission)) && i.label.toLowerCase().includes(q)).slice(0, 6);
+  }, [query, can]);
 
   const roleLabel = user ? ROLES[user.role].label : '';
 
@@ -194,21 +195,12 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             <div className="py-1">
               <button
                 onClick={() => {
-                  navigate('/admin/admin-users');
+                  navigate(user?.role === 'super_admin' ? `/admin/admin-users/${user.id}` : '/admin/dashboard');
                   setMenuOpen(false);
                 }}
                 className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-charcoal hover:bg-cream-100"
               >
                 <UserCircle className="h-4 w-4 text-charcoal-muted" /> Profile
-              </button>
-              <button
-                onClick={() => {
-                  navigate('/admin/settings');
-                  setMenuOpen(false);
-                }}
-                className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-charcoal hover:bg-cream-100"
-              >
-                <Settings className="h-4 w-4 text-charcoal-muted" /> Settings
               </button>
             </div>
             <div className="border-t border-cream-200 py-1">

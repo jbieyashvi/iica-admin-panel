@@ -16,29 +16,37 @@ export const ROLES: Record<AdminRole, RoleMeta> = {
     label: 'Finance Manager',
     description: 'Transactions, commissions and payouts.',
   },
-  portfolio_moderator: {
-    id: 'portfolio_moderator',
-    label: 'Portfolio Moderator',
-    description: 'Reviews portfolios and archive submissions.',
+  content_moderator: {
+    id: 'content_moderator',
+    label: 'Content Moderator',
+    description: 'Moderates content, profiles and reviews.',
   },
+};
+
+// Compact access label shown in the Admin Users table.
+export const ACCESS_LABEL: Record<AdminRole, string> = {
+  super_admin: 'Full Access',
+  operations_manager: 'Operations Access',
+  finance_manager: 'Finance Access',
+  content_moderator: 'Content Access',
 };
 
 const ALL: Permission[] = [
   'view_dashboard',
   'manage_users',
-  'manage_memberships',
   'manage_catalogue',
   'moderate_portfolios',
-  'manage_commerce',
-  'manage_finance',
-  'manage_engagement',
+  'manage_archive',
   'manage_collaborations',
-  'manage_reviews',
+  'manage_events',
+  'manage_products',
+  'manage_orders',
   'manage_transactions',
   'manage_payouts',
-  'manage_platform',
+  'manage_reviews',
+  'manage_banners',
+  'manage_categories',
   'manage_admins',
-  'manage_settings',
 ];
 
 export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
@@ -46,19 +54,28 @@ export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   operations_manager: [
     'view_dashboard',
     'manage_users',
-    'manage_memberships',
     'manage_catalogue',
     'moderate_portfolios',
-    'manage_commerce',
-    'manage_engagement',
     'manage_collaborations',
+    'manage_events',
+    'manage_products',
+    'manage_orders',
     'manage_reviews',
-    'manage_transactions',
-    'manage_payouts',
-    'manage_platform',
+    'manage_banners',
   ],
-  finance_manager: ['view_dashboard', 'manage_finance', 'manage_commerce', 'manage_collaborations', 'manage_reviews', 'manage_transactions', 'manage_payouts'],
-  portfolio_moderator: ['view_dashboard', 'moderate_portfolios', 'manage_engagement', 'manage_collaborations', 'manage_reviews'],
+  finance_manager: ['view_dashboard', 'manage_orders', 'manage_transactions', 'manage_payouts'],
+  content_moderator: [
+    'view_dashboard',
+    'manage_users', // read-only (abilities gate mutations)
+    'manage_catalogue',
+    'moderate_portfolios',
+    'manage_archive',
+    'manage_collaborations', // read-only
+    'manage_events', // read-only
+    'manage_products', // read-only
+    'manage_reviews',
+    'manage_banners',
+  ],
 };
 
 export function hasPermission(role: AdminRole, permission: Permission): boolean {

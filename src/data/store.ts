@@ -39,6 +39,8 @@ import type {
 import type { CollaborationSettings } from '../types/collaborations';
 import type { BannerLinkType, BannerRecord } from '../types/banners';
 import type { CommissionConfig, CommissionOverride, PayoutRecord, PayoutStatus, RevenueType } from '../types/payouts';
+import type { AdminAccountStatus, AdminUserRecord } from '../types/admins';
+import type { AdminRole } from '../types';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
 import { buildSeedState, SEED_VERSION } from './seed';
@@ -69,7 +71,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings);
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers);
   if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1179,3 +1181,116 @@ export function retryPayout(payoutId: string, _actor: AdminActor): boolean {
 }
 
 export type { PayoutStatus };
+
+// ===========================================================================
+// Admin Users
+// ===========================================================================
+
+export function adminEmailExists(email: string, exceptId?: string): boolean {
+  const e = email.trim().toLowerCase();
+  return state.adminUsers.some((a) => a.id !== exceptId && a.email.toLowerCase() === e);
+}
+export function adminPhoneExists(phone: string, exceptId?: string): boolean {
+  const p = phone.replace(/\s+/g, '');
+  return state.adminUsers.some((a) => a.id !== exceptId && a.phone.replace(/\s+/g, '') === p);
+}
+export function activeSuperAdminCount(exceptId?: string): number {
+  return state.adminUsers.filter((a) => a.id !== exceptId && a.role === 'super_admin' && a.status === 'active').length;
+}
+// True when this account is the only active Super Admin (locks role change + deactivate).
+export function isLastActiveSuper(id: string): boolean {
+  const a = state.adminUsers.find((x) => x.id === id);
+  return !!a && a.role === 'super_admin' && a.status === 'active' && activeSuperAdminCount(id) === 0;
+}
+
+function nextAdminId(): string {
+  const nums = state.adminUsers
+    .map((a) => Number(/^ADM-(\d{4})$/.exec(a.id)?.[1] ?? 0))
+    .filter((n) => n > 0);
+  const next = (nums.length ? Math.max(...nums) : 1000) + 1;
+  return `ADM-${next}`;
+}
+
+function replaceAdmin(next: AdminUserRecord) {
+  commit({ ...state, adminUsers: state.adminUsers.map((a) => (a.id === next.id ? next : a)) });
+}
+
+export interface AddAdminInput {
+  name: string;
+  email: string;
+  phone: string;
+  role: AdminRole;
+  password: string;
+  status: AdminAccountStatus;
+}
+
+export function addAdminUser(input: AddAdminInput, actor: AdminActor): AdminUserRecord | null {
+  if (!input.name.trim() || !input.email.trim() || !input.phone.trim()) return null;
+  if (adminEmailExists(input.email) || adminPhoneExists(input.phone)) return null;
+  const rec: AdminUserRecord = {
+    id: nextAdminId(),
+    name: input.name.trim(),
+    email: input.email.trim(),
+    phone: input.phone.trim(),
+    role: input.role,
+    status: input.status,
+    password: input.password,
+    createdAt: now(),
+    createdBy: actor.name,
+    updatedAt: now(),
+    lastLoginAt: null,
+  };
+  commit({ ...state, adminUsers: [rec, ...state.adminUsers] });
+  return rec;
+}
+
+export interface EditAdminInput {
+  name?: string;
+  email?: string;
+  phone?: string;
+  role?: AdminRole;
+  status?: AdminAccountStatus;
+}
+
+export function updateAdminUser(id: string, patch: EditAdminInput, _actor: AdminActor): boolean {
+  const a = state.adminUsers.find((x) => x.id === id);
+  if (!a) return false;
+  if (patch.email && adminEmailExists(patch.email, id)) return false;
+  if (patch.phone && adminPhoneExists(patch.phone, id)) return false;
+  // Guard the final active Super Admin against role change / deactivation.
+  const willChangeRole = patch.role && patch.role !== 'super_admin' && a.role === 'super_admin';
+  const willDeactivate = patch.status === 'inactive' && a.status === 'active' && a.role === 'super_admin';
+  if ((willChangeRole || willDeactivate) && isLastActiveSuper(id)) return false;
+  replaceAdmin({
+    ...a,
+    name: patch.name?.trim() ?? a.name,
+    email: patch.email?.trim() ?? a.email,
+    phone: patch.phone?.trim() ?? a.phone,
+    role: patch.role ?? a.role,
+    status: patch.status ?? a.status,
+    updatedAt: now(),
+  });
+  return true;
+}
+
+export function resetAdminPassword(id: string, password: string, _actor: AdminActor): boolean {
+  const a = state.adminUsers.find((x) => x.id === id);
+  if (!a) return false;
+  replaceAdmin({ ...a, password, updatedAt: now() });
+  return true;
+}
+
+export function setAdminStatus(id: string, status: AdminAccountStatus, reason: string | null, _actor: AdminActor): boolean {
+  const a = state.adminUsers.find((x) => x.id === id);
+  if (!a) return false;
+  if (status === 'inactive' && a.role === 'super_admin' && isLastActiveSuper(id)) return false;
+  replaceAdmin({ ...a, status, deactivationReason: status === 'inactive' ? reason : null, updatedAt: now() });
+  return true;
+}
+
+export function recordAdminLogin(id: string) {
+  const a = state.adminUsers.find((x) => x.id === id);
+  if (a) replaceAdmin({ ...a, lastLoginAt: now() });
+}
+
+export type { AdminUserRecord };

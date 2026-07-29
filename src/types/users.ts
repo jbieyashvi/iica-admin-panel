@@ -151,6 +151,7 @@ export interface DataState {
   commissionOverrides: import('./payouts').CommissionOverride[];
   payoutSettings: import('./payouts').CreatorPayoutSettings[];
   payouts: import('./payouts').PayoutRecord[];
+  adminUsers: import('./admins').AdminUserRecord[];
   version: number;
 }
 

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import type { AdminUser, AuthSession, Permission } from '../types';
 import * as authService from '../services/authService';
+import { recordAdminLogin } from '../data/store';
 import { hasPermission as roleHasPermission } from '../config/roles';
 
 interface AuthContextValue {
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyOtp = useCallback(async (code: string) => {
     const next = await authService.verifyOtp(code);
+    recordAdminLogin(next.user.id);
     setSession(next);
   }, []);
 

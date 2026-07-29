@@ -22,7 +22,7 @@ import type { BannerRecord } from '../../types/banners';
 export function BannersPage() {
   const { banners } = useData();
   const { abilities, actor } = useActor();
-  const canManage = abilities.manageProducts; // commerce/content management
+  const canManage = abilities.manageBanners;
 
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [editBanner, setEditBanner] = useState<BannerRecord | null>(null);

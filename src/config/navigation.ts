@@ -13,7 +13,7 @@ import {
   Handshake,
   MessageSquareQuote,
   Megaphone,
-  Settings,
+  ShieldCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Permission } from '../types';
@@ -47,10 +47,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Content & Commerce',
     items: [
-      { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'moderate_portfolios' },
-      { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_commerce' },
-      { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
-      { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_commerce' },
+      { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'manage_archive' },
+      { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_events' },
+      { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_products' },
+      { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_orders' },
       { label: 'Transactions', to: '/admin/transactions', icon: Receipt, permission: 'manage_transactions' },
       { label: 'Commissions & Payouts', to: '/admin/commissions-payouts', icon: Wallet, permission: 'manage_payouts' },
       { label: 'Reviews', to: '/admin/reviews', icon: MessageSquareQuote, permission: 'manage_reviews' },
@@ -59,9 +59,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Platform',
     items: [
-      { label: 'Banners', to: '/admin/banners', icon: Megaphone, permission: 'manage_commerce' },
-      { label: 'Membership Categories', to: '/admin/categories', icon: Tags, permission: 'manage_catalogue' },
-      { label: 'Settings', to: '/admin/settings', icon: Settings, permission: 'manage_settings' },
+      { label: 'Banners', to: '/admin/banners', icon: Megaphone, permission: 'manage_banners' },
+      { label: 'Membership Categories', to: '/admin/categories', icon: Tags, permission: 'manage_categories' },
+      { label: 'Admin Users', to: '/admin/admin-users', icon: ShieldCheck, permission: 'manage_admins' },
     ],
   },
 ];

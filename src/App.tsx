@@ -27,8 +27,16 @@ import { TransactionDetailPage } from './features/transactions/TransactionDetail
 import { CommissionsPayoutsPage } from './features/commissions/CommissionsPayoutsPage';
 import { PayoutDetailPage } from './features/commissions/PayoutDetailPage';
 import { BannersPage } from './features/appcontent/BannersPage';
-import { ComingSoon } from './features/common/ComingSoon';
+import { AdminUsersPage } from './features/adminusers/AdminUsersPage';
+import { AdminUserDetailPage } from './features/adminusers/AdminUserDetailPage';
 import { NotFound } from './features/common/NotFound';
+import { useAuth } from './context/AuthContext';
+
+// Old Settings route: Super Admin → Admin Users, everyone else → Dashboard.
+function SettingsRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user?.role === 'super_admin' ? '/admin/admin-users' : '/admin/dashboard'} replace />;
+}
 
 export default function App() {
   return (
@@ -77,7 +85,9 @@ export default function App() {
           <Route path="banners" element={<BannersPage />} />
           <Route path="content-management" element={<Navigate to="/admin/banners" replace />} />
           <Route path="app-content" element={<Navigate to="/admin/banners" replace />} />
-          <Route path="settings" element={<ComingSoon />} />
+          <Route path="admin-users" element={<AdminUsersPage />} />
+          <Route path="admin-users/:adminId" element={<AdminUserDetailPage />} />
+          <Route path="settings" element={<SettingsRedirect />} />
 
           {/* Retired modules — safely redirect old URLs to Users */}
           <Route path="memberships" element={<Navigate to="/admin/users" replace />} />

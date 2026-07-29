@@ -8,7 +8,7 @@ export type AdminRole =
   | 'super_admin'
   | 'operations_manager'
   | 'finance_manager'
-  | 'portfolio_moderator';
+  | 'content_moderator';
 
 export interface RoleMeta {
   id: AdminRole;
@@ -21,19 +21,19 @@ export interface RoleMeta {
 export type Permission =
   | 'view_dashboard'
   | 'manage_users'
-  | 'manage_memberships'
   | 'manage_catalogue'
   | 'moderate_portfolios'
-  | 'manage_commerce'
-  | 'manage_finance'
-  | 'manage_engagement'
+  | 'manage_archive'
   | 'manage_collaborations'
-  | 'manage_reviews'
+  | 'manage_events'
+  | 'manage_products'
+  | 'manage_orders'
   | 'manage_transactions'
   | 'manage_payouts'
-  | 'manage_platform'
-  | 'manage_admins'
-  | 'manage_settings';
+  | 'manage_reviews'
+  | 'manage_banners'
+  | 'manage_categories'
+  | 'manage_admins';
 
 export interface AdminUser {
   id: string;
