@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   CheckCircle2,
-  Download,
   Eye,
   FileWarning,
   FolderOpen,
@@ -27,7 +26,6 @@ import { RequestChangesModal, UnpublishModal, PortfolioGuidelinesDrawer } from '
 import { useData, publishPortfolio } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
-import { exportCsv } from '../../lib/exportCsv';
 import { formatDate, timeAgo } from '../../lib/format';
 import {
   catalogueVisibility,
@@ -187,23 +185,6 @@ export function PortfoliosPage() {
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
   const review = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: `/admin/portfolios?${params.toString()}` } });
 
-  const doExport = () => {
-    exportCsv(
-      'iica-portfolios.csv',
-      filtered.map((r) => ({
-        Creator: r.u?.name ?? '',
-        'IICA ID': r.p.iicaId ?? '',
-        Category: r.p.category,
-        Completion: `${r.completion}%`,
-        Status: PORTFOLIO_STATUS_LABEL[r.p.status],
-        Visibility: catalogueVisibility(r.p, r.u, r.m),
-        'Reported Items': r.openReports,
-        Eligible: r.eligible ? 'Yes' : 'No',
-      })),
-    );
-    toast(`Exported ${filtered.length} portfolios to CSV.`);
-  };
-
   const doPublish = () => {
     if (!publishTarget) return;
     publishPortfolio(publishTarget.p.id, actor);
@@ -219,10 +200,7 @@ export function PortfoliosPage() {
         title="Portfolios"
         description="Review portfolio completeness, publishing state and reported content."
         actions={
-          <>
-            <Button variant="secondary" icon={<Download className="h-4 w-4" />} onClick={doExport}>Export Portfolios</Button>
-            <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Portfolio Guidelines</Button>
-          </>
+          <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Portfolio Guidelines</Button>
         }
       />
 

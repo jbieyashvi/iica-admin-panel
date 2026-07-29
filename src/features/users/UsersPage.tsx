@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Ban,
-  Download,
   Eye,
   FolderOpen,
   Activity as ActivityIcon,
@@ -28,8 +27,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useData, reactivateUser } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
-import { exportCsv } from '../../lib/exportCsv';
-import { formatDate, timeAgo } from '../../lib/format';
+import { formatDate } from '../../lib/format';
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABEL,
@@ -43,24 +41,9 @@ import type { UserRecord } from '../../types/users';
 const SORTS = [
   { key: 'newest', label: 'Newest' },
   { key: 'oldest', label: 'Oldest' },
-  { key: 'active', label: 'Recently Active' },
   { key: 'name_az', label: 'Name A–Z' },
   { key: 'name_za', label: 'Name Z–A' },
 ];
-const JOINED = [
-  { key: 'any', label: 'Any join date' },
-  { key: '7', label: 'Joined ≤ 7 days' },
-  { key: '30', label: 'Joined ≤ 30 days' },
-  { key: '90', label: 'Joined ≤ 90 days' },
-];
-const ACTIVE = [
-  { key: 'any', label: 'Any activity' },
-  { key: '1', label: 'Active ≤ 24h' },
-  { key: '7', label: 'Active ≤ 7 days' },
-  { key: '30', label: 'Active ≤ 30 days' },
-];
-
-const daysSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 86400000;
 
 export function UsersPage() {
   const { users } = useData();
@@ -78,10 +61,7 @@ export function UsersPage() {
   const type = get('type', 'all');
   const cat = get('cat', 'all');
   const status = get('status', 'all');
-  const country = get('country', 'all');
-  const city = get('city', 'all');
-  const joined = get('joined', 'any');
-  const active = get('active', 'any');
+  const loc = get('loc', 'all');
   const sort = get('sort', 'newest');
   const page = Number(get('page', '1'));
   const size = Number(get('size', '10'));
@@ -89,15 +69,14 @@ export function UsersPage() {
   const update = (patch: Record<string, string>, resetPage = true) => {
     const next = new URLSearchParams(params);
     Object.entries(patch).forEach(([k, v]) => {
-      if (!v || v === 'all' || v === 'any' || (k === 'q' && !v)) next.delete(k);
+      if (!v || v === 'all' || (k === 'q' && !v)) next.delete(k);
       else next.set(k, v);
     });
     if (resetPage) next.delete('page');
     setParams(next, { replace: true });
   };
 
-  const countries = useMemo(() => [...new Set(users.map((u) => u.country))].sort(), [users]);
-  const cities = useMemo(() => [...new Set(users.map((u) => u.city))].sort(), [users]);
+  const locations = useMemo(() => [...new Set(users.map((u) => u.city))].sort(), [users]);
 
   const filtered = useMemo(() => {
     let list = users.filter((u) => {
@@ -108,18 +87,13 @@ export function UsersPage() {
       if (type !== 'all' && u.accountType !== type) return false;
       if (cat !== 'all' && u.membershipCategory !== cat) return false;
       if (status !== 'all' && u.membershipStatus !== status) return false;
-      if (country !== 'all' && u.country !== country) return false;
-      if (city !== 'all' && u.city !== city) return false;
-      if (joined !== 'any' && daysSince(u.joinedAt) > Number(joined)) return false;
-      if (active !== 'any' && daysSince(u.lastActiveAt) > Number(active)) return false;
+      if (loc !== 'all' && u.city !== loc) return false;
       return true;
     });
     list = [...list].sort((a, b) => {
       switch (sort) {
         case 'oldest':
           return +new Date(a.joinedAt) - +new Date(b.joinedAt);
-        case 'active':
-          return +new Date(b.lastActiveAt) - +new Date(a.lastActiveAt);
         case 'name_az':
           return a.name.localeCompare(b.name);
         case 'name_za':
@@ -129,7 +103,7 @@ export function UsersPage() {
       }
     });
     return list;
-  }, [users, q, type, cat, status, country, city, joined, active, sort]);
+  }, [users, q, type, cat, status, loc, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
@@ -150,34 +124,12 @@ export function UsersPage() {
   if (type !== 'all') chips.push({ key: 'type', label: ACCOUNT_TYPE_LABEL[type as never] });
   if (cat !== 'all') chips.push({ key: 'cat', label: cat });
   if (status !== 'all') chips.push({ key: 'status', label: MEMBERSHIP_STATUS_LABEL[status as never] });
-  if (country !== 'all') chips.push({ key: 'country', label: country });
-  if (city !== 'all') chips.push({ key: 'city', label: city });
-  if (joined !== 'any') chips.push({ key: 'joined', label: JOINED.find((j) => j.key === joined)!.label });
-  if (active !== 'any') chips.push({ key: 'active', label: ACTIVE.find((a) => a.key === active)!.label });
+  if (loc !== 'all') chips.push({ key: 'loc', label: loc });
 
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
 
   const openDetail = (id: string, tab?: string) => {
     navigate(`/admin/users/${id}${tab ? `?tab=${tab}` : ''}`, { state: { from: location.search } });
-  };
-
-  const doExport = () => {
-    exportCsv(
-      'iica-users.csv',
-      filtered.map((u) => ({
-        Name: u.name,
-        Email: u.email,
-        Phone: u.phone,
-        'Account Type': ACCOUNT_TYPE_LABEL[u.accountType],
-        Category: u.membershipCategory ?? '',
-        'IICA ID': u.iicaId ?? '',
-        Status: MEMBERSHIP_STATUS_LABEL[u.membershipStatus],
-        City: u.city,
-        Country: u.country,
-        Joined: formatDate(u.joinedAt),
-      })),
-    );
-    toast(`Exported ${filtered.length} users to CSV.`);
   };
 
   const doReactivate = () => {
@@ -195,16 +147,11 @@ export function UsersPage() {
         title="Users"
         description="Manage guests, registered users and creator accounts."
         actions={
-          <>
-            <Button variant="secondary" icon={<Download className="h-4 w-4" />} onClick={doExport}>
-              Export Users
+          <Tooltip label={abilities.editUsers ? '' : RESTRICTED_HINT} side="bottom">
+            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.editUsers}>
+              Add User
             </Button>
-            <Tooltip label={abilities.editUsers ? '' : RESTRICTED_HINT} side="bottom">
-              <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.editUsers}>
-                Add User
-              </Button>
-            </Tooltip>
-          </>
+          </Tooltip>
         }
       />
 
@@ -246,7 +193,7 @@ export function UsersPage() {
           </Select>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Select className={selectCls} value={type} onChange={(e) => update({ type: e.target.value })}>
             <option value="all">All types</option>
             {ACCOUNT_TYPES.map((t) => (
@@ -271,30 +218,10 @@ export function UsersPage() {
               </option>
             ))}
           </Select>
-          <Select className={selectCls} value={country} onChange={(e) => update({ country: e.target.value })}>
-            <option value="all">All countries</option>
-            {countries.map((c) => (
+          <Select className={selectCls} value={loc} onChange={(e) => update({ loc: e.target.value })}>
+            <option value="all">All locations</option>
+            {locations.map((c) => (
               <option key={c}>{c}</option>
-            ))}
-          </Select>
-          <Select className={selectCls} value={city} onChange={(e) => update({ city: e.target.value })}>
-            <option value="all">All cities</option>
-            {cities.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </Select>
-          <Select className={selectCls} value={joined} onChange={(e) => update({ joined: e.target.value })}>
-            {JOINED.map((j) => (
-              <option key={j.key} value={j.key}>
-                {j.label}
-              </option>
-            ))}
-          </Select>
-          <Select className={selectCls} value={active} onChange={(e) => update({ active: e.target.value })}>
-            {ACTIVE.map((a) => (
-              <option key={a.key} value={a.key}>
-                {a.label}
-              </option>
             ))}
           </Select>
         </div>
@@ -332,11 +259,11 @@ export function UsersPage() {
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Account Type</th>
-                <th className="px-4 py-3">Category</th>
+                <th className="px-4 py-3">IICA ID</th>
+                <th className="px-4 py-3">Membership Category</th>
+                <th className="px-4 py-3">Membership Status</th>
                 <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3">Last Active</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -346,10 +273,7 @@ export function UsersPage() {
                   <td className="px-4 py-3">
                     <button onClick={() => openDetail(u.id)} className="flex items-center gap-3 text-left">
                       <Avatar name={u.name} />
-                      <span>
-                        <span className="block font-medium text-charcoal group-hover:text-magenta-700">{u.name}</span>
-                        <span className="block text-xs text-charcoal-muted">{u.iicaId ?? '—'}</span>
-                      </span>
+                      <span className="block font-medium text-charcoal group-hover:text-magenta-700">{u.name}</span>
                     </button>
                   </td>
                   <td className="px-4 py-3">
@@ -359,16 +283,16 @@ export function UsersPage() {
                   <td className="px-4 py-3">
                     <AccountTypeBadge type={u.accountType} />
                   </td>
+                  <td className="px-4 py-3 font-medium text-charcoal">{u.iicaId ?? <span className="font-normal text-charcoal-muted">—</span>}</td>
                   <td className="px-4 py-3 text-charcoal">{u.membershipCategory ?? <span className="text-charcoal-muted">—</span>}</td>
+                  <td className="px-4 py-3">
+                    <MembershipStatusBadge status={u.membershipStatus} />
+                  </td>
                   <td className="px-4 py-3">
                     <span className="block text-charcoal">{u.city}</span>
                     <span className="block text-xs text-charcoal-muted">{u.country}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <MembershipStatusBadge status={u.membershipStatus} />
-                  </td>
                   <td className="px-4 py-3 text-charcoal-muted">{formatDate(u.joinedAt)}</td>
-                  <td className="px-4 py-3 text-charcoal-muted">{timeAgo(u.lastActiveAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
                       <DropdownMenu

@@ -21,7 +21,7 @@ const icons: Record<ActivityType, { Icon: typeof IdCard; tone: string }> = {
 
 export function RecentActivity({ items }: { items: ActivityItem[] }) {
   return (
-    <SectionCard title="Recent Activity" description="Latest events across the platform" bodyClassName="p-0">
+    <SectionCard title="Recent Platform Activity" description="Latest events across the platform" bodyClassName="p-0">
       <ul className="divide-y divide-cream-200">
         {items.map((item) => {
           const { Icon, tone } = icons[item.type];

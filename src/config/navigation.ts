@@ -1,23 +1,11 @@
 import {
   LayoutDashboard,
   Users,
-  IdCard,
   LayoutGrid,
   FolderOpen,
   Video,
   CalendarDays,
   Tags,
-  Package,
-  ShoppingCart,
-  Receipt,
-  Wallet,
-  Handshake,
-  Star,
-  LifeBuoy,
-  MonitorSmartphone,
-  Bell,
-  BarChart3,
-  ShieldCheck,
   Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -41,51 +29,24 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard, permission: 'view_dashboard' }],
   },
   {
-    title: 'People',
+    title: 'People & Profiles',
     items: [
       { label: 'Users', to: '/admin/users', icon: Users, permission: 'manage_users' },
-      { label: 'Memberships', to: '/admin/memberships', icon: IdCard, permission: 'manage_memberships' },
       { label: 'Catalogue', to: '/admin/catalogue', icon: LayoutGrid, permission: 'manage_catalogue' },
       { label: 'Portfolios', to: '/admin/portfolios', icon: FolderOpen, permission: 'moderate_portfolios' },
     ],
   },
   {
-    title: 'Content & Commerce',
+    title: 'Content',
     items: [
       { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'moderate_portfolios' },
       { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_commerce' },
-      { label: 'Product Categories', to: '/admin/categories', icon: Tags, permission: 'manage_catalogue' },
-      { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_commerce' },
-      { label: 'Orders', to: '/admin/orders', icon: ShoppingCart, permission: 'manage_commerce' },
-    ],
-  },
-  {
-    title: 'Finance',
-    items: [
-      { label: 'Transactions', to: '/admin/finance', icon: Receipt, permission: 'manage_finance' },
-      { label: 'Commission & Payouts', to: '/admin/payouts', icon: Wallet, permission: 'manage_finance' },
-    ],
-  },
-  {
-    title: 'Engagement',
-    items: [
-      { label: 'Collaborations', to: '/admin/collaborations', icon: Handshake, permission: 'manage_engagement' },
-      { label: 'Reviews & Testimonials', to: '/admin/reviews', icon: Star, permission: 'manage_engagement' },
-      { label: 'Support', to: '/admin/support', icon: LifeBuoy, permission: 'manage_engagement' },
     ],
   },
   {
     title: 'Platform',
     items: [
-      { label: 'Home & App Content', to: '/admin/app-content', icon: MonitorSmartphone, permission: 'manage_platform' },
-      { label: 'Notifications', to: '/admin/notifications', icon: Bell, permission: 'manage_platform' },
-      { label: 'Analytics', to: '/admin/analytics', icon: BarChart3, permission: 'manage_platform' },
-    ],
-  },
-  {
-    title: 'Administration',
-    items: [
-      { label: 'Admin Users', to: '/admin/admin-users', icon: ShieldCheck, permission: 'manage_admins' },
+      { label: 'Categories', to: '/admin/categories', icon: Tags, permission: 'manage_catalogue' },
       { label: 'Settings', to: '/admin/settings', icon: Settings, permission: 'manage_settings' },
     ],
   },

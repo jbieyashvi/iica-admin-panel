@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, RefreshCw } from 'lucide-react';
-import type { DashboardData } from '../../types';
+import type { DashboardData, MetricCardData, PendingAction } from '../../types';
 import { getDashboard } from '../../services/dashboardService';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../data/store';
@@ -10,13 +10,8 @@ import { MetricCard } from '../../components/ui/MetricCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { RevenueChart } from './sections/RevenueChart';
-import { MembershipFunnel } from './sections/MembershipFunnel';
 import { PendingActions } from './sections/PendingActions';
 import { RecentActivity } from './sections/RecentActivity';
-import { CategoryDistribution } from './sections/CategoryDistribution';
-import { LocationDistribution } from './sections/LocationDistribution';
-import { CommerceSnapshotCard, CollaborationSnapshotCard } from './sections/SnapshotGrids';
 import { cn } from '../../lib/cn';
 
 const RANGE_LABELS = [
@@ -30,8 +25,8 @@ type RangeKey = (typeof RANGE_LABELS)[number]['key'];
 
 function MetricSkeletons() {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="card space-y-3 p-4">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-7 w-20" />
@@ -45,15 +40,49 @@ function MetricSkeletons() {
 export function DashboardPage() {
   const { user } = useAuth();
   const { users, memberships, portfolios, events, archives } = useData();
-  const submittedCount = portfolios.filter((p) => p.status === 'submitted').length;
-  const reportedReviews = portfolios.reduce((s, p) => s + p.reports.filter((r) => r.status === 'open').length, 0);
-  const upcomingEvents = events.filter((e) => new Date(e.startAt).getTime() > Date.now() && ['published', 'sold_out'].includes(e.status)).length;
-  const archiveAwaiting = archives.filter((a) => a.archiveStatus === 'awaiting_review').length;
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>('mtd');
+
+  // Live counts from the shared data store.
+  const counts = useMemo(() => {
+    const activeCreators = memberships.filter((m) => m.membershipStatus === 'active').length;
+    const publishedProfiles = portfolios.filter((p) => p.status === 'published').length;
+    const pendingReviews = portfolios.filter((p) => p.status === 'submitted').length;
+    const archiveVideos = archives.filter((a) => a.archiveStatus === 'published').length;
+    const archiveAwaiting = archives.filter((a) => a.archiveStatus === 'awaiting_review').length;
+    const reportedReviews = portfolios.reduce((s, p) => s + p.reports.filter((r) => r.status === 'open').length, 0);
+    const purchasePending = memberships.filter((m) => m.membershipStatus === 'purchase_pending').length;
+    const upcomingEvents = events.filter((e) => new Date(e.startAt).getTime() > Date.now() && ['published', 'sold_out'].includes(e.status)).length;
+    return { activeCreators, publishedProfiles, pendingReviews, archiveVideos, archiveAwaiting, reportedReviews, purchasePending, upcomingEvents };
+  }, [memberships, portfolios, archives, events]);
+
+  const metrics: MetricCardData[] = useMemo(() => {
+    const m = (id: string, label: string, value: number, change: number, hint: string): MetricCardData => ({
+      id, label, value: formatNumber(value), rawValue: value, change, direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat', hint,
+    });
+    return [
+      m('users', 'Total Users', users.length, 6.4, 'All registered app users'),
+      m('creators', 'Active Creators', counts.activeCreators, 4.1, 'Memberships currently active'),
+      m('profiles', 'Published Profiles', counts.publishedProfiles, 3.2, 'Catalogue-visible portfolios'),
+      m('reviews', 'Pending Portfolio Reviews', counts.pendingReviews, 12.5, 'Submitted, awaiting review'),
+      m('archive', 'Archive Videos', counts.archiveVideos, 5.1, 'Published Archive videos'),
+      m('events', 'Upcoming Events', counts.upcomingEvents, 0, 'Published & scheduled ahead'),
+    ];
+  }, [users.length, counts]);
+
+  const pendingActions: PendingAction[] = useMemo(
+    () => [
+      { id: 'pa_portfolios', label: 'Portfolios awaiting review', count: counts.pendingReviews, route: '/admin/portfolios?status=submitted', severity: 'high' },
+      { id: 'pa_archive', label: 'Archive videos awaiting moderation', count: counts.archiveAwaiting, route: '/admin/archive?status=awaiting_review', severity: 'medium' },
+      { id: 'pa_reviews', label: 'Reported reviews', count: counts.reportedReviews, route: '/admin/portfolios?reported=reported', severity: 'medium' },
+      { id: 'pa_memberships', label: 'Purchase-pending memberships', count: counts.purchasePending, route: '/admin/users?status=purchase_pending', severity: 'low' },
+    ],
+    [counts],
+  );
 
   const load = useCallback(async (mode: 'initial' | 'refresh') => {
     if (mode === 'initial') setLoading(true);
@@ -91,9 +120,7 @@ export function DashboardPage() {
                   onClick={() => setRange(r.key)}
                   className={cn(
                     'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    range === r.key
-                      ? 'bg-magenta-50 text-magenta-700'
-                      : 'text-charcoal-muted hover:text-charcoal',
+                    range === r.key ? 'bg-magenta-50 text-magenta-700' : 'text-charcoal-muted hover:text-charcoal',
                   )}
                 >
                   {r.label}
@@ -112,7 +139,6 @@ export function DashboardPage() {
         }
       />
 
-      {/* Metrics */}
       {loading ? (
         <MetricSkeletons />
       ) : error ? (
@@ -129,64 +155,18 @@ export function DashboardPage() {
           />
         </div>
       ) : (
-        data && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {data.metrics.map((m) => {
-                // Overlay live counts from the shared data store so Phase 2
-                // mutations (add/suspend/simulate) are reflected here.
-                let metric = m;
-                if (m.id === 'users') {
-                  metric = { ...m, value: formatNumber(users.length), rawValue: users.length };
-                } else if (m.id === 'creators') {
-                  const active = memberships.filter((x) => x.membershipStatus === 'active').length;
-                  metric = { ...m, value: formatNumber(active), rawValue: active };
-                } else if (m.id === 'reviews') {
-                  metric = { ...m, value: formatNumber(submittedCount), rawValue: submittedCount };
-                } else if (m.id === 'events') {
-                  metric = { ...m, value: formatNumber(upcomingEvents), rawValue: upcomingEvents };
-                }
-                return <MetricCard key={m.id} metric={metric} />;
-              })}
-            </div>
-
-            {/* Revenue + Funnel */}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-              <div className="xl:col-span-2">
-                <RevenueChart data={data.revenue} />
-              </div>
-              <MembershipFunnel stages={data.funnel} />
-            </div>
-
-            {/* Pending + Recent */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <PendingActions
-                actions={data.pendingActions.map((a) =>
-                  a.id === 'pa_portfolios'
-                    ? { ...a, count: submittedCount }
-                    : a.id === 'pa_reviews'
-                      ? { ...a, count: reportedReviews }
-                      : a.id === 'pa_archive'
-                        ? { ...a, count: archiveAwaiting }
-                        : a,
-                )}
-              />
-              <RecentActivity items={data.activity} />
-            </div>
-
-            {/* Category + Location */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <CategoryDistribution data={data.categories} />
-              <LocationDistribution data={data.locations} />
-            </div>
-
-            {/* Commerce + Collaboration */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <CommerceSnapshotCard data={data.commerce} />
-              <CollaborationSnapshotCard data={data.collaboration} />
-            </div>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            {metrics.map((m) => (
+              <MetricCard key={m.id} metric={m} />
+            ))}
           </div>
-        )
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <PendingActions actions={pendingActions} />
+            {data && <RecentActivity items={data.activity} />}
+          </div>
+        </div>
       )}
     </div>
   );

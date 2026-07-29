@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Ban,
   CalendarPlus,
-  Download,
   Eye,
   EyeOff,
   FileWarning,
@@ -30,9 +29,8 @@ import { EventSettingsModal } from './EventSettingsModal';
 import { useData, publishEvent, restoreEvent } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
-import { exportCsv } from '../../lib/exportCsv';
 import { formatDateTime, priceLabel } from '../../lib/format';
-import { EVENT_STATUSES, EVENT_STATUS_LABEL, EVENT_FORMATS, FORMAT_LABEL, TICKET_TYPE_LABEL } from '../../config/eventLabels';
+import { EVENT_STATUSES, EVENT_STATUS_LABEL, EVENT_FORMATS, FORMAT_LABEL } from '../../config/eventLabels';
 import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import type { EventRecord } from '../../types/events';
@@ -157,15 +155,6 @@ export function EventsPage() {
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
   const detail = (id: string) => navigate(`/admin/events/${id}`, { state: { from: `/admin/events?${params.toString()}` } });
 
-  const doExport = () => {
-    exportCsv('iica-events.csv', filtered.map((e) => ({
-      Title: e.title, ID: e.id, Host: e.hostName, Category: e.category, Format: FORMAT_LABEL[e.format],
-      Date: formatDateTime(e.startAt), City: e.location.city ?? (e.format === 'online' ? 'Online' : ''),
-      Ticket: TICKET_TYPE_LABEL[e.ticketType], Sold: soldOf(e), Status: EVENT_STATUS_LABEL[e.status],
-    })));
-    toast(`Exported ${filtered.length} events to CSV.`);
-  };
-
   const selectCls = 'text-sm';
 
   return (
@@ -175,7 +164,6 @@ export function EventsPage() {
         description="Review events, ticketing, venues and creator submissions."
         actions={
           <>
-            <Button variant="secondary" icon={<Download className="h-4 w-4" />} onClick={doExport}>Export Events</Button>
             <Button variant="secondary" icon={<CalendarPlus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Add Admin Event</Button>
             <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
               Event Settings

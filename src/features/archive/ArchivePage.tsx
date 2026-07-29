@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
-  Download,
   Eye,
   EyeOff,
   ExternalLink,
@@ -30,7 +29,6 @@ import { ArchiveRequestChangesModal, ArchiveHideModal, ArchiveGuidelinesDrawer }
 import { useData, publishArchive, restoreArchive } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
-import { exportCsv } from '../../lib/exportCsv';
 import { formatDate, formatDuration, timeAgo, formatNumber } from '../../lib/format';
 import { isEligible } from '../../data/portfolioLogic';
 import {
@@ -192,24 +190,6 @@ export function ArchivePage() {
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
   const review = (id: string) => navigate(`/admin/archive/${id}`, { state: { from: `/admin/archive?${params.toString()}` } });
 
-  const doExport = () => {
-    exportCsv(
-      'iica-archive.csv',
-      filtered.map(({ a, u }) => ({
-        Title: a.title,
-        Creator: u?.name ?? '',
-        'IICA ID': a.iicaId ?? '',
-        Category: a.category,
-        'Archive Status': ARCHIVE_STATUS_LABEL[a.archiveStatus],
-        'YouTube Status': YT_STATUS_LABEL[a.youtubeStatus],
-        Views: a.views,
-        Reports: a.reports.length,
-        Added: formatDate(a.addedAt),
-      })),
-    );
-    toast(`Exported ${filtered.length} archive videos to CSV.`);
-  };
-
   const doPublish = () => {
     if (!publishTarget) return;
     publishArchive(publishTarget.a.id, actor);
@@ -232,7 +212,6 @@ export function ArchivePage() {
         description="Moderate YouTube videos shared through creator portfolios."
         actions={
           <>
-            <Button variant="secondary" icon={<Download className="h-4 w-4" />} onClick={doExport}>Export Archive</Button>
             <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Archive Guidelines</Button>
           </>
         }

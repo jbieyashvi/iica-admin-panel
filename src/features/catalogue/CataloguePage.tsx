@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity as ActivityIcon,
-  Download,
   Eye,
   EyeOff,
   FolderOpen,
@@ -30,7 +29,6 @@ import { CorrectLocationModal, EditDiscoveryModal, ActivityScoreDrawer } from '.
 import { useData, setCatalogueHidden } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
-import { exportCsv } from '../../lib/exportCsv';
 import { timeAgo, formatNumber } from '../../lib/format';
 import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
 import { PORTFOLIO_STATUSES, PORTFOLIO_STATUS_LABEL, VISIBILITIES, VISIBILITY_LABEL } from '../../config/portfolioLabels';
@@ -182,28 +180,6 @@ export function CataloguePage() {
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
   const openReview = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: '/admin/catalogue' } });
 
-  const doExport = () => {
-    exportCsv(
-      'iica-catalogue.csv',
-      filtered.map(({ p, u }) => {
-        const loc = effectiveLocation(p, u);
-        return {
-          Profile: u?.name ?? '',
-          'IICA ID': p.iicaId ?? '',
-          Category: p.category,
-          'Domain / Genre': p.domainGenre,
-          City: loc.city,
-          Country: loc.country,
-          'Portfolio Status': PORTFOLIO_STATUS_LABEL[p.status],
-          Visibility: catalogueVisibility(p, u, memberships.find((m) => m.userId === p.userId)),
-          'Activity Score': p.activityScore,
-          'Profile Views': p.profileViews,
-        };
-      }),
-    );
-    toast(`Exported ${filtered.length} catalogue profiles to CSV.`);
-  };
-
   const doHide = () => {
     if (!hideTarget) return;
     if (!hideReason.trim()) {
@@ -231,9 +207,6 @@ export function CataloguePage() {
         description="Manage catalogue visibility, profile information and discovery data."
         actions={
           <>
-            <Button variant="secondary" icon={<Download className="h-4 w-4" />} onClick={doExport}>
-              Export Catalogue
-            </Button>
             <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
               Catalogue Settings
             </Button>

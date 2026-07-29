@@ -101,7 +101,10 @@ export function UserDetailPage() {
     );
   }
 
-  const tab = params.get('tab') ?? 'overview';
+  const isCreator = user.accountType === 'creator' && !!membership;
+  const tabDefs = isCreator ? TABS : TABS.filter((t) => t.key !== 'membership');
+  const rawTab = params.get('tab') ?? 'overview';
+  const tab = tabDefs.some((t) => t.key === rawTab) ? rawTab : 'overview';
   const setTab = (key: string) => {
     const next = new URLSearchParams(params);
     next.set('tab', key);
@@ -211,7 +214,7 @@ export function UserDetailPage() {
 
       {/* Tabs */}
       <div className="mb-5">
-        <Tabs tabs={TABS} active={tab} onChange={setTab} />
+        <Tabs tabs={tabDefs} active={tab} onChange={setTab} />
       </div>
 
       {/* Tab content */}
@@ -274,46 +277,30 @@ export function UserDetailPage() {
         </div>
       )}
 
-      {tab === 'membership' && (
-        membership ? (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Panel
-              title="Membership Form Data"
-              action={
-                <Link to={`/admin/memberships/${membership.id}`} className="text-xs font-medium text-magenta-600 hover:text-magenta-700">
-                  Open membership
-                </Link>
-              }
-            >
-              <Row label="Full name">{membership.form.fullName}</Row>
-              <Row label="Email">{membership.form.email}</Row>
-              <Row label="Phone">{membership.form.phone}</Row>
-              <Row label="Country">{membership.form.country}</Row>
-              <Row label="City">{membership.form.city}</Row>
-              <Row label="Category">{membership.category}</Row>
-              <Row label="Submitted">{formatDate(membership.form.submittedAt)}</Row>
+      {tab === 'membership' && membership && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Panel title="Membership">
+            <Row label="IICA ID">{membership.iicaId ?? '—'}</Row>
+            <Row label="Membership category">{membership.category}</Row>
+            <Row label="Form submission date">{formatDate(membership.form.submittedAt)}</Row>
+            <Row label="Purchase platform">{PURCHASE_PLATFORM_LABEL[membership.purchasePlatform]}</Row>
+            <Row label="Purchase status">{<PurchaseStatusBadge status={membership.purchaseStatus} />}</Row>
+            <Row label="Membership status">{<MembershipStatusBadge status={membership.membershipStatus} />}</Row>
+          </Panel>
+          <Panel title="Access & Dates">
+            <Row label="Start date">{formatDate(membership.startDate)}</Row>
+            <Row label="Renewal date">{formatDate(membership.renewalDate)}</Row>
+            <Row label="Expiry date">{formatDate(membership.expiryDate)}</Row>
+            <Row label="Portfolio access">
+              {membership.portfolioUnlocked ? <Badge tone="green">Unlocked</Badge> : <Badge tone="neutral">Locked</Badge>}
+            </Row>
+          </Panel>
+          <div className="lg:col-span-2">
+            <Panel title="Membership Progress">
+              <MembershipTimeline events={membership.timeline} />
             </Panel>
-            <Panel title="Membership Status">
-              <Row label="IICA ID">{membership.iicaId ?? '—'}</Row>
-              <Row label="Purchase platform">{PURCHASE_PLATFORM_LABEL[membership.purchasePlatform]}</Row>
-              <Row label="Purchase status">{<PurchaseStatusBadge status={membership.purchaseStatus} />}</Row>
-              <Row label="Membership status">{<MembershipStatusBadge status={membership.membershipStatus} />}</Row>
-              <Row label="Start date">{formatDate(membership.startDate)}</Row>
-              <Row label="Renewal date">{formatDate(membership.renewalDate)}</Row>
-              <Row label="Expiry date">{formatDate(membership.expiryDate)}</Row>
-              <Row label="Transaction ref">{membership.payment.transactionRef ?? '—'}</Row>
-            </Panel>
-            <div className="lg:col-span-2">
-              <Panel title="Membership History">
-                <MembershipTimeline events={membership.timeline} />
-              </Panel>
-            </div>
           </div>
-        ) : (
-          <div className="card">
-            <EmptyState title="No membership application" description="This user has not submitted a creator membership form." />
-          </div>
-        )
+        </div>
       )}
 
       {tab === 'portfolio' && (

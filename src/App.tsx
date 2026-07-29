@@ -7,8 +7,6 @@ import { VerifyPage } from './features/auth/VerifyPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { UsersPage } from './features/users/UsersPage';
 import { UserDetailPage } from './features/users/UserDetailPage';
-import { MembershipsPage } from './features/memberships/MembershipsPage';
-import { MembershipDetailPage } from './features/memberships/MembershipDetailPage';
 import { CataloguePage } from './features/catalogue/CataloguePage';
 import { CategoriesPage } from './features/categories/CategoriesPage';
 import { PortfoliosPage } from './features/portfolios/PortfoliosPage';
@@ -19,22 +17,6 @@ import { EventsPage } from './features/events/EventsPage';
 import { EventDetailPage } from './features/events/EventDetailPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
-
-// Modules that are routed but not yet built — rendered via ComingSoon.
-const PLACEHOLDER_ROUTES = [
-  'products',
-  'orders',
-  'finance',
-  'payouts',
-  'collaborations',
-  'reviews',
-  'support',
-  'app-content',
-  'notifications',
-  'analytics',
-  'admin-users',
-  'settings',
-];
 
 export default function App() {
   return (
@@ -57,8 +39,6 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:userId" element={<UserDetailPage />} />
-          <Route path="memberships" element={<MembershipsPage />} />
-          <Route path="memberships/:membershipId" element={<MembershipDetailPage />} />
           <Route path="catalogue" element={<CataloguePage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="portfolios" element={<PortfoliosPage />} />
@@ -67,9 +47,12 @@ export default function App() {
           <Route path="archive/:archiveId" element={<ArchiveReviewPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
-          {PLACEHOLDER_ROUTES.map((path) => (
-            <Route key={path} path={path} element={<ComingSoon />} />
-          ))}
+          <Route path="settings" element={<ComingSoon />} />
+
+          {/* Retired modules — safely redirect old URLs to Users */}
+          <Route path="memberships" element={<Navigate to="/admin/users" replace />} />
+          <Route path="memberships/:membershipId" element={<Navigate to="/admin/users" replace />} />
+          <Route path="audit-log" element={<Navigate to="/admin/users" replace />} />
         </Route>
 
         {/* Root + fallback */}
