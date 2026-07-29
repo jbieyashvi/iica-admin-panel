@@ -6,11 +6,12 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
 import {
   CommerceSnapshotChart,
-  CollaborationSnapshotChart,
+  CollaborationProgressCard,
   ProfilesByLocationChart,
   MembershipCategoryChart,
   RevenueOverviewChart,
 } from './sections/DashboardCharts';
+import type { CollabProgressRow } from './sections/DashboardCharts';
 import { cn } from '../../lib/cn';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -93,26 +94,26 @@ export function DashboardPage() {
     return { rows, footnote };
   }, [products, productOrders]);
 
-  // ---- Collaboration Snapshot (each collab counted once) ----
+  // ---- Collaboration Progress (each collab counted once, pipeline total) ----
   const collab = useMemo(() => {
-    const b = { Suggested: 0, Pending: 0, Accepted: 0, Meeting: 0, Active: 0, Completed: 0 };
+    const b = { suggested: 0, pending: 0, meeting: 0, active: 0, completed: 0 };
     collaborations.forEach((c) => {
-      if (c.progress === 'completed') b.Completed++;
-      else if (c.meeting?.status === 'scheduled') b.Meeting++;
-      else if (['discussion_scheduled', 'in_discussion', 'confirmed'].includes(c.progress)) b.Active++;
-      else if (c.requestStatus === 'accepted') b.Accepted++;
-      else if (c.requestStatus === 'request_sent' || c.requestStatus === 'pending_response') b.Pending++;
-      else if (c.requestStatus === 'suggested') b.Suggested++;
+      const ms = c.meeting?.status;
+      if (c.progress === 'completed') b.completed++;
+      else if (ms === 'scheduled') b.meeting++;
+      else if (['discussion_scheduled', 'in_discussion', 'confirmed'].includes(c.progress)) b.active++;
+      else if (c.requestStatus === 'accepted') b.active++;
+      else if (c.requestStatus === 'request_sent' || c.requestStatus === 'pending_response') b.pending++;
+      else if (c.requestStatus === 'suggested') b.suggested++;
     });
-    const data = [
-      { name: 'Suggested Match', value: b.Suggested },
-      { name: 'Pending Request', value: b.Pending },
-      { name: 'Accepted', value: b.Accepted },
-      { name: 'Meeting Scheduled', value: b.Meeting },
-      { name: 'Active', value: b.Active },
-      { name: 'Completed', value: b.Completed },
+    const rows: CollabProgressRow[] = [
+      { key: 'suggested', icon: 'suggested', label: 'Suggested Matches', count: b.suggested, filter: 'req=suggested' },
+      { key: 'pending', icon: 'pending', label: 'Pending Requests', count: b.pending, filter: 'req=pending_response' },
+      { key: 'meeting', icon: 'meeting', label: 'Meetings Scheduled', count: b.meeting, filter: 'meet=scheduled' },
+      { key: 'active', icon: 'active', label: 'Active', count: b.active, filter: 'prog=in_discussion' },
+      { key: 'completed', icon: 'completed', label: 'Completed', count: b.completed, filter: 'prog=completed' },
     ];
-    return { data, total: data.reduce((s, d) => s + d.value, 0) };
+    return { rows, total: rows.reduce((s, r) => s + r.count, 0) };
   }, [collaborations]);
 
   // ---- Profiles by Location (visible creator profiles only) ----
@@ -225,7 +226,7 @@ export function DashboardPage() {
         {/* Row 1 */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2"><CommerceSnapshotChart data={commerce.rows} footnote={commerce.footnote} /></div>
-          <CollaborationSnapshotChart data={collab.data} total={collab.total} />
+          <CollaborationProgressCard rows={collab.rows} total={collab.total} />
         </div>
 
         {/* Row 2 */}

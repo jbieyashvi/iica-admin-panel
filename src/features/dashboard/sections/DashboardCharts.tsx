@@ -13,6 +13,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Link } from 'react-router-dom';
+import { Activity, CalendarClock, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 import { SectionCard } from '../../../components/ui/SectionCard';
 import { formatINR } from '../../../lib/format';
 
@@ -127,13 +129,66 @@ function Donut({ data, total, centerLabel }: { data: DonutSlice[]; total: number
   );
 }
 
-// ---- 2. Collaboration Snapshot (donut) -------------------------------------
-export function CollaborationSnapshotChart({ data, total }: { data: DonutSlice[]; total: number }) {
+// ---- 2. Collaboration Progress (status rows, no chart) ---------------------
+export type CollabProgressIcon = 'suggested' | 'pending' | 'meeting' | 'active' | 'completed';
+export interface CollabProgressRow {
+  key: string;
+  label: string;
+  count: number;
+  icon: CollabProgressIcon;
+  filter: string; // querystring applied to /admin/collaborations
+}
+const ROW_ICON: Record<CollabProgressIcon, typeof Sparkles> = {
+  suggested: Sparkles,
+  pending: Clock,
+  meeting: CalendarClock,
+  active: Activity,
+  completed: CheckCircle2,
+};
+// One primary magenta at rising opacity; green reserved for Completed.
+const ROW_BAR: Record<CollabProgressIcon, string> = {
+  suggested: 'rgba(194,24,107,0.45)',
+  pending: 'rgba(194,24,107,0.6)',
+  meeting: 'rgba(194,24,107,0.78)',
+  active: 'rgba(194,24,107,0.95)',
+  completed: '#3c7a52',
+};
+
+export function CollaborationProgressCard({ rows, total }: { rows: CollabProgressRow[]; total: number }) {
   return (
-    <SectionCard title="Collaboration Snapshot" description="By current state" className="h-full">
-      <div className="min-h-[13rem]">
-        <Donut data={data} total={total} centerLabel="Total" />
-      </div>
+    <SectionCard title="Collaboration Progress" description="Current collaboration activity" className="h-full">
+      {total === 0 ? (
+        <div className="flex h-full min-h-[13rem] items-center justify-center text-sm text-charcoal-muted">No collaboration activity yet</div>
+      ) : (
+        <div className="flex h-full flex-col">
+          <Link to="/admin/collaborations" className="group mb-4 inline-flex w-fit items-baseline gap-2">
+            <span className="font-serif text-3xl font-medium text-charcoal group-hover:text-magenta-700">{total.toLocaleString('en-IN')}</span>
+            <span className="text-sm text-charcoal-muted">Total Collaborations</span>
+          </Link>
+          <div className="flex flex-1 flex-col justify-center gap-2.5">
+            {rows.map((r) => {
+              const Icon = ROW_ICON[r.icon];
+              const pct = total ? Math.round((r.count / total) * 100) : 0;
+              return (
+                <Link
+                  key={r.key}
+                  to={`/admin/collaborations?${r.filter}`}
+                  className="group -mx-2 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-cream-100"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-charcoal-muted group-hover:text-magenta-700" aria-hidden />
+                  <span className="w-36 shrink-0 truncate text-sm text-charcoal">{r.label}</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-cream-200">
+                    <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: ROW_BAR[r.icon] }} />
+                  </span>
+                  <span className="w-16 shrink-0 text-right text-sm tabular-nums text-charcoal-muted">
+                    <span className="font-medium text-charcoal">{r.count}</span> · {pct}%
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </SectionCard>
   );
 }
