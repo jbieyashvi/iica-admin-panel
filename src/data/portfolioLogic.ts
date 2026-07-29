@@ -6,11 +6,13 @@ import type {
 } from '../types/portfolio';
 
 // --- Eligibility ------------------------------------------------------------
-// Portfolio access / catalogue eligibility requires an ACTIVE creator
-// membership and a non-suspended account.
+// Portfolio access requires a paid Creator Member with an active membership and
+// a valid IICA ID: Account Type = Creator Member + Membership Active + Paid +
+// IICA ID. Expired / cancelled / suspended keep their record but lose access.
 export function isEligible(user?: UserRecord, membership?: MembershipRecord): boolean {
   if (!user || !membership) return false;
-  if (user.membershipStatus === 'suspended') return false;
+  if (user.accountType !== 'creator') return false;
+  if (!membership.iicaId || membership.purchaseStatus !== 'completed') return false;
   return membership.membershipStatus === 'active' || membership.membershipStatus === 'renewal_due';
 }
 

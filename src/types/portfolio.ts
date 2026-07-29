@@ -9,8 +9,7 @@ import type { InternalNote, TimelineEvent } from './users';
 export type PortfolioStatus =
   | 'not_started'
   | 'draft'
-  | 'published'
-  | 'archived';
+  | 'published';
 
 export type CatalogueVisibility = 'visible' | 'hidden' | 'ineligible';
 

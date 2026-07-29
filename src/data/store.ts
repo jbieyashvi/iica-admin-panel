@@ -90,8 +90,23 @@ function migrateStatuses(s: DataState): DataState {
     return { ...m, membershipStatus: ms, iicaId, idGeneratedAt: iicaId ? m.idGeneratedAt : null, idHistory: iicaId ? m.idHistory : [] };
   });
 
+  // Portfolios: only paid Creator Members keep a record; historical (expired /
+  // cancelled / suspended) portfolios are preserved but hidden from catalogue.
+  const paidUserIds = new Set(memberships.filter((m) => m.purchaseStatus === 'completed' && m.iicaId).map((m) => m.userId));
+  const msByUser = new Map(memberships.map((m) => [m.userId, m.membershipStatus as string]));
+  let portfolios2 = portfolios.filter((p) => paidUserIds.has(p.userId));
+  if (portfolios2.length !== portfolios.length) changed = true;
+  portfolios2 = portfolios2.map((p) => {
+    const ms = msByUser.get(p.userId);
+    const historical = !!ms && ['expired', 'cancelled', 'suspended'].includes(ms);
+    const status = ((p.status as string) === 'archived' ? 'published' : p.status) as typeof p.status;
+    const hiddenFromCatalogue = historical ? true : p.hiddenFromCatalogue;
+    if (status !== p.status || hiddenFromCatalogue !== p.hiddenFromCatalogue) changed = true;
+    return { ...p, status, hiddenFromCatalogue };
+  });
+
   if (!changed) return s;
-  const next = { ...s, products, events, portfolios, users, memberships };
+  const next = { ...s, products, events, portfolios: portfolios2, users, memberships };
   writeStorage(STORAGE_KEY, next);
   return next;
 }

@@ -64,30 +64,26 @@ export function buildCategorySeed(): CategoryRecord[] {
 // --- Portfolio status map (by seed user id) ---------------------------------
 interface Spec {
   status: PortfolioStatus;
-  reported?: number; // # reported testimonials
   badLink?: boolean;
 }
 const SPEC: Record<string, Spec> = {
-  usr_ananya: { status: 'published', reported: 1 },
+  usr_ananya: { status: 'published' },
   usr_kabir: { status: 'published' },
   usr_meera: { status: 'published' },
   usr_aarav: { status: 'draft' },
   usr_royal: { status: 'published' },
-  usr_heritage: { status: 'draft', reported: 1 },
+  usr_heritage: { status: 'draft' },
   usr_vikram: { status: 'published' },
   usr_nikhil: { status: 'draft' },
   usr_aisha: { status: 'published' },
-  usr_devang: { status: 'published' },
+  usr_devang: { status: 'not_started' }, // active Creator Member, portfolio not started (0%)
   usr_james: { status: 'published' },
-  usr_sophia: { status: 'draft', reported: 1, badLink: true },
+  usr_sophia: { status: 'draft', badLink: true },
   usr_abhishek: { status: 'published' },
   usr_leila: { status: 'published' },
-  usr_tanvi: { status: 'published' }, // expired membership → ineligible
-  usr_karan: { status: 'archived' },
-  usr_vivaan: { status: 'published' }, // suspended → ineligible
-  usr_priya: { status: 'not_started' },
-  usr_rahul: { status: 'not_started' },
-  usr_sara: { status: 'not_started' },
+  usr_tanvi: { status: 'published' }, // membership later expired → historical, hidden
+  usr_karan: { status: 'published' }, // membership cancelled → historical, hidden
+  usr_vivaan: { status: 'published' }, // suspended → hidden
 };
 
 const YT = ['dQw4w9WgXcQ', '3JZ_D3ELwOQ', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'OPf0YbXqDm0', 'e-ORhEE9VVg'];
@@ -137,7 +133,7 @@ function buildContent(user: UserRecord, cat: MembershipCategory, spec: Spec, bas
 
   const testimonials: TestimonialEntry[] = [
     { id: `${user.id}_t0`, author: 'Priyanka M.', rating: 5, body: 'Absolutely wonderful to work with — professional and inspiring.', reported: false },
-    { id: `${user.id}_t1`, author: 'Rohan D.', rating: 4, body: 'Great experience overall, highly recommend.', reported: (spec.reported ?? 0) > 0 },
+    { id: `${user.id}_t1`, author: 'Rohan D.', rating: 4, body: 'Great experience overall, highly recommend.', reported: false },
   ];
 
   return {
@@ -186,6 +182,9 @@ export function buildPortfolioSeed(users: UserRecord[], memberships: MembershipR
   for (const m of memberships) {
     const user = users.find((u) => u.id === m.userId);
     if (!user) continue;
+    // Only paid Creator Members (with an IICA ID) can have a Portfolio record.
+    // Registered / form-submitted / purchase-pending members get none.
+    if (m.purchaseStatus !== 'completed' || !m.iicaId) continue;
     const spec = SPEC[user.id] ?? { status: 'draft' as PortfolioStatus };
     const base = new Date(m.form.submittedAt).getTime();
     const content = buildContent(user, m.category, spec, base);
@@ -195,20 +194,10 @@ export function buildPortfolioSeed(users: UserRecord[], memberships: MembershipR
     ];
     if (spec.status === 'published')
       timeline.push({ id: `${user.id}_ptl3`, key: 'published', label: 'Portfolio published', at: ts(base, 36) });
-    if (spec.status === 'archived')
-      timeline.push({ id: `${user.id}_ptl4`, key: 'archived', label: 'Portfolio archived', at: ts(base, 400) });
 
-    const reports = (spec.reported ?? 0) > 0
-      ? [{
-          id: `${user.id}_rep0`,
-          section: 'Testimonials',
-          item: content.testimonials[1]?.body.slice(0, 40) ?? 'Reported review',
-          reason: 'Reported by a user as spam / inappropriate.',
-          status: 'open' as const,
-          reportedBy: 'Community report',
-          at: ts(base, 210),
-        }]
-      : [];
+    // Historical portfolios (membership later expired / cancelled / suspended)
+    // are preserved but hidden from the public catalogue.
+    const historical = ['expired', 'cancelled', 'suspended'].includes(m.membershipStatus);
 
     const hasLocation = true;
     const activitySignals = {
@@ -229,18 +218,18 @@ export function buildPortfolioSeed(users: UserRecord[], memberships: MembershipR
       category: m.category,
       domainGenre: FLAVOUR[m.category].domains[0],
       status: spec.status,
-      hiddenFromCatalogue: false,
-      hiddenReason: null,
+      hiddenFromCatalogue: historical,
+      hiddenReason: historical ? 'Membership no longer active.' : null,
       locationCorrection: null,
       content,
       activity: activitySignals,
       profileViews,
       activityScore: 0,
       scoreCalculatedAt: ts(base, 300),
-      reports,
+      reports: [],
       notes: [],
       timeline,
-      lastSubmittedAt: ['published', 'archived'].includes(spec.status) ? ts(base, 30) : null,
+      lastSubmittedAt: spec.status === 'published' ? ts(base, 30) : null,
       lastUpdatedAt: ts(base, spec.status === 'published' ? 300 : 30),
     };
     // finalise derived fields

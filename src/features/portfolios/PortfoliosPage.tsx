@@ -6,7 +6,6 @@ import {
   Eye,
   FolderOpen,
   History,
-  MessageSquareWarning,
   Search,
   Upload,
   X,
@@ -14,13 +13,13 @@ import {
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
-import { Badge } from '../../components/ui/Badge';
 import { Select } from '../../components/ui/Field';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
+import { MembershipStatusBadge } from '../../components/ui/StatusBadge';
 import { UnpublishModal, PortfolioGuidelinesDrawer } from './PortfolioModals';
 import { useData, publishPortfolio } from '../../data/store';
 import { useActor } from '../../lib/useActor';
@@ -51,10 +50,6 @@ const COMPLETION = [
   { key: 'mid', label: '50–80%' },
   { key: 'high', label: '> 80%' },
 ];
-const REPORTED = [
-  { key: 'any', label: 'All content' },
-  { key: 'reported', label: 'Reported only' },
-];
 const SUBMITTED = [
   { key: 'any', label: 'Any submission' },
   { key: '7', label: 'Submitted ≤ 7 days' },
@@ -68,7 +63,6 @@ interface Row {
   completion: number;
   eligible: boolean;
   requiredDone: boolean;
-  openReports: number;
 }
 
 export function PortfoliosPage() {
@@ -87,7 +81,6 @@ export function PortfoliosPage() {
   const completion = get('completion', 'any');
   const status = get('status', 'all');
   const vis = get('vis', 'all');
-  const reported = get('reported', 'any');
   const submitted = get('submitted', 'any');
   const sort = get('sort', 'updated');
   const page = Number(get('page', '1'));
@@ -109,30 +102,34 @@ export function PortfoliosPage() {
         const u = users.find((x) => x.id === p.userId);
         const m = memberships.find((x) => x.userId === p.userId);
         const items = completionChecklist(p.content, true, true);
+        // A not-started portfolio always reads 0% — completion measures actual
+        // portfolio fields, never membership/registration progress.
         return {
           p,
           u,
           m,
-          completion: completionPercent(items),
+          completion: p.status === 'not_started' ? 0 : completionPercent(items),
           eligible: isEligible(u, m),
           requiredDone: requiredComplete(items),
-          openReports: p.reports.filter((r) => r.status === 'open').length,
         };
       }),
     [portfolios, users, memberships],
   );
 
+  // Visibility shown in the table: eligible members use catalogue visibility;
+  // historical (expired / cancelled / suspended) records read Hidden.
+  const visOf = (row: Row) => (row.eligible ? catalogueVisibility(row.p, row.u, row.m) : 'hidden');
+
   const filtered = useMemo(() => {
     let list = rows.filter((row) => {
-      const { p, u, completion: c, openReports } = row;
+      const { p, u, completion: c } = row;
       if (q) {
         const hay = `${u?.name ?? ''} ${p.iicaId ?? ''}`.toLowerCase();
         if (!hay.includes(q.toLowerCase())) return false;
       }
       if (cat !== 'all' && p.category !== cat) return false;
       if (status !== 'all' && p.status !== status) return false;
-      if (vis !== 'all' && catalogueVisibility(p, u, row.m) !== vis) return false;
-      if (reported === 'reported' && openReports === 0) return false;
+      if (vis !== 'all' && visOf(row) !== vis) return false;
       if (completion === 'low' && c >= 50) return false;
       if (completion === 'mid' && (c < 50 || c > 80)) return false;
       if (completion === 'high' && c <= 80) return false;
@@ -155,7 +152,8 @@ export function PortfoliosPage() {
       }
     });
     return list;
-  }, [rows, q, cat, status, vis, reported, completion, submitted, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, q, cat, status, vis, completion, submitted, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
@@ -166,7 +164,6 @@ export function PortfoliosPage() {
   if (status !== 'all') chips.push({ key: 'status', label: PORTFOLIO_STATUS_LABEL[status as never] });
   if (vis !== 'all') chips.push({ key: 'vis', label: vis });
   if (completion !== 'any') chips.push({ key: 'completion', label: COMPLETION.find((c) => c.key === completion)!.label });
-  if (reported !== 'any') chips.push({ key: 'reported', label: 'Reported only' });
   if (submitted !== 'any') chips.push({ key: 'submitted', label: SUBMITTED.find((s) => s.key === submitted)!.label });
 
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
@@ -185,7 +182,7 @@ export function PortfoliosPage() {
     <div>
       <PageHeader
         title="Portfolios"
-        description="Review portfolio completeness, publishing state and reported content."
+        description="Review portfolio completeness, publishing state and membership eligibility."
         actions={
           <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Portfolio Guidelines</Button>
         }
@@ -202,7 +199,7 @@ export function PortfoliosPage() {
           </Select>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           <Select className={selectCls} value={cat} onChange={(e) => update({ cat: e.target.value })}>
             <option value="all">All categories</option>
             {MEMBERSHIP_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -219,9 +216,6 @@ export function PortfoliosPage() {
           </Select>
           <Select className={selectCls} value={completion} onChange={(e) => update({ completion: e.target.value })}>
             {COMPLETION.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </Select>
-          <Select className={selectCls} value={reported} onChange={(e) => update({ reported: e.target.value })}>
-            {REPORTED.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
           </Select>
           <Select className={selectCls} value={submitted} onChange={(e) => update({ submitted: e.target.value })}>
             {SUBMITTED.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
@@ -249,9 +243,9 @@ export function PortfoliosPage() {
                 <th className="px-4 py-3">IICA ID</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Completion</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Portfolio Status</th>
                 <th className="px-4 py-3">Visibility</th>
-                <th className="px-4 py-3">Reported</th>
+                <th className="px-4 py-3">Membership Status</th>
                 <th className="px-4 py-3">Submitted</th>
                 <th className="px-4 py-3">Updated</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -260,6 +254,13 @@ export function PortfoliosPage() {
             <tbody className="divide-y divide-cream-200">
               {paged.map((row) => {
                 const { p, u } = row;
+                const memberStatus = u?.membershipStatus ?? 'not_started';
+                const subLabel = row.eligible
+                  ? 'Eligible'
+                  : memberStatus === 'expired' ? 'Membership Expired'
+                  : memberStatus === 'cancelled' ? 'Membership Cancelled'
+                  : memberStatus === 'suspended' ? 'Membership Suspended'
+                  : 'Ineligible';
                 return (
                   <tr key={p.id} className="group hover:bg-cream-100/50">
                     <td className="px-4 py-3">
@@ -267,9 +268,7 @@ export function PortfoliosPage() {
                         <Avatar name={u?.name ?? '—'} size="sm" />
                         <span>
                           <span className="block font-medium text-charcoal group-hover:text-magenta-700">{u?.name ?? 'Unknown'}</span>
-                          <span className="block text-xs">
-                            {row.eligible ? <span className="text-emerald-600">Eligible</span> : <span className="text-charcoal-muted">Ineligible membership</span>}
-                          </span>
+                          <span className={`block text-xs ${row.eligible ? 'text-emerald-600' : 'text-charcoal-muted'}`}>{subLabel}</span>
                         </span>
                       </button>
                     </td>
@@ -284,10 +283,8 @@ export function PortfoliosPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3"><PortfolioStatusBadge status={p.status} /></td>
-                    <td className="px-4 py-3"><VisibilityBadge visibility={catalogueVisibility(p, u, row.m)} /></td>
-                    <td className="px-4 py-3">
-                      {row.openReports > 0 ? <Badge tone="red">{row.openReports} reported</Badge> : <span className="text-charcoal-muted">—</span>}
-                    </td>
+                    <td className="px-4 py-3"><VisibilityBadge visibility={visOf(row)} /></td>
+                    <td className="px-4 py-3"><MembershipStatusBadge status={memberStatus} /></td>
                     <td className="px-4 py-3 text-charcoal-muted">{formatDate(p.lastSubmittedAt)}</td>
                     <td className="px-4 py-3 text-charcoal-muted">{timeAgo(p.lastUpdatedAt)}</td>
                     <td className="px-4 py-3">
@@ -296,7 +293,6 @@ export function PortfoliosPage() {
                           items={[
                             { label: 'Review Portfolio', icon: <Eye className="h-4 w-4" />, onClick: () => review(p.id) },
                             { label: 'Preview Public Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => review(p.id) },
-                            { label: 'View Reports', icon: <MessageSquareWarning className="h-4 w-4" />, onClick: () => review(p.id) },
                             { label: 'View History', icon: <History className="h-4 w-4" />, onClick: () => review(p.id) },
                             { divider: true, label: 'd' },
                             p.status === 'published'

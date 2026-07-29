@@ -6,14 +6,12 @@ export const PORTFOLIO_STATUS_LABEL: Record<PortfolioStatus, string> = {
   not_started: 'Not Started',
   draft: 'Draft',
   published: 'Published',
-  archived: 'Archived',
 };
 
 export const PORTFOLIO_STATUS_TONE: Record<PortfolioStatus, Tone> = {
   not_started: 'neutral',
   draft: 'blue',
   published: 'green',
-  archived: 'neutral',
 };
 
 export const VISIBILITY_LABEL: Record<CatalogueVisibility, string> = {
@@ -42,7 +40,6 @@ export const PORTFOLIO_STATUSES: PortfolioStatus[] = [
   'not_started',
   'draft',
   'published',
-  'archived',
 ];
 
 export const VISIBILITIES: CatalogueVisibility[] = ['visible', 'hidden', 'ineligible'];
