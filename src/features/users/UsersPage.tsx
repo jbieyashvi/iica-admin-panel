@@ -266,8 +266,7 @@ export function UsersPage() {
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="block text-charcoal">{u.email}</span>
-                    <span className="block text-xs text-charcoal-muted">{u.phone}</span>
+                    <span className="block max-w-[260px] truncate text-charcoal" title={`${u.email} · ${u.phone}`}>{u.email} · {u.phone}</span>
                   </td>
                   <td className="px-4 py-3">
                     <AccountTypeBadge type={u.accountType} />
@@ -277,10 +276,7 @@ export function UsersPage() {
                   <td className="px-4 py-3">
                     <MembershipStatusBadge status={u.membershipStatus} />
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="block text-charcoal">{u.city}</span>
-                    <span className="block text-xs text-charcoal-muted">{u.country}</span>
-                  </td>
+                  <td className="px-4 py-3 text-charcoal" title={`${u.city}, ${u.country}`}>{u.city}, {u.country}</td>
                   <td className="px-4 py-3 text-charcoal-muted">{formatDate(u.joinedAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">

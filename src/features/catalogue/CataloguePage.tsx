@@ -276,13 +276,12 @@ export function CataloguePage() {
                     <td className="px-4 py-3 text-charcoal">{p.category}</td>
                     <td className="px-4 py-3 text-charcoal">{p.domainGenre}</td>
                     <td className="px-4 py-3">
-                      <span className="flex items-center gap-1 text-charcoal">
-                        {loc.city}
+                      <span className="flex items-center gap-1 text-charcoal" title={`${loc.city}, ${loc.country}`}>
+                        {loc.city}, {loc.country}
                         {loc.corrected && (
                           <span title="Admin-corrected (internal)" className="text-magenta-500"><MapPin className="h-3 w-3" /></span>
                         )}
                       </span>
-                      <span className="block text-xs text-charcoal-muted">{loc.country}</span>
                     </td>
                     <td className="px-4 py-3"><PortfolioStatusBadge status={p.status} /></td>
                     <td className="px-4 py-3"><VisibilityBadge visibility={row.visibility} /></td>

@@ -40,6 +40,43 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Global compact single-line table style. Applies to every data table (which
+   all render inside a .card). Keeps headers + values on one line; long content
+   overflows into the table's own horizontal scroll container rather than
+   wrapping. One shared rule set instead of per-page CSS.
+--------------------------------------------------------------------------- */
+.card table thead th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  padding: 10px 14px;
+  vertical-align: middle;
+}
+.card table tbody td {
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+  padding: 11px 14px;
+  vertical-align: middle;
+}
+/* Compact-but-clickable rows. */
+.card table tbody tr {
+  height: 52px;
+}
+/* Never render body text below 12px inside tables. */
+.card table tbody td .text-\[11px\],
+.card table tbody td .text-\[10px\] {
+  font-size: 12px;
+}
+/* Status badges + inline chips stay on one line. */
+.card table td .inline-flex,
+.card table td [class*='rounded-full'] {
+  white-space: nowrap;
+}
+
 /* Thin, unobtrusive scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
