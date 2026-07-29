@@ -443,9 +443,8 @@ export function UserDetailPage() {
 
 function journeyStage(status: string): string {
   const map: Record<string, string> = {
-    not_applicable: 'Browsing / Buyer',
+    not_started: 'Registered user',
     form_submitted: 'Application submitted',
-    iica_id_generated: 'IICA ID issued',
     purchase_pending: 'Completing purchase',
     active: 'Active creator',
     renewal_due: 'Renewal due',

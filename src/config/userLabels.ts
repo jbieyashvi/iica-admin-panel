@@ -10,7 +10,7 @@ type Tone = 'neutral' | 'magenta' | 'green' | 'amber' | 'red' | 'blue';
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   guest: 'Guest',
   registered: 'Registered User',
-  creator: 'Creator',
+  creator: 'Creator Member',
 };
 
 export const ACCOUNT_TYPE_TONE: Record<AccountType, Tone> = {
@@ -20,9 +20,8 @@ export const ACCOUNT_TYPE_TONE: Record<AccountType, Tone> = {
 };
 
 export const MEMBERSHIP_STATUS_LABEL: Record<MembershipStatus, string> = {
-  not_applicable: 'Not Applicable',
+  not_started: 'Not Started',
   form_submitted: 'Form Submitted',
-  iica_id_generated: 'IICA ID Generated',
   purchase_pending: 'Purchase Pending',
   active: 'Active',
   renewal_due: 'Renewal Due',
@@ -32,9 +31,8 @@ export const MEMBERSHIP_STATUS_LABEL: Record<MembershipStatus, string> = {
 };
 
 export const MEMBERSHIP_STATUS_TONE: Record<MembershipStatus, Tone> = {
-  not_applicable: 'neutral',
+  not_started: 'neutral',
   form_submitted: 'blue',
-  iica_id_generated: 'blue',
   purchase_pending: 'amber',
   active: 'green',
   renewal_due: 'amber',
@@ -71,12 +69,12 @@ export const PURCHASE_STATUS_TONE: Record<PurchaseStatus, Tone> = {
   restored: 'blue',
 };
 
-// Ordered lists for filter dropdowns.
-export const ACCOUNT_TYPES: AccountType[] = ['guest', 'registered', 'creator'];
+// Ordered lists for filter dropdowns. Guests are not registered records, so the
+// Users table only filters Registered User + Creator Member.
+export const ACCOUNT_TYPES: AccountType[] = ['registered', 'creator'];
 export const MEMBERSHIP_STATUSES: MembershipStatus[] = [
-  'not_applicable',
+  'not_started',
   'form_submitted',
-  'iica_id_generated',
   'purchase_pending',
   'active',
   'renewal_due',

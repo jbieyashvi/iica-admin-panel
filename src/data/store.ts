@@ -51,9 +51,11 @@ const STORAGE_KEY = 'data_state';
 
 // ---- Store internals -------------------------------------------------------
 
-// One-time safe migration: the review-queue statuses have been removed.
-// Awaiting Review / Changes Requested / Submitted all collapse to Draft.
-// Idempotent — running it on already-clean data is a no-op.
+// One-time safe migrations (idempotent — a no-op on already-clean data):
+//  - Review-queue statuses (Awaiting Review / Changes Requested / Submitted) → Draft.
+//  - User/membership lifecycle: drop Guest accounts from Users, remap retired
+//    membership statuses, and ensure an IICA ID + Creator Member only exist once
+//    a purchase has completed (Paid).
 function migrateStatuses(s: DataState): DataState {
   const REMOVED = new Set(['awaiting_review', 'changes_requested', 'submitted']);
   const map = <T extends string>(st: T): T => (REMOVED.has(st as string) ? ('draft' as T) : st);
@@ -61,8 +63,35 @@ function migrateStatuses(s: DataState): DataState {
   const products = s.products.map((p) => (REMOVED.has(p.status as string) ? ((changed = true), { ...p, status: map(p.status) }) : p));
   const events = s.events.map((e) => (REMOVED.has(e.status as string) ? ((changed = true), { ...e, status: map(e.status) }) : e));
   const portfolios = s.portfolios.map((p) => (REMOVED.has(p.status as string) ? ((changed = true), { ...p, status: map(p.status) }) : p));
+
+  const PAID = new Set(['active', 'renewal_due', 'expired', 'cancelled', 'suspended']);
+  const remapMs = (st: string): MembershipStatus =>
+    (st === 'not_applicable' ? 'not_started' : st === 'iica_id_generated' ? 'form_submitted' : st) as MembershipStatus;
+
+  const guestIds = new Set(s.users.filter((u) => u.accountType === 'guest').map((u) => u.id));
+  let users = s.users;
+  if (guestIds.size > 0) { changed = true; users = users.filter((u) => u.accountType !== 'guest'); }
+  users = users.map((u) => {
+    const ms = remapMs(u.membershipStatus as string);
+    const paid = PAID.has(ms);
+    const accountType = paid ? 'creator' : 'registered';
+    const iicaId = paid ? u.iicaId : undefined;
+    if (ms !== u.membershipStatus || accountType !== u.accountType || iicaId !== u.iicaId) changed = true;
+    return { ...u, membershipStatus: ms, accountType, iicaId };
+  });
+
+  let memberships = s.memberships;
+  if (guestIds.size > 0) memberships = memberships.filter((m) => !guestIds.has(m.userId));
+  memberships = memberships.map((m) => {
+    const ms = remapMs(m.membershipStatus as string);
+    const paid = PAID.has(ms) && m.purchaseStatus === 'completed';
+    const iicaId = paid ? m.iicaId : undefined;
+    if (ms !== m.membershipStatus || iicaId !== m.iicaId) changed = true;
+    return { ...m, membershipStatus: ms, iicaId, idGeneratedAt: iicaId ? m.idGeneratedAt : null, idHistory: iicaId ? m.idHistory : [] };
+  });
+
   if (!changed) return s;
-  const next = { ...s, products, events, portfolios };
+  const next = { ...s, products, events, portfolios, users, memberships };
   writeStorage(STORAGE_KEY, next);
   return next;
 }
@@ -110,6 +139,19 @@ export function useData(): DataState {
 const now = () => new Date().toISOString();
 const addDays = (from: Date, days: number) => new Date(from.getTime() + days * 86400000);
 
+// Generate a unique IICA ID (INITIALS.NNN.IICA), avoiding any already in use.
+function uniqueIicaId(name: string): string {
+  const taken = new Set(
+    [...state.users, ...state.memberships].map((x) => x.iicaId).filter((v): v is string => !!v),
+  );
+  const seed = (initialsOf(name).charCodeAt(0) * 7 + 313) % 1000;
+  for (let i = 0; i < 1000; i++) {
+    const id = makeIicaId(name, (seed + i) % 1000);
+    if (!taken.has(id)) return id;
+  }
+  return makeIicaId(name, seed);
+}
+
 function replaceUser(users: UserRecord[], next: UserRecord) {
   return users.map((u) => (u.id === next.id ? next : u));
 }
@@ -131,8 +173,9 @@ export interface AddUserInput {
 
 export function addUser(input: AddUserInput, _actor: AdminActor): UserRecord {
   const id = uid('usr');
-  const isCreator = input.accountType === 'creator' && !!input.membershipCategory;
-  const iicaId = isCreator ? makeIicaId(input.name, (initialsOf(input.name).charCodeAt(0) * 7 + 313) % 1000) : undefined;
+  // New accounts start as Registered Users. Creator Member + IICA ID come only
+  // after a successful (Paid) membership purchase.
+  const hasApplication = !!input.membershipCategory;
   const user: UserRecord = {
     id,
     name: input.name,
@@ -140,10 +183,10 @@ export function addUser(input: AddUserInput, _actor: AdminActor): UserRecord {
     phone: input.phone,
     country: input.country,
     city: input.city,
-    accountType: input.accountType,
-    membershipCategory: isCreator ? input.membershipCategory : undefined,
-    membershipStatus: isCreator ? 'form_submitted' : 'not_applicable',
-    iicaId,
+    accountType: 'registered',
+    membershipCategory: input.membershipCategory,
+    membershipStatus: hasApplication ? 'form_submitted' : 'not_started',
+    iicaId: undefined,
     joinedAt: now(),
     lastActiveAt: now(),
     suspension: null,
@@ -151,11 +194,11 @@ export function addUser(input: AddUserInput, _actor: AdminActor): UserRecord {
   };
 
   let memberships = state.memberships;
-  if (isCreator && input.membershipCategory) {
+  if (hasApplication && input.membershipCategory) {
     const membership: MembershipRecord = {
       id: uid('mem'),
       userId: id,
-      iicaId,
+      iicaId: undefined,
       category: input.membershipCategory,
       purchasePlatform: 'prototype_demo',
       purchaseStatus: 'not_started',
@@ -169,8 +212,8 @@ export function addUser(input: AddUserInput, _actor: AdminActor): UserRecord {
         category: input.membershipCategory,
         submittedAt: now(),
       },
-      idGeneratedAt: iicaId ? now() : null,
-      idHistory: iicaId ? [{ id: iicaId, at: now() }] : [],
+      idGeneratedAt: null,
+      idHistory: [],
       payment: {
         platform: 'prototype_demo',
         region: input.country,
@@ -187,7 +230,6 @@ export function addUser(input: AddUserInput, _actor: AdminActor): UserRecord {
       portfolioUnlocked: false,
       timeline: [
         { id: uid('tl'), key: 'form_submitted', label: 'Membership form submitted', at: now(), detail: `Category: ${input.membershipCategory}` },
-        ...(iicaId ? [{ id: uid('tl'), key: 'iica_id_generated', label: 'IICA ID generated', at: now() }] : []),
       ],
       lastUpdatedAt: now(),
     };
@@ -235,10 +277,12 @@ export function reactivateUser(userId: string, _actor: AdminActor) {
   const restored: MembershipStatus = mem
     ? mem.purchaseStatus === 'completed'
       ? 'active'
-      : mem.iicaId
-        ? 'iica_id_generated'
-        : 'form_submitted'
-    : 'not_applicable';
+      : mem.membershipStatus === 'purchase_pending'
+        ? 'purchase_pending'
+        : mem.category
+          ? 'form_submitted'
+          : 'not_started'
+    : 'not_started';
   const updated: UserRecord = { ...user, membershipStatus: restored, suspension: null };
   let memberships = state.memberships;
   if (mem) {
@@ -279,8 +323,13 @@ export function simulate(membershipId: string, kind: SimKind, _actor: AdminActor
   let next: MembershipRecord = mem;
 
   if (kind === 'completed') {
+    // Payment succeeded → generate the IICA ID once (if not already present).
+    const genId = mem.iicaId ?? uniqueIicaId(user?.name ?? mem.form.fullName);
     next = {
       ...mem,
+      iicaId: genId,
+      idGeneratedAt: mem.idGeneratedAt ?? now(),
+      idHistory: mem.iicaId ? mem.idHistory : [...mem.idHistory, { id: genId, at: now() }],
       purchaseStatus: 'completed',
       membershipStatus: 'active',
       startDate: start.toISOString(),
@@ -333,10 +382,14 @@ export function simulate(membershipId: string, kind: SimKind, _actor: AdminActor
       lastUpdatedAt: now(),
     };
   } else {
+    // Reset to pre-purchase: no IICA ID until a payment succeeds again.
     next = {
       ...mem,
+      iicaId: undefined,
+      idGeneratedAt: null,
+      idHistory: [],
       purchaseStatus: 'not_started',
-      membershipStatus: mem.iicaId ? 'iica_id_generated' : 'form_submitted',
+      membershipStatus: 'form_submitted',
       startDate: null,
       renewalDate: null,
       expiryDate: null,
@@ -351,21 +404,24 @@ export function simulate(membershipId: string, kind: SimKind, _actor: AdminActor
         refundStatus: null,
       },
       timeline: [
-        ...mem.timeline.filter((t) => ['form_submitted', 'iica_id_generated'].includes(t.key)),
+        ...mem.timeline.filter((t) => t.key === 'form_submitted'),
         { id: uid('tl'), key: 'demo_reset', label: 'Membership demo reset', at: now() },
       ],
       lastUpdatedAt: now(),
     };
   }
 
-  // Keep the linked user's membership status in sync.
+  // Keep the linked user's status, account type and IICA ID in sync. Creator
+  // Member only after a purchase has completed; IICA ID mirrors the membership.
   let users = state.users;
   if (user) {
     const uStatus: MembershipStatus = next.membershipStatus;
+    const paid = ['active', 'renewal_due', 'expired', 'cancelled', 'suspended'].includes(uStatus);
     users = replaceUser(users, {
       ...user,
       membershipStatus: uStatus,
-      accountType: uStatus === 'active' || uStatus === 'renewal_due' || uStatus === 'expired' ? 'creator' : user.accountType,
+      accountType: paid ? 'creator' : 'registered',
+      iicaId: next.iicaId,
     });
   }
 

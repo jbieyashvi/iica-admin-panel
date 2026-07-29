@@ -8,10 +8,11 @@ export type { MembershipCategory } from './index';
 
 export type AccountType = 'guest' | 'registered' | 'creator';
 
+// Lifecycle statuses. IICA-ID generation is a system event (not a status);
+// a member only becomes "active" after a Paid membership purchase.
 export type MembershipStatus =
-  | 'not_applicable'
+  | 'not_started'
   | 'form_submitted'
-  | 'iica_id_generated'
   | 'purchase_pending'
   | 'active'
   | 'renewal_due'
