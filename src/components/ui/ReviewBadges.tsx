@@ -1,16 +1,10 @@
 import { Star } from 'lucide-react';
 import { Badge } from './Badge';
 import {
-  REVIEW_STATUS_LABEL,
-  REVIEW_STATUS_TONE,
   TESTIMONIAL_STATUS_LABEL,
   TESTIMONIAL_STATUS_TONE,
 } from '../../config/reviewLabels';
-import type { ReviewStatus, TestimonialStatus } from '../../types/reviews';
-
-export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
-  return <Badge tone={REVIEW_STATUS_TONE[status]}>{REVIEW_STATUS_LABEL[status]}</Badge>;
-}
+import type { TestimonialStatus } from '../../types/reviews';
 
 export function TestimonialStatusBadge({ status }: { status: TestimonialStatus }) {
   return <Badge tone={TESTIMONIAL_STATUS_TONE[status]}>{TESTIMONIAL_STATUS_LABEL[status]}</Badge>;

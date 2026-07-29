@@ -1,6 +1,5 @@
 import type {
   ReviewSourceKind,
-  ReviewStatus,
   ReviewType,
   TestimonialPlacement,
   TestimonialSourceType,
@@ -14,17 +13,6 @@ export const REVIEW_TYPE_LABEL: Record<ReviewType, string> = {
   product: 'Product',
   event: 'Event',
   masterclass: 'Masterclass',
-};
-
-export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
-  pending: 'Pending Review',
-  published: 'Published',
-  hidden: 'Hidden',
-};
-export const REVIEW_STATUS_TONE: Record<ReviewStatus, Tone> = {
-  pending: 'amber',
-  published: 'green',
-  hidden: 'neutral',
 };
 
 export const REVIEW_SOURCE_LABEL: Record<ReviewSourceKind, string> = {
@@ -59,6 +47,7 @@ export const PLACEMENT_LABEL: Record<TestimonialPlacement, string> = {
   shop: 'Shop',
 };
 
+// Testimonial hide reasons (testimonials still support hide/publish/restore).
 export const HIDE_REASONS = [
   'Inappropriate Language',
   'Spam',
@@ -68,9 +57,18 @@ export const HIDE_REASONS = [
   'Other',
 ];
 
+// Review deletion reasons.
+export const DELETE_REASONS = [
+  'Inappropriate Content',
+  'Spam',
+  'Irrelevant Review',
+  'Personal Information',
+  'Duplicate Review',
+  'Other',
+];
+
 // Ordered lists for filters / selects.
 export const REVIEW_TYPES: ReviewType[] = ['creator', 'product', 'event', 'masterclass'];
-export const REVIEW_STATUSES: ReviewStatus[] = ['pending', 'published', 'hidden'];
 export const TESTIMONIAL_STATUSES: TestimonialStatus[] = ['draft', 'published', 'hidden'];
 export const TESTIMONIAL_SOURCE_TYPES: TestimonialSourceType[] = ['creator_review', 'product_review', 'event_review', 'direct'];
 export const PLACEMENTS: TestimonialPlacement[] = ['mobile_app', 'website', 'creator_discovery', 'events', 'shop'];

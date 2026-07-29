@@ -147,6 +147,7 @@ export interface DataState {
   collaborationSettings: import('./collaborations').CollaborationSettings;
   reviews: import('./reviews').ReviewRecord[];
   testimonials: import('./reviews').TestimonialRecord[];
+  banners: import('./banners').BannerRecord[];
   version: number;
 }
 

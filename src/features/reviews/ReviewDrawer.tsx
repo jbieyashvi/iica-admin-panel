@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, ImageIcon, User as UserIcon } from 'lucide-react';
+import { ExternalLink, ImageIcon, Trash2, User as UserIcon } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { ReviewStatusBadge, StarRating } from '../../components/ui/ReviewBadges';
+import { StarRating } from '../../components/ui/ReviewBadges';
 import { useActor } from '../../lib/useActor';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import { formatDate } from '../../lib/format';
@@ -29,37 +29,23 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 export function ReviewDrawer({
   review,
   onClose,
-  onPublish,
-  onHide,
-  onRestore,
+  onDelete,
 }: {
   review: ReviewRecord | null;
   onClose: () => void;
-  onPublish: (r: ReviewRecord) => void;
-  onHide: (r: ReviewRecord) => void;
-  onRestore: (r: ReviewRecord) => void;
+  onDelete: (r: ReviewRecord) => void;
 }) {
   const navigate = useNavigate();
   const { abilities } = useActor();
   if (!review) return null;
-  const canModerate = abilities.reviewsModerate;
+  const canDelete = abilities.reviewsModerate;
   const isGuest = review.reviewerType === 'guest';
 
   const footer = (
     <>
       <Button variant="secondary" onClick={onClose}>Close</Button>
-      {review.status === 'pending' && (
-        <>
-          <Button variant="secondary" disabled={!canModerate} title={canModerate ? '' : RESTRICTED_HINT} onClick={() => onHide(review)}>Hide</Button>
-          <Button disabled={!canModerate} title={canModerate ? '' : RESTRICTED_HINT} onClick={() => onPublish(review)}>Publish</Button>
-        </>
-      )}
-      {review.status === 'published' && (
-        <Button variant="danger" disabled={!canModerate} title={canModerate ? '' : RESTRICTED_HINT} onClick={() => onHide(review)}>Hide</Button>
-      )}
-      {review.status === 'hidden' && (
-        <Button disabled={!canModerate} title={canModerate ? '' : RESTRICTED_HINT} onClick={() => onRestore(review)}>Restore</Button>
-      )}
+      <Button variant="secondary" icon={<ExternalLink className="h-4 w-4" />} onClick={() => navigate(relatedItemRoute(review.type, review.targetId))}>{relatedItemLabel(review.type)}</Button>
+      <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} disabled={!canDelete} title={canDelete ? '' : RESTRICTED_HINT} onClick={() => onDelete(review)}>Delete Review</Button>
     </>
   );
 
@@ -69,11 +55,10 @@ export function ReviewDrawer({
         <div className="rounded-lg border border-cream-200 p-4">
           <div className="mb-2 flex items-center justify-between">
             <StarRating value={review.rating} size="md" />
-            <ReviewStatusBadge status={review.status} />
+            <Badge tone="magenta">{REVIEW_TYPE_LABEL[review.type]}</Badge>
           </div>
           {review.title && <p className="font-medium text-charcoal">{review.title}</p>}
           <p className="mt-1 text-sm text-charcoal">{review.body}</p>
-          <p className="mt-2 text-xs text-charcoal-muted">Admin can moderate visibility only — review text, rating and reviewer identity are never edited.</p>
         </div>
 
         {review.images.length > 0 && (
@@ -104,11 +89,10 @@ export function ReviewDrawer({
 
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-charcoal-muted">Review Target</p>
+          <Row label="Review ID">{review.id}</Row>
           <Row label="Review type">{REVIEW_TYPE_LABEL[review.type]}</Row>
           <Row label="Related item">{review.targetName}</Row>
           <Row label="Submitted">{formatDate(review.submittedAt)}</Row>
-          <Row label="Status">{<ReviewStatusBadge status={review.status} />}</Row>
-          {review.status === 'hidden' && review.hiddenReason && <Row label="Hidden reason">{review.hiddenReason}</Row>}
           <div className="pt-2">
             <Button size="sm" variant="secondary" icon={<ExternalLink className="h-4 w-4" />} onClick={() => navigate(relatedItemRoute(review.type, review.targetId))}>{relatedItemLabel(review.type)}</Button>
           </div>
@@ -117,7 +101,7 @@ export function ReviewDrawer({
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-charcoal-muted">Source Context</p>
           <Row label={REVIEW_SOURCE_LABEL[review.source.kind]}>{review.source.id}</Row>
-          <p className="pt-2 text-xs text-charcoal-muted">Reviews are tied to a completed interaction. No "verified" badge is shown — the source reference above provides the context.</p>
+          <p className="pt-2 text-xs text-charcoal-muted">Reviews are visible immediately and need no approval. Admin can only view or delete them.</p>
         </div>
       </div>
     </Drawer>

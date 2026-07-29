@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, ExternalLink, MessageSquareQuote, Plus, Search, Star, X } from 'lucide-react';
+import { Eye, MessageSquareQuote, Plus, Search, Star, Trash2, X } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
@@ -10,14 +9,14 @@ import { Tabs } from '../../components/ui/Tabs';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { ReviewStatusBadge, TestimonialStatusBadge, StarRating } from '../../components/ui/ReviewBadges';
+import { TestimonialStatusBadge, StarRating } from '../../components/ui/ReviewBadges';
 import { ReviewDrawer } from './ReviewDrawer';
 import { TestimonialDrawer } from './TestimonialDrawer';
 import { TestimonialFormModal } from './TestimonialFormModal';
-import { ConfirmModal, HideReasonModal } from './reviewModals';
+import { ConfirmModal, HideReasonModal, DeleteReviewModal } from './reviewModals';
 import {
   useData,
-  publishReview, hideReview, restoreReview,
+  deleteReview,
   publishTestimonial, hideTestimonial, restoreTestimonial,
 } from '../../data/store';
 import { useActor } from '../../lib/useActor';
@@ -25,9 +24,8 @@ import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import { formatDate } from '../../lib/format';
 import {
-  REVIEW_TYPE_LABEL, REVIEW_TYPES, REVIEW_STATUS_LABEL, REVIEW_STATUSES,
+  REVIEW_TYPE_LABEL, REVIEW_TYPES,
   PLACEMENT_LABEL, TESTIMONIAL_SOURCE_LABEL, TESTIMONIAL_STATUS_LABEL, TESTIMONIAL_STATUSES,
-  relatedItemRoute, relatedItemLabel,
 } from '../../config/reviewLabels';
 import type { ReviewRecord, TestimonialRecord } from '../../types/reviews';
 
@@ -47,7 +45,6 @@ const daysSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 8640
 
 export function ReviewsTestimonialsPage() {
   const { reviews, testimonials } = useData();
-  const navigate = useNavigate();
   const { abilities, actor } = useActor();
   const [tab, setTab] = useState('reviews');
 
@@ -55,7 +52,6 @@ export function ReviewsTestimonialsPage() {
   const [rq, setRq] = useState('');
   const [rType, setRType] = useState('all');
   const [rRating, setRRating] = useState('all');
-  const [rStatus, setRStatus] = useState('all');
   const [rDate, setRDate] = useState('any');
   const [rSort, setRSort] = useState('newest');
   const [rPage, setRPage] = useState(1);
@@ -70,7 +66,7 @@ export function ReviewsTestimonialsPage() {
   // ---- Drawers / modals ----
   const [selReview, setSelReview] = useState<ReviewRecord | null>(null);
   const [selTestimonial, setSelTestimonial] = useState<TestimonialRecord | null>(null);
-  const [reviewAction, setReviewAction] = useState<{ r: ReviewRecord; kind: 'publish' | 'hide' | 'restore' } | null>(null);
+  const [reviewDelete, setReviewDelete] = useState<ReviewRecord | null>(null);
   const [tAction, setTAction] = useState<{ t: TestimonialRecord; kind: 'publish' | 'hide' | 'restore' } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [fromReview, setFromReview] = useState<ReviewRecord | null>(null);
@@ -80,14 +76,13 @@ export function ReviewsTestimonialsPage() {
 
   // ================= REVIEWS =================
   const reviewSummary = useMemo(() => {
-    const published = reviews.filter((r) => r.status === 'published');
-    const avg = published.length ? published.reduce((s, r) => s + r.rating, 0) / published.length : 0;
+    const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
+    const monthAgo = Date.now() - 30 * 86400000;
     return {
       total: reviews.length,
-      published: published.length,
-      pending: reviews.filter((r) => r.status === 'pending').length,
-      hidden: reviews.filter((r) => r.status === 'hidden').length,
       avg,
+      fiveStar: reviews.filter((r) => r.rating === 5).length,
+      thisMonth: reviews.filter((r) => new Date(r.submittedAt).getTime() >= monthAgo).length,
     };
   }, [reviews]);
 
@@ -99,7 +94,6 @@ export function ReviewsTestimonialsPage() {
       }
       if (rType !== 'all' && r.type !== rType) return false;
       if (rRating !== 'all' && r.rating !== Number(rRating)) return false;
-      if (rStatus !== 'all' && r.status !== rStatus) return false;
       if (rDate !== 'any' && daysSince(r.submittedAt) > Number(rDate)) return false;
       return true;
     });
@@ -112,34 +106,32 @@ export function ReviewsTestimonialsPage() {
       }
     });
     return list;
-  }, [reviews, rq, rType, rRating, rStatus, rDate, rSort]);
+  }, [reviews, rq, rType, rRating, rDate, rSort]);
 
   const rTotal = filteredReviews.length;
   const rPaged = filteredReviews.slice((rPage - 1) * rSize, rPage * rSize);
 
   const reviewCards = [
     { label: 'Total Reviews', value: reviewSummary.total, apply: () => { resetReviewFilters(); } },
-    { label: 'Published', value: reviewSummary.published, apply: () => { resetReviewFilters(); setRStatus('published'); } },
-    { label: 'Pending Review', value: reviewSummary.pending, apply: () => { resetReviewFilters(); setRStatus('pending'); } },
-    { label: 'Hidden', value: reviewSummary.hidden, apply: () => { resetReviewFilters(); setRStatus('hidden'); } },
     { label: 'Average Rating', value: reviewSummary.avg ? reviewSummary.avg.toFixed(1) : '—', apply: () => { resetReviewFilters(); setRSort('high'); }, star: true },
+    { label: '5-Star Reviews', value: reviewSummary.fiveStar, apply: () => { resetReviewFilters(); setRRating('5'); } },
+    { label: 'Reviews This Month', value: reviewSummary.thisMonth, apply: () => { resetReviewFilters(); setRDate('30'); } },
   ];
 
-  function resetReviewFilters() { setRq(''); setRType('all'); setRRating('all'); setRStatus('all'); setRDate('any'); setRSort('newest'); setRPage(1); }
+  function resetReviewFilters() { setRq(''); setRType('all'); setRRating('all'); setRDate('any'); setRSort('newest'); setRPage(1); }
 
   const rChips: { label: string; clear: () => void }[] = [];
   if (rq) rChips.push({ label: `Search: ${rq}`, clear: () => setRq('') });
   if (rType !== 'all') rChips.push({ label: REVIEW_TYPE_LABEL[rType as never], clear: () => setRType('all') });
   if (rRating !== 'all') rChips.push({ label: `${rRating} star`, clear: () => setRRating('all') });
-  if (rStatus !== 'all') rChips.push({ label: REVIEW_STATUS_LABEL[rStatus as never], clear: () => setRStatus('all') });
   if (rDate !== 'any') rChips.push({ label: DATE_RANGES.find((d) => d.key === rDate)!.label, clear: () => setRDate('any') });
 
-  const runReviewAction = () => {
-    if (!reviewAction) return;
-    const { r, kind } = reviewAction;
-    if (kind === 'publish') { publishReview(r.id, actor); toast('Review published.'); }
-    if (kind === 'restore') { restoreReview(r.id, actor); toast('Review restored to Published.'); }
+  const runDeleteReview = (reason: string) => {
+    if (!reviewDelete) return;
+    deleteReview(reviewDelete.id, reason, actor);
+    toast('Review deleted.');
     setSelReview(null);
+    setReviewDelete(null);
   };
 
   // ================= TESTIMONIALS =================
@@ -197,7 +189,7 @@ export function ReviewsTestimonialsPage() {
       {/* ============ REVIEWS TAB ============ */}
       {tab === 'reviews' && (
         <div>
-          <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             {reviewCards.map((c) => (
               <button key={c.label} onClick={c.apply} className="card p-4 text-left transition-colors hover:border-magenta-200">
                 <p className="text-sm text-charcoal-muted">{c.label}</p>
@@ -216,7 +208,7 @@ export function ReviewsTestimonialsPage() {
                 {REVIEW_SORTS.map((s) => <option key={s.key} value={s.key}>Sort: {s.label}</option>)}
               </Select>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               <Select className="text-sm" value={rType} onChange={(e) => { setRType(e.target.value); setRPage(1); }}>
                 <option value="all">All types</option>
                 {REVIEW_TYPES.map((t) => <option key={t} value={t}>{REVIEW_TYPE_LABEL[t]}</option>)}
@@ -224,10 +216,6 @@ export function ReviewsTestimonialsPage() {
               <Select className="text-sm" value={rRating} onChange={(e) => { setRRating(e.target.value); setRPage(1); }}>
                 <option value="all">All ratings</option>
                 {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} star{n === 1 ? '' : 's'}</option>)}
-              </Select>
-              <Select className="text-sm" value={rStatus} onChange={(e) => { setRStatus(e.target.value); setRPage(1); }}>
-                <option value="all">All statuses</option>
-                {REVIEW_STATUSES.map((s) => <option key={s} value={s}>{REVIEW_STATUS_LABEL[s]}</option>)}
               </Select>
               <Select className="text-sm" value={rDate} onChange={(e) => { setRDate(e.target.value); setRPage(1); }}>
                 {DATE_RANGES.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
@@ -254,7 +242,6 @@ export function ReviewsTestimonialsPage() {
                     <th className="px-4 py-3">Rating</th>
                     <th className="px-4 py-3">Review</th>
                     <th className="px-4 py-3">Submitted</th>
-                    <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -274,16 +261,12 @@ export function ReviewsTestimonialsPage() {
                       <td className="px-4 py-3"><StarRating value={r.rating} /></td>
                       <td className="px-4 py-3"><button onClick={() => setSelReview(r)} className="block max-w-[220px] truncate text-left text-charcoal-muted group-hover:text-magenta-700">{r.title ? `${r.title} — ` : ''}{r.body}</button></td>
                       <td className="px-4 py-3 text-charcoal-muted">{formatDate(r.submittedAt)}</td>
-                      <td className="px-4 py-3"><ReviewStatusBadge status={r.status} /></td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end">
                           <DropdownMenu
                             items={[
                               { label: 'View Review', icon: <Eye className="h-4 w-4" />, onClick: () => setSelReview(r) },
-                              { label: relatedItemLabel(r.type), icon: <ExternalLink className="h-4 w-4" />, onClick: () => navigate(relatedItemRoute(r.type, r.targetId)) },
-                              ...(r.status !== 'published' ? [{ label: 'Publish', onClick: () => setReviewAction({ r, kind: 'publish' as const }), disabled: !canModerate, disabledHint: RESTRICTED_HINT }] : []),
-                              ...(r.status !== 'hidden' ? [{ label: 'Hide', onClick: () => setReviewAction({ r, kind: 'hide' as const }), disabled: !canModerate, disabledHint: RESTRICTED_HINT }] : []),
-                              ...(r.status === 'hidden' ? [{ label: 'Restore', onClick: () => setReviewAction({ r, kind: 'restore' as const }), disabled: !canModerate, disabledHint: RESTRICTED_HINT }] : []),
+                              { label: 'Delete Review', icon: <Trash2 className="h-4 w-4" />, danger: true, onClick: () => setReviewDelete(r), disabled: !canModerate, disabledHint: RESTRICTED_HINT },
                             ]}
                           />
                         </div>
@@ -381,9 +364,7 @@ export function ReviewsTestimonialsPage() {
       <ReviewDrawer
         review={selReview}
         onClose={() => setSelReview(null)}
-        onPublish={(r) => setReviewAction({ r, kind: 'publish' })}
-        onHide={(r) => setReviewAction({ r, kind: 'hide' })}
-        onRestore={(r) => setReviewAction({ r, kind: 'restore' })}
+        onDelete={(r) => setReviewDelete(r)}
       />
       <TestimonialDrawer
         testimonial={selTestimonial}
@@ -394,9 +375,7 @@ export function ReviewsTestimonialsPage() {
       />
 
       {/* Modals */}
-      <ConfirmModal open={reviewAction?.kind === 'publish'} title="Publish this review?" description="The review becomes visible on the connected app screen." confirmLabel="Publish" onConfirm={runReviewAction} onClose={() => setReviewAction(null)} />
-      <ConfirmModal open={reviewAction?.kind === 'restore'} title="Restore this review?" description="The review returns to Published and becomes visible again." confirmLabel="Restore" onConfirm={runReviewAction} onClose={() => setReviewAction(null)} />
-      <HideReasonModal open={reviewAction?.kind === 'hide'} title="Hide Review" onSubmit={(reason) => { if (reviewAction) { hideReview(reviewAction.r.id, reason, actor); toast('Review hidden.'); setSelReview(null); } }} onClose={() => setReviewAction(null)} />
+      <DeleteReviewModal review={reviewDelete} onSubmit={runDeleteReview} onClose={() => setReviewDelete(null)} />
 
       <ConfirmModal open={tAction?.kind === 'publish'} title="Publish this testimonial?" description="It appears only in its selected placement." confirmLabel="Publish" onConfirm={runTestimonialAction} onClose={() => setTAction(null)} />
       <ConfirmModal open={tAction?.kind === 'restore'} title="Restore this testimonial?" description="The testimonial returns to Published." confirmLabel="Restore" onConfirm={runTestimonialAction} onClose={() => setTAction(null)} />

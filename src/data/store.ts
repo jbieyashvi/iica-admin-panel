@@ -51,12 +51,12 @@ import type {
   ReportStatus as CollabReportStatus,
 } from '../types/collaborations';
 import type {
-  ReviewRecord,
   TestimonialRecord,
   TestimonialPlacement,
   TestimonialSourceType,
   TestimonialStatus,
 } from '../types/reviews';
+import type { BannerLinkType, BannerRecord } from '../types/banners';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
 import { buildSeedState, SEED_VERSION } from './seed';
@@ -71,7 +71,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.testimonials);
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.testimonials) && Array.isArray(stored.banners);
   if (stored && stored.version === SEED_VERSION && intact) return stored;
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1277,30 +1277,11 @@ export type { CollaborationRecord };
 // Reviews & Testimonials
 // ===========================================================================
 
-function replaceReview(list: ReviewRecord[], next: ReviewRecord) {
-  return list.map((r) => (r.id === next.id ? next : r));
-}
-function commitReview(next: ReviewRecord) {
-  commit({ ...state, reviews: replaceReview(state.reviews, { ...next, lastUpdatedAt: now() }) });
-}
-
-// Moderation only — admin never edits review text, rating or reviewer identity.
-export function publishReview(reviewId: string, _actor: AdminActor) {
-  const r = state.reviews.find((x) => x.id === reviewId);
-  if (!r) return;
-  commitReview({ ...r, status: 'published', hiddenReason: null });
-}
-
-export function hideReview(reviewId: string, reason: string, _actor: AdminActor) {
-  const r = state.reviews.find((x) => x.id === reviewId);
-  if (!r) return;
-  commitReview({ ...r, status: 'hidden', hiddenReason: reason });
-}
-
-export function restoreReview(reviewId: string, _actor: AdminActor) {
-  const r = state.reviews.find((x) => x.id === reviewId);
-  if (!r) return;
-  commitReview({ ...r, status: 'published', hiddenReason: null });
+// Reviews need no approval — they are visible immediately. Admin may only view
+// or delete. Deleting removes only the review (never the reviewer/product/etc.).
+export function deleteReview(reviewId: string, _reason: string, _actor: AdminActor) {
+  if (!state.reviews.some((r) => r.id === reviewId)) return;
+  commit({ ...state, reviews: state.reviews.filter((r) => r.id !== reviewId) });
 }
 
 function replaceTestimonial(list: TestimonialRecord[], next: TestimonialRecord) {
@@ -1389,4 +1370,84 @@ export function restoreTestimonial(id: string, _actor: AdminActor) {
   const t = state.testimonials.find((x) => x.id === id);
   if (!t) return;
   commitTestimonial({ ...t, status: 'published', hiddenReason: null });
+}
+
+// ===========================================================================
+// Home banners (Home & App Content)
+// ===========================================================================
+
+function commitBanners(list: BannerRecord[]) {
+  commit({ ...state, banners: list });
+}
+// Re-number displayOrder 1..n by current order to avoid duplicate/step gaps.
+function normalizeOrder(list: BannerRecord[]): BannerRecord[] {
+  return [...list].sort((a, b) => a.displayOrder - b.displayOrder).map((b, i) => ({ ...b, displayOrder: i + 1 }));
+}
+
+export interface BannerInput {
+  title: string;
+  supportingText: string;
+  image: string;
+  label: string;
+  ctaLabel: string;
+  linkType: BannerLinkType;
+  linkedId?: string | null;
+  linkedName?: string | null;
+  externalUrl?: string | null;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+}
+
+export function addBanner(input: BannerInput, _actor: AdminActor): BannerRecord {
+  const order = state.banners.reduce((m, b) => Math.max(m, b.displayOrder), 0) + 1;
+  const banner: BannerRecord = {
+    id: uid('ban'),
+    ...input,
+    linkedId: input.linkedId ?? null,
+    linkedName: input.linkedName ?? null,
+    externalUrl: input.externalUrl ?? null,
+    displayOrder: order,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  commitBanners(normalizeOrder([...state.banners, banner]));
+  return banner;
+}
+
+export function updateBanner(id: string, patch: BannerInput, _actor: AdminActor) {
+  const b = state.banners.find((x) => x.id === id);
+  if (!b) return;
+  const next: BannerRecord = {
+    ...b,
+    ...patch,
+    linkedId: patch.linkedId ?? null,
+    linkedName: patch.linkedName ?? null,
+    externalUrl: patch.externalUrl ?? null,
+    updatedAt: now(),
+  };
+  commitBanners(state.banners.map((x) => (x.id === id ? next : x)));
+}
+
+export function deleteBanner(id: string, _actor: AdminActor) {
+  commitBanners(normalizeOrder(state.banners.filter((b) => b.id !== id)));
+}
+
+// Toggle active. An expired banner cannot be activated without new dates.
+export function toggleBanner(id: string, _actor: AdminActor): boolean {
+  const b = state.banners.find((x) => x.id === id);
+  if (!b) return false;
+  if (!b.active && new Date(b.endDate).getTime() < Date.now()) return false; // expired → block activate
+  commitBanners(state.banners.map((x) => (x.id === id ? { ...x, active: !x.active, updatedAt: now() } : x)));
+  return true;
+}
+
+export function moveBanner(id: string, dir: 'up' | 'down', _actor: AdminActor) {
+  const sorted = normalizeOrder(state.banners);
+  const idx = sorted.findIndex((b) => b.id === id);
+  if (idx < 0) return;
+  const swap = dir === 'up' ? idx - 1 : idx + 1;
+  if (swap < 0 || swap >= sorted.length) return;
+  [sorted[idx].displayOrder, sorted[swap].displayOrder] = [sorted[swap].displayOrder, sorted[idx].displayOrder];
+  commitBanners(normalizeOrder(sorted));
 }

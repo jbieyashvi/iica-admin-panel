@@ -5,7 +5,6 @@
 // ---------------------------------------------------------------------------
 
 export type ReviewType = 'creator' | 'product' | 'event' | 'masterclass';
-export type ReviewStatus = 'pending' | 'published' | 'hidden';
 export type ReviewerType = 'guest' | 'registered';
 
 // The completed interaction a review is anchored to (shown as source context —
@@ -30,8 +29,7 @@ export interface ReviewRecord {
   title?: string;
   body: string;
   images: string[]; // placeholder ids, may be empty
-  status: ReviewStatus;
-  hiddenReason?: string | null;
+  // Reviews require no admin approval — they are visible immediately once submitted.
   submittedAt: string;
   lastUpdatedAt: string;
   source: ReviewSource;
