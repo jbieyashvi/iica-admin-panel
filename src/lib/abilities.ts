@@ -38,6 +38,9 @@ export interface Abilities {
   // Reviews
   reviewsView: boolean; // view reviews
   reviewsModerate: boolean; // delete reviews
+  // Transactions (view-only financial records)
+  txnView: boolean; // access the transactions module
+  txnFinancials: boolean; // see payment references + commission breakdown
 }
 
 const MAP: Record<AdminRole, Abilities> = {
@@ -73,6 +76,8 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: true,
     reviewsView: true,
     reviewsModerate: true,
+    txnView: true,
+    txnFinancials: true,
   },
   operations_manager: {
     editUsers: true,
@@ -106,6 +111,8 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: false,
     reviewsView: true,
     reviewsModerate: true,
+    txnView: true,
+    txnFinancials: false,
   },
   finance_manager: {
     editUsers: false,
@@ -139,6 +146,8 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: false,
     reviewsView: true,
     reviewsModerate: false,
+    txnView: true,
+    txnFinancials: true,
   },
   portfolio_moderator: {
     editUsers: false,
@@ -172,6 +181,8 @@ const MAP: Record<AdminRole, Abilities> = {
     collabSettings: false,
     reviewsView: true,
     reviewsModerate: true,
+    txnView: false,
+    txnFinancials: false,
   },
 };
 

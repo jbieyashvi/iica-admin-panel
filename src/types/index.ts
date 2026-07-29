@@ -29,6 +29,7 @@ export type Permission =
   | 'manage_engagement'
   | 'manage_collaborations'
   | 'manage_reviews'
+  | 'manage_transactions'
   | 'manage_platform'
   | 'manage_admins'
   | 'manage_settings';

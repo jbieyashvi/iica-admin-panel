@@ -240,7 +240,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 14;
+export const SEED_VERSION = 15;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);

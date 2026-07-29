@@ -27,6 +27,7 @@ interface Spec {
   daysAgo: number;
   issue?: { type: IssueType; status: IssueStatus; reason: string; sellerResponse?: string };
   refundCompleted?: boolean;
+  partialRefund?: number; // completed partial refund amount
 }
 
 const G = (name: string, email: string, phone: string, city: string): GuestBuyer => ({ name, email, phone, city });
@@ -60,6 +61,7 @@ const SPECS: Spec[] = [
   // Extra coverage
   { id: 'ord_x1', productId: 'prod_canvas', userId: 'usr_nisha', qty: 1, pay: 'paid', ful: 'awaiting_acceptance', ord: 'new', daysAgo: 1 },
   { id: 'ord_r1', productId: 'prod_photobook', userId: 'usr_arjun', qty: 1, pay: 'paid', ful: 'delivered', ord: 'completed', daysAgo: 18, issue: { type: 'refund', status: 'sent_to_finance', reason: 'Received a duplicate copy; requesting a partial refund.', sellerResponse: 'Agreed — approving the refund.' } },
+  { id: 'ord_pr1', productId: 'prod_canvas', userId: 'usr_fatima', qty: 1, pay: 'partially_refunded', ful: 'delivered', ord: 'completed', daysAgo: 26, partialRefund: 2000 },
 ];
 
 function buildTimeline(id: string, spec: Spec, base: number): TimelineEvent[] {
@@ -160,7 +162,9 @@ export function buildProductOrders(products: ProductRecord[], users: UserRecord[
       sellerAcceptedAt: spec.ord !== 'new' ? new Date(base + 1 * DAY).toISOString() : null,
       refundHistory: spec.refundCompleted
         ? [{ id: `${spec.id}_ref`, amount: total, at: new Date(base + 8 * DAY).toISOString(), by: 'Finance Team', status: 'Completed' }]
-        : [],
+        : spec.partialRefund
+          ? [{ id: `${spec.id}_ref`, amount: spec.partialRefund, at: new Date(base + 8 * DAY).toISOString(), by: 'Finance Team', status: 'Completed' }]
+          : [],
       timeline: buildTimeline(spec.id, spec, base),
       communications: buildComms(spec.id, spec, base, buyerName),
       issues: buildIssue(spec.id, spec, base),

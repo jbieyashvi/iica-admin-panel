@@ -22,6 +22,8 @@ import { CollaborationsPage } from './features/collaborations/CollaborationsPage
 import { CollaborationDetailPage } from './features/collaborations/CollaborationDetailPage';
 import { CollaborationSettingsPage } from './features/collaborations/CollaborationSettingsPage';
 import { ReviewsPage } from './features/reviews/ReviewsPage';
+import { TransactionsPage } from './features/transactions/TransactionsPage';
+import { TransactionDetailPage } from './features/transactions/TransactionDetailPage';
 import { BannersPage } from './features/appcontent/BannersPage';
 import { ComingSoon } from './features/common/ComingSoon';
 import { NotFound } from './features/common/NotFound';
@@ -61,6 +63,8 @@ export default function App() {
           <Route path="product-categories" element={<Navigate to="/admin/products?tab=categories" replace />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="transactions" element={<TransactionsPage />} />
+          <Route path="transactions/:transactionId" element={<TransactionDetailPage />} />
           <Route path="collaborations" element={<CollaborationsPage />} />
           <Route path="collaborations/:collaborationId" element={<CollaborationDetailPage />} />
           <Route path="collaboration-settings" element={<CollaborationSettingsPage />} />

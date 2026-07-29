@@ -34,6 +34,7 @@ const ALL: Permission[] = [
   'manage_engagement',
   'manage_collaborations',
   'manage_reviews',
+  'manage_transactions',
   'manage_platform',
   'manage_admins',
   'manage_settings',
@@ -51,9 +52,10 @@ export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'manage_engagement',
     'manage_collaborations',
     'manage_reviews',
+    'manage_transactions',
     'manage_platform',
   ],
-  finance_manager: ['view_dashboard', 'manage_finance', 'manage_commerce', 'manage_collaborations', 'manage_reviews'],
+  finance_manager: ['view_dashboard', 'manage_finance', 'manage_commerce', 'manage_collaborations', 'manage_reviews', 'manage_transactions'],
   portfolio_moderator: ['view_dashboard', 'moderate_portfolios', 'manage_engagement', 'manage_collaborations', 'manage_reviews'],
 };
 
