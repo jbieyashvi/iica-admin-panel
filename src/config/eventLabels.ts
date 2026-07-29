@@ -1,5 +1,4 @@
 import type {
-  ArchiveStatus,
   BookingStatus,
   CheckInStatus,
   EventFormat,
@@ -8,44 +7,9 @@ import type {
   ProposalStatus,
   ReportStatus,
   TicketType,
-  YouTubeStatus,
 } from '../types/events';
 
 type Tone = 'neutral' | 'magenta' | 'green' | 'amber' | 'red' | 'blue';
-
-export const ARCHIVE_STATUS_LABEL: Record<ArchiveStatus, string> = {
-  draft: 'Draft',
-  awaiting_review: 'Awaiting Review',
-  published: 'Published',
-  changes_requested: 'Changes Requested',
-  hidden: 'Hidden',
-  removed_by_creator: 'Removed by Creator',
-};
-export const ARCHIVE_STATUS_TONE: Record<ArchiveStatus, Tone> = {
-  draft: 'blue',
-  awaiting_review: 'amber',
-  published: 'green',
-  changes_requested: 'red',
-  hidden: 'amber',
-  removed_by_creator: 'neutral',
-};
-
-export const YT_STATUS_LABEL: Record<YouTubeStatus, string> = {
-  valid: 'Valid',
-  unavailable: 'Unavailable',
-  private: 'Private',
-  restricted: 'Restricted',
-  invalid_url: 'Invalid URL',
-  not_checked: 'Not Checked',
-};
-export const YT_STATUS_TONE: Record<YouTubeStatus, Tone> = {
-  valid: 'green',
-  unavailable: 'red',
-  private: 'amber',
-  restricted: 'amber',
-  invalid_url: 'red',
-  not_checked: 'neutral',
-};
 
 export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
   draft: 'Draft',
@@ -149,18 +113,7 @@ export const PROPOSAL_STATUS_TONE: Record<ProposalStatus, Tone> = {
 };
 
 // Ordered lists
-export const ARCHIVE_STATUSES: ArchiveStatus[] = ['draft', 'awaiting_review', 'published', 'changes_requested', 'hidden', 'removed_by_creator'];
-export const YT_STATUSES: YouTubeStatus[] = ['valid', 'unavailable', 'private', 'restricted', 'invalid_url', 'not_checked'];
 export const EVENT_STATUSES: EventStatus[] = ['draft', 'submitted', 'changes_requested', 'published', 'sold_out', 'completed', 'cancelled', 'hidden'];
 export const EVENT_FORMATS: EventFormat[] = ['in_person', 'online', 'hybrid'];
 
 export const DEFAULT_EVENT_CATEGORIES = ['Concert', 'LIVE Gig', 'Workshop', 'Music Jam', 'In-door Baithak', 'Fan Meet n Greet', 'Painting Session', 'Others'];
-
-export const ARCHIVE_REPORT_REASON_LABEL: Record<string, string> = {
-  inappropriate: 'Inappropriate content',
-  copyright: 'Copyright concern',
-  misleading: 'Misleading information',
-  broken: 'Broken or unavailable video',
-  spam: 'Spam',
-  other: 'Other',
-};

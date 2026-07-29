@@ -245,7 +245,7 @@ export function buildSeedState(): DataState {
     pricing: PRICING,
     categories: buildCategorySeed(),
     portfolios,
-    archives: buildArchiveSeed(portfolios, users),
+    archives: buildArchiveSeed(portfolios),
     events,
     orders: buildOrderSeed(events, now),
     eventCategories: buildEventCategories(),

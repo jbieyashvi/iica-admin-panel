@@ -30,7 +30,7 @@ export function DashboardPage() {
   const metrics: MetricCardData[] = useMemo(() => {
     const activeCreators = memberships.filter((m) => m.membershipStatus === 'active').length;
     const publishedProfiles = portfolios.filter((p) => p.status === 'published').length;
-    const archiveVideos = archives.filter((a) => a.archiveStatus === 'published').length;
+    const archiveVideos = archives.length;
     const totalEvents = events.length;
     const upcomingEvents = events.filter((e) => new Date(e.startAt).getTime() > Date.now() && ['published', 'sold_out'].includes(e.status)).length;
     const freeEvents = events.filter((e) => e.ticketType === 'free').length;
@@ -44,7 +44,7 @@ export function DashboardPage() {
       m('users', 'Total Users', users.length, 6.4, 'All registered app users'),
       m('creators', 'Active Creators', activeCreators, 4.1, 'Memberships currently active'),
       m('profiles', 'Published Profiles', publishedProfiles, 3.2, 'Catalogue-visible portfolios'),
-      m('archive', 'Archive Videos', archiveVideos, 5.1, 'Published Archive videos'),
+      m('archive', 'Archive Videos', archiveVideos, 5.1, 'YouTube videos in the directory'),
       m('events_total', 'Total Events', totalEvents, 2.4, 'All events on the platform'),
       m('events_upcoming', 'Upcoming Events', upcomingEvents, 0, 'Published & scheduled ahead'),
       m('events_free', 'Free Events', freeEvents, 1.8, 'Events with free entry'),

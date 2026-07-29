@@ -6,43 +6,10 @@ import type { InternalNote, TimelineEvent } from './users';
 // Archive is synchronised with Portfolio Watch (Watch = source of truth).
 // ===========================================================================
 
-// ---- Archive ---------------------------------------------------------------
-
-export type ArchiveStatus =
-  | 'draft'
-  | 'awaiting_review'
-  | 'published'
-  | 'changes_requested'
-  | 'hidden'
-  | 'removed_by_creator';
-
-export type YouTubeStatus =
-  | 'valid'
-  | 'unavailable'
-  | 'private'
-  | 'restricted'
-  | 'invalid_url'
-  | 'not_checked';
-
-export type ArchiveReportReason =
-  | 'inappropriate'
-  | 'copyright'
-  | 'misleading'
-  | 'broken'
-  | 'spam'
-  | 'other';
-
 export type ReportStatus = 'new' | 'under_review' | 'action_taken' | 'dismissed';
 
-export interface ArchiveReport {
-  id: string;
-  reporterType: string;
-  reason: ArchiveReportReason;
-  description: string;
-  at: string;
-  status: ReportStatus;
-  assignedTo?: string | null;
-}
+// ---- Archive ---------------------------------------------------------------
+// Read-only directory of YouTube videos sourced from creators' Portfolio Watch.
 
 export interface ArchiveRecord {
   id: string;
@@ -55,17 +22,7 @@ export interface ArchiveRecord {
   description: string;
   youtubeUrl: string;
   youtubeId: string;
-  durationSec: number;
-  views: number;
-  addedAt: string;
-  publishedAt?: string | null;
-  archiveStatus: ArchiveStatus;
-  youtubeStatus: YouTubeStatus;
-  hiddenReason?: string | null;
-  reports: ArchiveReport[];
-  notes: InternalNote[];
-  timeline: TimelineEvent[];
-  lastUpdatedAt: string;
+  publishedAt: string;
 }
 
 // ---- Events ----------------------------------------------------------------

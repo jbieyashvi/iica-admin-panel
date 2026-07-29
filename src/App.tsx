@@ -12,7 +12,6 @@ import { CategoriesPage } from './features/categories/CategoriesPage';
 import { PortfoliosPage } from './features/portfolios/PortfoliosPage';
 import { PortfolioReviewPage } from './features/portfolios/PortfolioReviewPage';
 import { ArchivePage } from './features/archive/ArchivePage';
-import { ArchiveReviewPage } from './features/archive/ArchiveReviewPage';
 import { EventsPage } from './features/events/EventsPage';
 import { EventDetailPage } from './features/events/EventDetailPage';
 import { EventCategoriesPage } from './features/events/EventCategoriesPage';
@@ -45,7 +44,7 @@ export default function App() {
           <Route path="portfolios" element={<PortfoliosPage />} />
           <Route path="portfolios/:portfolioId" element={<PortfolioReviewPage />} />
           <Route path="archive" element={<ArchivePage />} />
-          <Route path="archive/:archiveId" element={<ArchiveReviewPage />} />
+          <Route path="archive/:archiveId" element={<Navigate to="/admin/archive" replace />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="event-categories" element={<EventCategoriesPage />} />

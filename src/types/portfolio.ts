@@ -199,15 +199,3 @@ export interface PortfolioRecord {
   lastSubmittedAt?: string | null;
   lastUpdatedAt: string;
 }
-
-// Derived archive item (Watch is the source of truth — never duplicated).
-export interface ArchiveItem {
-  videoId: string;
-  portfolioId: string;
-  userId: string;
-  creator: string;
-  title: string;
-  youtubeUrl: string;
-  publishDate: string;
-  visible: boolean;
-}

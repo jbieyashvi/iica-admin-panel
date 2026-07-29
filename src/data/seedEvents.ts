@@ -2,7 +2,6 @@ import type { PortfolioRecord } from '../types/portfolio';
 import type { UserRecord, TimelineEvent } from '../types/users';
 import type {
   ArchiveRecord,
-  ArchiveStatus,
   CustomCategoryProposal,
   EventCategoryRecord,
   EventFormat,
@@ -12,7 +11,6 @@ import type {
   TicketOrder,
   TicketTier,
   TicketType,
-  YouTubeStatus,
 } from '../types/events';
 import { DEFAULT_EVENT_CATEGORIES } from '../config/eventLabels';
 
@@ -30,50 +28,12 @@ const hash = (s: string) => {
   return Math.abs(h);
 };
 
-// ---- Archive (from Portfolio Watch — Watch is source of truth) -------------
+// ---- Archive (read-only directory sourced from Portfolio Watch) ------------
 
-export function buildArchiveSeed(portfolios: PortfolioRecord[], users: UserRecord[]): ArchiveRecord[] {
+export function buildArchiveSeed(portfolios: PortfolioRecord[]): ArchiveRecord[] {
   const out: ArchiveRecord[] = [];
-  let i = 0;
   for (const p of portfolios) {
-    const user = users.find((u) => u.id === p.userId);
     for (const w of p.content.watch) {
-      i += 1;
-      const h = hash(w.id);
-      let status: ArchiveStatus =
-        p.status === 'published' ? 'published'
-        : p.status === 'submitted' ? 'awaiting_review'
-        : p.status === 'changes_requested' ? 'changes_requested'
-        : p.status === 'archived' ? 'removed_by_creator'
-        : 'draft';
-      if (w.hidden) status = 'hidden';
-      // A little variety
-      if (i % 11 === 0 && status === 'published') status = 'hidden';
-
-      let yt: YouTubeStatus = w.linkValid ? 'valid' : 'unavailable';
-      if (i % 9 === 0 && w.linkValid) yt = 'private';
-      if (i % 13 === 0 && w.linkValid) yt = 'restricted';
-      if (!w.linkValid && i % 2 === 0) yt = 'invalid_url';
-
-      const reports =
-        i % 7 === 0
-          ? [{
-              id: `${w.id}_rep`,
-              reporterType: 'Registered user',
-              reason: (['inappropriate', 'copyright', 'misleading', 'broken', 'spam'] as const)[i % 5],
-              description: 'Flagged by a viewer for review.',
-              at: new Date(new Date(w.publishDate).getTime() + 5 * DAY).toISOString(),
-              status: (['new', 'under_review'] as const)[i % 2],
-              assignedTo: i % 2 === 0 ? 'Rahul Desai' : null,
-            }]
-          : [];
-
-      const timeline: TimelineEvent[] = [
-        { id: `${w.id}_atl0`, key: 'added', label: 'Added via Portfolio Watch', at: w.publishDate },
-      ];
-      if (status === 'published') timeline.push({ id: `${w.id}_atl1`, key: 'published', label: 'Published to Archive', at: new Date(new Date(w.publishDate).getTime() + DAY).toISOString() });
-      if (status === 'hidden') timeline.push({ id: `${w.id}_atl2`, key: 'hidden', label: 'Hidden from Archive', at: new Date(new Date(w.publishDate).getTime() + 10 * DAY).toISOString() });
-
       out.push({
         id: `arc_${w.id}`,
         portfolioId: p.id,
@@ -85,17 +45,7 @@ export function buildArchiveSeed(portfolios: PortfolioRecord[], users: UserRecor
         description: w.description,
         youtubeUrl: w.youtubeUrl,
         youtubeId: ytId(w.youtubeUrl),
-        durationSec: 90 + (h % 780),
-        views: status === 'published' ? 200 + (h % 42000) : h % 800,
-        addedAt: w.publishDate,
-        publishedAt: status === 'published' ? new Date(new Date(w.publishDate).getTime() + DAY).toISOString() : null,
-        archiveStatus: status,
-        youtubeStatus: yt,
-        hiddenReason: status === 'hidden' ? 'Hidden pending moderation review.' : null,
-        reports,
-        notes: [],
-        timeline,
-        lastUpdatedAt: user ? user.lastActiveAt : w.publishDate,
+        publishedAt: w.publishDate,
       });
     }
   }

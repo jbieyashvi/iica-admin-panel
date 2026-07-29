@@ -16,8 +16,6 @@ import type {
   PortfolioStatus,
 } from '../types/portfolio';
 import type {
-  ArchiveRecord,
-  ArchiveStatus,
   BookingStatus,
   EventCategoryStatus,
   EventFormat,
@@ -28,7 +26,6 @@ import type {
   TicketOrder,
   TicketTier,
   TicketType,
-  YouTubeStatus,
 } from '../types/events';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
@@ -37,7 +34,7 @@ import { buildArchiveSeed, buildEventSeed, buildOrderSeed } from './seedEvents';
 import { computeActivityScore } from './portfolioLogic';
 
 const STORAGE_KEY = 'data_state';
-const SEED_VERSION = 5;
+const SEED_VERSION = 6;
 
 // ---- Store internals -------------------------------------------------------
 
@@ -499,7 +496,7 @@ export function revertLocation(portfolioId: string, _actor: AdminActor) {
 
 type ContentSection = 'testimonials' | 'gallery' | 'watch';
 
-export function setContentHidden(portfolioId: string, section: ContentSection, itemId: string, hidden: boolean, _actor: AdminActor, reason?: string) {
+export function setContentHidden(portfolioId: string, section: ContentSection, itemId: string, hidden: boolean, _actor: AdminActor, _reason?: string) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const content = { ...p.content };
@@ -507,24 +504,7 @@ export function setContentHidden(portfolioId: string, section: ContentSection, i
   if (section === 'gallery') content.gallery = content.gallery.map((g) => (g.id === itemId ? { ...g, hidden } : g));
   if (section === 'watch') content.watch = content.watch.map((w) => (w.id === itemId ? { ...w, hidden } : w));
   const next = recalc({ ...p, content });
-
-  // Keep the linked Archive record in sync (Watch is the source of truth).
-  let archives = state.archives;
-  if (section === 'watch') {
-    archives = archives.map((a) =>
-      a.watchItemId === itemId
-        ? {
-            ...a,
-            archiveStatus: hidden ? 'hidden' : 'published',
-            hiddenReason: hidden ? reason ?? 'Hidden via Portfolio Watch' : null,
-            timeline: [...a.timeline, { id: uid('tl'), key: hidden ? 'hidden' : 'restored', label: hidden ? 'Hidden (synced from Watch)' : 'Restored (synced from Watch)', at: now() }],
-            lastUpdatedAt: now(),
-          }
-        : a,
-    );
-  }
-
-  commit({ ...state, portfolios: replacePortfolio(state.portfolios, next), archives });
+  commit({ ...state, portfolios: replacePortfolio(state.portfolios, next) });
 }
 
 export function resolveReport(portfolioId: string, reportId: string, _actor: AdminActor) {
@@ -553,87 +533,6 @@ export function addPortfolioNote(portfolioId: string, body: string, actor: Admin
 }
 
 export type { PortfolioStatus };
-
-// ===========================================================================
-// Phase 4 — Archive
-// ===========================================================================
-
-function replaceArchive(list: ArchiveRecord[], next: ArchiveRecord) {
-  return list.map((a) => (a.id === next.id ? next : a));
-}
-function pushArcTimeline(a: ArchiveRecord, key: string, label: string, detail?: string): ArchiveRecord {
-  return { ...a, timeline: [...a.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
-}
-
-// Set the public visibility of the linked Portfolio Watch item.
-function syncWatchVisibility(portfolioId: string, watchItemId: string, hidden: boolean, portfolios = state.portfolios) {
-  return portfolios.map((p) => {
-    if (p.id !== portfolioId) return p;
-    return { ...p, content: { ...p.content, watch: p.content.watch.map((w) => (w.id === watchItemId ? { ...w, hidden } : w)) }, lastUpdatedAt: now() };
-  });
-}
-
-export function publishArchive(archiveId: string, _actor: AdminActor) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const next = pushArcTimeline({ ...a, archiveStatus: 'published', publishedAt: now(), hiddenReason: null, lastUpdatedAt: now() }, 'published', 'Published to Archive');
-  commit({
-    ...state,
-    archives: replaceArchive(state.archives, next),
-    portfolios: syncWatchVisibility(a.portfolioId, a.watchItemId, false),
-  });
-}
-
-export function requestArchiveChanges(archiveId: string, reason: string, message: string, actor: AdminActor, note?: string) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const notes = note ? [{ id: uid('note'), body: note, author: actor.name, role: actor.role, at: now() }, ...a.notes] : a.notes;
-  const next = pushArcTimeline({ ...a, archiveStatus: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${reason} — ${message}`);
-  commit({ ...state, archives: replaceArchive(state.archives, next) });
-}
-
-export function hideArchive(archiveId: string, reason: string, _actor: AdminActor) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const next = pushArcTimeline({ ...a, archiveStatus: 'hidden', hiddenReason: reason, lastUpdatedAt: now() }, 'hidden', 'Hidden from Archive', reason);
-  commit({
-    ...state,
-    archives: replaceArchive(state.archives, next),
-    portfolios: syncWatchVisibility(a.portfolioId, a.watchItemId, true),
-  });
-}
-
-export function restoreArchive(archiveId: string, _actor: AdminActor) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const next = pushArcTimeline({ ...a, archiveStatus: 'published', hiddenReason: null, lastUpdatedAt: now() }, 'restored', 'Restored to Archive');
-  commit({
-    ...state,
-    archives: replaceArchive(state.archives, next),
-    portfolios: syncWatchVisibility(a.portfolioId, a.watchItemId, false),
-  });
-}
-
-export function setArchiveYoutubeStatus(archiveId: string, status: YouTubeStatus, _actor: AdminActor) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const next = pushArcTimeline({ ...a, youtubeStatus: status, lastUpdatedAt: now() }, 'yt', `YouTube status set to ${status}`);
-  commit({ ...state, archives: replaceArchive(state.archives, next) });
-}
-
-export function addArchiveNote(archiveId: string, body: string, actor: AdminActor) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const next = { ...a, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...a.notes] };
-  commit({ ...state, archives: replaceArchive(state.archives, next) });
-}
-
-export function archiveReportAction(archiveId: string, reportId: string, status: ReportStatus, _actor: AdminActor, _reason?: string) {
-  const a = state.archives.find((x) => x.id === archiveId);
-  if (!a) return;
-  const next = { ...a, reports: a.reports.map((r) => (r.id === reportId ? { ...r, status } : r)), lastUpdatedAt: now() };
-  commit({ ...state, archives: replaceArchive(state.archives, next) });
-}
 
 // ===========================================================================
 // Phase 4 — Events
@@ -917,21 +816,17 @@ export function simEventCancellation(eventId: string, actor: AdminActor) {
   cancelEvent(eventId, 'Prototype simulation — event cancellation', actor);
 }
 
-export function simBrokenLink(archiveId: string, actor: AdminActor) {
-  setArchiveYoutubeStatus(archiveId, 'unavailable', actor);
-}
-
 // Rebuild only Archive + Event data from seed, keeping users/portfolios intact.
 export function resetArchiveEventDemo(_actor: AdminActor) {
   const nowMs = Date.now();
   const { events, proposals } = buildEventSeed(state.users, nowMs);
   commit({
     ...state,
-    archives: buildArchiveSeed(state.portfolios, state.users),
+    archives: buildArchiveSeed(state.portfolios),
     events,
     orders: buildOrderSeed(events, nowMs),
     categoryProposals: proposals,
   });
 }
 
-export type { ArchiveStatus, EventStatus, BookingStatus };
+export type { EventStatus, BookingStatus };

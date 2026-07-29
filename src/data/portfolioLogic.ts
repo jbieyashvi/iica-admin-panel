@@ -1,6 +1,5 @@
 import type { MembershipRecord, UserRecord } from '../types/users';
 import type {
-  ArchiveItem,
   CatalogueVisibility,
   PortfolioContent,
   PortfolioRecord,
@@ -107,28 +106,6 @@ export function activityBreakdown(portfolio: PortfolioRecord, hasLocation: boole
     { key: 'collab', label: 'Collaboration attempts', value: String(portfolio.activity.collaborationAttempts), raw: clamp(portfolio.activity.collaborationAttempts * 12) },
     { key: 'recent', label: 'Recent platform activity', value: `${portfolio.activity.recentActivity}/100`, raw: portfolio.activity.recentActivity },
   ];
-}
-
-// --- Watch → Archive (source of truth is Watch; never duplicated) -----------
-
-export function buildArchive(portfolios: PortfolioRecord[], users: UserRecord[]): ArchiveItem[] {
-  const items: ArchiveItem[] = [];
-  for (const p of portfolios) {
-    const user = users.find((u) => u.id === p.userId);
-    for (const w of p.content.watch) {
-      items.push({
-        videoId: w.id,
-        portfolioId: p.id,
-        userId: p.userId,
-        creator: user?.name ?? 'Unknown',
-        title: w.title,
-        youtubeUrl: w.youtubeUrl,
-        publishDate: w.publishDate,
-        visible: p.status === 'published' && !w.hidden && w.linkValid,
-      });
-    }
-  }
-  return items;
 }
 
 // Effective location for catalogue = admin correction if present, else self-reported.
