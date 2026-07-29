@@ -23,7 +23,6 @@ import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ProductStatusBadge, ProductTypeBadge } from '../../components/ui/ProductBadges';
-import { AddProductModal } from './AddProductModal';
 import { ProductHideModal, ProductArchiveModal } from './ProductModals';
 import { ProductCategoriesPanel } from './ProductCategoriesPanel';
 import { useData, publishProduct, restoreProduct } from '../../data/store';
@@ -54,7 +53,6 @@ export function ProductsPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
-  const [addOpen, setAddOpen] = useState(false);
   const [catForm, setCatForm] = useState<ProductCategoryRecord | 'new' | null>(null);
   const [hideTarget, setHideTarget] = useState<ProductRecord | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<ProductRecord | null>(null);
@@ -146,9 +144,7 @@ export function ProductsPage() {
         actions={
           tab === 'categories' ? (
             <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCatForm('new')} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>Add Product Category</Button>
-          ) : (
-            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>Add Product</Button>
-          )
+          ) : undefined
         }
       />
 
@@ -289,7 +285,6 @@ export function ProductsPage() {
       </>
       )}
 
-      <AddProductModal open={addOpen} onClose={() => setAddOpen(false)} />
       <ProductHideModal product={hideTarget} onClose={() => setHideTarget(null)} />
       <ProductArchiveModal product={archiveTarget} onClose={() => setArchiveTarget(null)} />
       <ConfirmDialog
