@@ -4,10 +4,7 @@ import {
   BookOpen,
   CheckCircle2,
   Eye,
-  FolderOpen,
-  History,
   Search,
-  Upload,
   X,
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -17,24 +14,19 @@ import { Select } from '../../components/ui/Field';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
 import { MembershipStatusBadge } from '../../components/ui/StatusBadge';
-import { UnpublishModal, PortfolioGuidelinesDrawer } from './PortfolioModals';
-import { useData, publishPortfolio } from '../../data/store';
-import { useActor } from '../../lib/useActor';
-import { toast } from '../../components/ui/toast';
+import { PortfolioGuidelinesDrawer } from './PortfolioModals';
+import { useData } from '../../data/store';
 import { formatDate, timeAgo } from '../../lib/format';
 import {
   catalogueVisibility,
   completionChecklist,
   completionPercent,
-  requiredComplete,
   isEligible,
 } from '../../data/portfolioLogic';
 import { PORTFOLIO_STATUSES, PORTFOLIO_STATUS_LABEL } from '../../config/portfolioLabels';
 import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
-import { RESTRICTED_HINT } from '../../lib/abilities';
 import type { PortfolioRecord } from '../../types/portfolio';
 import type { MembershipRecord, UserRecord } from '../../types/users';
 
@@ -50,30 +42,20 @@ const COMPLETION = [
   { key: 'mid', label: '50–80%' },
   { key: 'high', label: '> 80%' },
 ];
-const SUBMITTED = [
-  { key: 'any', label: 'Any submission' },
-  { key: '7', label: 'Submitted ≤ 7 days' },
-  { key: '30', label: 'Submitted ≤ 30 days' },
-];
-
 interface Row {
   p: PortfolioRecord;
   u?: UserRecord;
   m?: MembershipRecord;
   completion: number;
   eligible: boolean;
-  requiredDone: boolean;
 }
 
 export function PortfoliosPage() {
   const { portfolios, users, memberships } = useData();
-  const { abilities, actor } = useActor();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
-  const [unpublishTarget, setUnpublishTarget] = useState<PortfolioRecord | null>(null);
-  const [publishTarget, setPublishTarget] = useState<Row | null>(null);
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
@@ -81,7 +63,6 @@ export function PortfoliosPage() {
   const completion = get('completion', 'any');
   const status = get('status', 'all');
   const vis = get('vis', 'all');
-  const submitted = get('submitted', 'any');
   const sort = get('sort', 'updated');
   const page = Number(get('page', '1'));
   const size = Number(get('size', '10'));
@@ -110,7 +91,6 @@ export function PortfoliosPage() {
           m,
           completion: p.status === 'not_started' ? 0 : completionPercent(items),
           eligible: isEligible(u, m),
-          requiredDone: requiredComplete(items),
         };
       }),
     [portfolios, users, memberships],
@@ -133,10 +113,6 @@ export function PortfoliosPage() {
       if (completion === 'low' && c >= 50) return false;
       if (completion === 'mid' && (c < 50 || c > 80)) return false;
       if (completion === 'high' && c <= 80) return false;
-      if (submitted !== 'any') {
-        if (!p.lastSubmittedAt) return false;
-        if ((Date.now() - new Date(p.lastSubmittedAt).getTime()) / 86400000 > Number(submitted)) return false;
-      }
       return true;
     });
     list = [...list].sort((a, b) => {
@@ -153,7 +129,7 @@ export function PortfoliosPage() {
     });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, q, cat, status, vis, completion, submitted, sort]);
+  }, [rows, q, cat, status, vis, completion, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
@@ -164,17 +140,9 @@ export function PortfoliosPage() {
   if (status !== 'all') chips.push({ key: 'status', label: PORTFOLIO_STATUS_LABEL[status as never] });
   if (vis !== 'all') chips.push({ key: 'vis', label: vis });
   if (completion !== 'any') chips.push({ key: 'completion', label: COMPLETION.find((c) => c.key === completion)!.label });
-  if (submitted !== 'any') chips.push({ key: 'submitted', label: SUBMITTED.find((s) => s.key === submitted)!.label });
 
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
-  const review = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: `/admin/portfolios?${params.toString()}` } });
-
-  const doPublish = () => {
-    if (!publishTarget) return;
-    publishPortfolio(publishTarget.p.id, actor);
-    toast(`${publishTarget.u?.name ?? 'Portfolio'} published.`);
-    setPublishTarget(null);
-  };
+  const view = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: `/admin/portfolios?${params.toString()}` } });
 
   const selectCls = 'text-sm';
 
@@ -182,7 +150,7 @@ export function PortfoliosPage() {
     <div>
       <PageHeader
         title="Portfolios"
-        description="Review portfolio completeness, publishing state and membership eligibility."
+        description="View creator portfolios, completion and visibility."
         actions={
           <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Portfolio Guidelines</Button>
         }
@@ -199,7 +167,7 @@ export function PortfoliosPage() {
           </Select>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           <Select className={selectCls} value={cat} onChange={(e) => update({ cat: e.target.value })}>
             <option value="all">All categories</option>
             {MEMBERSHIP_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -216,9 +184,6 @@ export function PortfoliosPage() {
           </Select>
           <Select className={selectCls} value={completion} onChange={(e) => update({ completion: e.target.value })}>
             {COMPLETION.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </Select>
-          <Select className={selectCls} value={submitted} onChange={(e) => update({ submitted: e.target.value })}>
-            {SUBMITTED.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </Select>
         </div>
 
@@ -264,7 +229,7 @@ export function PortfoliosPage() {
                 return (
                   <tr key={p.id} className="group hover:bg-cream-100/50">
                     <td className="px-4 py-3">
-                      <button onClick={() => review(p.id)} className="flex items-center gap-3 text-left">
+                      <button onClick={() => view(p.id)} className="flex items-center gap-3 text-left">
                         <Avatar name={u?.name ?? '—'} size="sm" />
                         <span>
                           <span className="block font-medium text-charcoal group-hover:text-magenta-700">{u?.name ?? 'Unknown'}</span>
@@ -291,30 +256,7 @@ export function PortfoliosPage() {
                       <div className="flex justify-end">
                         <DropdownMenu
                           items={[
-                            { label: 'Review Portfolio', icon: <Eye className="h-4 w-4" />, onClick: () => review(p.id) },
-                            { label: 'Preview Public Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => review(p.id) },
-                            { label: 'View History', icon: <History className="h-4 w-4" />, onClick: () => review(p.id) },
-                            { divider: true, label: 'd' },
-                            p.status === 'published'
-                              ? {
-                                  label: 'Unpublish',
-                                  icon: <FolderOpen className="h-4 w-4" />,
-                                  danger: true,
-                                  disabled: !abilities.publishPortfolio,
-                                  disabledHint: RESTRICTED_HINT,
-                                  onClick: () => setUnpublishTarget(p),
-                                }
-                              : {
-                                  label: 'Publish',
-                                  icon: <Upload className="h-4 w-4" />,
-                                  disabled: !abilities.publishPortfolio || !row.eligible || !row.requiredDone,
-                                  disabledHint: !abilities.publishPortfolio
-                                    ? RESTRICTED_HINT
-                                    : !row.eligible
-                                      ? 'Requires an active creator membership.'
-                                      : 'Required sections are incomplete.',
-                                  onClick: () => setPublishTarget(row),
-                                },
+                            { label: 'View Portfolio', icon: <Eye className="h-4 w-4" />, onClick: () => view(p.id) },
                           ]}
                         />
                       </div>
@@ -334,16 +276,7 @@ export function PortfoliosPage() {
         )}
       </div>
 
-      <UnpublishModal portfolio={unpublishTarget} onClose={() => setUnpublishTarget(null)} />
       <PortfolioGuidelinesDrawer open={guidelinesOpen} onClose={() => setGuidelinesOpen(false)} />
-      <ConfirmDialog
-        open={!!publishTarget}
-        title={`Publish ${publishTarget?.u?.name ?? 'portfolio'}?`}
-        description="Makes the portfolio catalogue-visible. This is a content status, not creator verification."
-        confirmLabel="Publish"
-        onConfirm={doPublish}
-        onCancel={() => setPublishTarget(null)}
-      />
     </div>
   );
 }
