@@ -2,15 +2,10 @@ import type {
   CollabFormat,
   CollabIntent,
   CollabProgress,
-  CommChannel,
-  CommDelivery,
-  CommType,
   MatchDimensionKey,
   MeetingMode,
   MeetingPlatform,
   MeetingStatus,
-  ReportReason,
-  ReportStatus,
   RequestStatus,
 } from '../types/collaborations';
 
@@ -102,54 +97,6 @@ export const MEETING_PLATFORM_LABEL: Record<MeetingPlatform, string> = {
   other: 'Other',
 };
 
-export const REPORT_REASON_LABEL: Record<ReportReason, string> = {
-  inappropriate_proposal: 'Inappropriate Proposal',
-  harassment: 'Harassment',
-  spam: 'Spam',
-  misleading_profile: 'Misleading Profile',
-  unsafe_meeting: 'Unsafe Meeting Request',
-  unwanted_contact: 'Unwanted Contact',
-  other: 'Other',
-};
-
-export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
-  new: 'New',
-  under_review: 'Under Review',
-  action_taken: 'Action Taken',
-  dismissed: 'Dismissed',
-};
-export const REPORT_STATUS_TONE: Record<ReportStatus, Tone> = {
-  new: 'red',
-  under_review: 'amber',
-  action_taken: 'green',
-  dismissed: 'neutral',
-};
-
-export const COMM_TYPE_LABEL: Record<CommType, string> = {
-  collab_request: 'Collaboration Request',
-  request_reminder: 'Request Reminder',
-  request_accepted: 'Request Accepted',
-  request_declined: 'Request Declined',
-  meeting_proposal: 'Meeting Proposal',
-  meeting_confirmation: 'Meeting Confirmation',
-  reschedule_request: 'Reschedule Request',
-  meeting_reminder: 'Meeting Reminder',
-  cancellation_notice: 'Cancellation Notice',
-  admin_notice: 'Admin Notice',
-};
-
-export const COMM_CHANNEL_LABEL: Record<CommChannel, string> = {
-  in_app: 'In-app Notification',
-  email: 'Email Notification',
-};
-
-export const COMM_DELIVERY_LABEL: Record<CommDelivery, string> = {
-  sent: 'Sent',
-  delivered: 'Delivered',
-  logged: 'Logged',
-  failed: 'Failed',
-};
-
 // ---- Match dimensions ------------------------------------------------------
 
 export const DIMENSION_META: Record<MatchDimensionKey, { label: string; blurb: string }> = {
@@ -168,7 +115,6 @@ export const PROGRESS_STATUSES: CollabProgress[] = ['not_started', 'discussion_s
 export const MEETING_STATUSES: MeetingStatus[] = ['not_scheduled', 'proposed', 'scheduled', 'reschedule_requested', 'completed', 'cancelled', 'no_show'];
 export const INTENTS: CollabIntent[] = ['content', 'performance', 'workshop', 'brand', 'mentorship', 'creative_project', 'event', 'other'];
 export const FORMATS: CollabFormat[] = ['in_person', 'online', 'hybrid'];
-export const REPORT_REASONS: ReportReason[] = ['inappropriate_proposal', 'harassment', 'spam', 'misleading_profile', 'unsafe_meeting', 'unwanted_contact', 'other'];
 
 export const SCORE_RANGES = [
   { key: 'any', label: 'Any match score', min: 0 },

@@ -1,21 +1,17 @@
 import type { PortfolioRecord } from '../types/portfolio';
-import type { UserRecord, TimelineEvent } from '../types/users';
+import type { UserRecord } from '../types/users';
 import type {
   CollabFormat,
   CollabIntent,
   CollabProgress,
   CollaborationRecord,
   CollaborationSettings,
-  CommRecord,
-  CommType,
   CreatorSnapshot,
   MatchDimension,
   Meeting,
   MeetingMode,
   MeetingPlatform,
   MeetingStatus,
-  ReportReason,
-  ReportStatus,
   RequestStatus,
 } from '../types/collaborations';
 import {
@@ -174,13 +170,6 @@ interface MeetingSpec {
   noteless?: boolean;
 }
 
-interface ReportSpec {
-  by: 'a' | 'b';
-  reason: ReportReason;
-  desc: string;
-  status: ReportStatus;
-}
-
 interface Spec {
   id: string;
   a: string; // initiator userId
@@ -197,9 +186,7 @@ interface Spec {
   reqOffset: number; // request created days ago (positive)
   declineReason?: string;
   withdrawalReason?: string;
-  blockReason?: string;
   meeting?: MeetingSpec;
-  report?: ReportSpec;
 }
 
 // prettier-ignore
@@ -221,21 +208,14 @@ const SPECS: Spec[] = [
   { id: 'col_15', a: 'usr_royal', b: 'usr_nikhil', intent: 'event', title: 'Heritage Concert Night', message: 'A heritage-venue concert co-hosted for an intimate, high-end audience.', outcome: 'A flagship concert evening.', format: 'in_person', location: 'Udaipur', req: 'accepted', prog: 'confirmed', scores: [86, 64, 80, 76], reqOffset: 19, meeting: { mode: 'in_person', status: 'scheduled', offset: 15, link: 'pending', location: 'Royal Courtyard, Udaipur' } },
   { id: 'col_16', a: 'usr_kabir', b: 'usr_ananya', intent: 'creative_project', title: 'Wearable Art Shoot', message: 'A shoot featuring hand-painted wearable art on a model, styled as a gallery piece.', outcome: 'A wearable-art photo set.', format: 'in_person', location: 'Delhi', req: 'withdrawn', prog: 'not_started', scores: [90, 70, 76, 78], reqOffset: 11, withdrawalReason: 'Initiator paused personal projects for the month.' },
   { id: 'col_17', a: 'usr_sophia', b: 'usr_james', intent: 'performance', title: 'Editorial Art Film', message: 'A short editorial film merging painted backdrops with a model performance.', outcome: 'A festival-ready short film.', format: 'online', location: 'Remote — New York / London', req: 'accepted', prog: 'in_discussion', scores: [44, 76, 82, 74], reqOffset: 17, meeting: { mode: 'online', platform: 'ms_teams', status: 'cancelled', offset: 3, link: 'pending', cancelReason: 'Creator cancelled due to a travel clash.' } },
-  { id: 'col_18', a: 'usr_heritage', b: 'usr_aisha', intent: 'brand', title: 'Sustainable Luxe Showcase', message: 'A showcase pairing sustainable craft with a connoisseur’s curated audience.', outcome: 'A sustainable-luxury showcase.', format: 'hybrid', location: 'Delhi', req: 'pending_response', prog: 'not_started', scores: [68, 60, 72, 70], reqOffset: 6, report: { by: 'b', reason: 'inappropriate_proposal', desc: 'Reported the proposal wording as pushy and off-brand.', status: 'under_review' } },
-  { id: 'col_19', a: 'usr_vikram', b: 'usr_kabir', intent: 'content', title: 'Fit & Fashion Reels', message: 'A reels series pairing fitness drills with fashion-forward styling.', outcome: 'A weekly reels series.', format: 'online', location: 'Remote', req: 'request_sent', prog: 'not_started', scores: [60, 72, 66, 64], reqOffset: 7, report: { by: 'b', reason: 'spam', desc: 'Recipient flagged repeated identical requests as spam.', status: 'new' } },
-  { id: 'col_20', a: 'usr_devang', b: 'usr_leila', intent: 'brand', title: 'Global Talent Bridge', message: 'A cross-border talent partnership connecting creators with international brands.', outcome: 'A referral partnership.', format: 'online', location: 'Remote — Ahmedabad / Dubai', req: 'blocked', prog: 'cancelled', scores: [55, 66, 68, 62], reqOffset: 13, blockReason: 'Blocked after a safety review of unverified brand claims.' },
+  { id: 'col_18', a: 'usr_heritage', b: 'usr_aisha', intent: 'brand', title: 'Sustainable Luxe Showcase', message: 'A showcase pairing sustainable craft with a connoisseur’s curated audience.', outcome: 'A sustainable-luxury showcase.', format: 'hybrid', location: 'Delhi', req: 'pending_response', prog: 'not_started', scores: [68, 60, 72, 70], reqOffset: 6 },
+  { id: 'col_19', a: 'usr_vikram', b: 'usr_kabir', intent: 'content', title: 'Fit & Fashion Reels', message: 'A reels series pairing fitness drills with fashion-forward styling.', outcome: 'A weekly reels series.', format: 'online', location: 'Remote', req: 'request_sent', prog: 'not_started', scores: [60, 72, 66, 64], reqOffset: 7 },
+  { id: 'col_20', a: 'usr_devang', b: 'usr_leila', intent: 'brand', title: 'Global Talent Bridge', message: 'A cross-border talent partnership connecting creators with international brands.', outcome: 'A referral partnership.', format: 'online', location: 'Remote — Ahmedabad / Dubai', req: 'blocked', prog: 'cancelled', scores: [55, 66, 68, 62], reqOffset: 13 },
   { id: 'col_21', a: 'usr_ananya', b: 'usr_meera', intent: 'creative_project', title: 'Art & Breath Installation', message: 'An immersive installation combining live painting with guided breathwork.', outcome: 'A gallery installation.', format: 'hybrid', location: 'Mumbai', req: 'accepted', prog: 'in_discussion', scores: [86, 68, 82, 80], reqOffset: 10, meeting: { mode: 'online', platform: 'ms_teams', status: 'scheduled', offset: 3, link: 'pending' } },
   { id: 'col_22', a: 'usr_aarav', b: 'usr_abhishek', intent: 'performance', title: 'Strength Showcase Live', message: 'A live strength showcase pairing a champion with a competitive athlete.', outcome: 'A live showcase event.', format: 'in_person', location: 'Bengaluru', req: 'accepted', prog: 'confirmed', scores: [80, 66, 84, 82], reqOffset: 22, meeting: { mode: 'in_person', status: 'no_show', offset: -3, link: 'pending', location: 'Aarav Fitness Collective, Bengaluru' } },
   { id: 'col_23', a: 'usr_nikhil', b: 'usr_aisha', intent: 'event', title: 'Art Patron Evening', message: 'Suggested match — an intimate patron evening connecting a host with a connoisseur.', outcome: 'A patron networking evening.', format: 'in_person', location: 'Mumbai', req: 'suggested', prog: 'not_started', scores: [90, 64, 72, 70], reqOffset: 3 },
   { id: 'col_24', a: 'usr_james', b: 'usr_sophia', intent: 'creative_project', title: 'Diaspora Portrait Project', message: 'A portrait project exploring diaspora stories through painted and photographed portraits.', outcome: 'A travelling portrait exhibit.', format: 'online', location: 'Remote — London / New York', req: 'accepted', prog: 'discussion_scheduled', scores: [46, 78, 80, 76], reqOffset: 9, meeting: { mode: 'online', platform: 'zoom', status: 'proposed', offset: 8, link: 'pending' } },
 ];
-
-const MSG_TYPE_BY_REQ: Partial<Record<RequestStatus, CommType>> = {
-  request_sent: 'collab_request',
-  pending_response: 'collab_request',
-  accepted: 'request_accepted',
-  declined: 'request_declined',
-};
 
 export function buildCollaborations(users: UserRecord[], portfolios: PortfolioRecord[], now: number): CollaborationRecord[] {
   const day = 86400000;
@@ -286,60 +266,6 @@ export function buildCollaborations(users: UserRecord[], portfolios: PortfolioRe
       };
     }
 
-    // ---- Communications ----
-    const comms: CommRecord[] = [];
-    const pushComm = (type: CommType, sender: string, recipient: string, offset: number, channel: 'in_app' | 'email' = 'in_app', body?: string) =>
-      comms.unshift({ id: `${s.id}_cm${comms.length}`, at: iso(offset), sender, recipient, type, channel, delivery: channel === 'email' ? 'sent' : 'delivered', body });
-
-    if (s.req !== 'suggested') {
-      pushComm('collab_request', initiator.name, invited.name, -s.reqOffset, 'in_app', `Proposal: ${s.title}`);
-    }
-    const respType = MSG_TYPE_BY_REQ[s.req];
-    if (respType === 'request_accepted') pushComm('request_accepted', invited.name, initiator.name, -s.reqOffset + 1);
-    if (respType === 'request_declined') pushComm('request_declined', invited.name, initiator.name, -s.reqOffset + 1, 'in_app', s.declineReason);
-    if (meeting) {
-      pushComm('meeting_proposal', initiator.name, invited.name, -s.reqOffset + 2);
-      if (['scheduled', 'completed', 'no_show'].includes(meeting.status)) pushComm('meeting_confirmation', invited.name, initiator.name, -s.reqOffset + 3);
-      if (meeting.status === 'reschedule_requested') pushComm('reschedule_request', invited.name, initiator.name, -1);
-      if (meeting.status === 'cancelled') pushComm('cancellation_notice', initiator.name, invited.name, -1, 'email', meeting.cancellationReason ?? undefined);
-    }
-
-    // ---- Reports ----
-    const reports = s.report
-      ? [{
-          id: s.id.replace('col_', 'rep_'),
-          reportedBy: s.report.by === 'a' ? initiator.name : invited.name,
-          reportedCreator: s.report.by === 'a' ? invited.name : initiator.name,
-          reason: s.report.reason,
-          description: s.report.desc,
-          reportedAt: iso(-Math.max(1, s.reqOffset - 2)),
-          status: s.report.status,
-          notes: [],
-          decisionReason: null,
-        }]
-      : [];
-
-    // ---- Timeline (operational status history) ----
-    const tl: TimelineEvent[] = [];
-    const pushTl = (key: string, label: string, offset: number, detail?: string) => tl.push({ id: `${s.id}_tl${tl.length}`, key, label, at: iso(offset), detail });
-    pushTl('matched', 'Match generated by prototype AI', -s.reqOffset, `Overall score ${overall(s.scores)} / 100`);
-    if (s.req !== 'suggested') pushTl('request_sent', 'Collaboration request sent', -s.reqOffset, `From ${initiator.name} to ${invited.name}`);
-    if (s.req === 'accepted') pushTl('accepted', 'Request accepted', -s.reqOffset + 1);
-    if (s.req === 'declined') pushTl('declined', 'Request declined', -s.reqOffset + 1, s.declineReason);
-    if (s.req === 'withdrawn') pushTl('withdrawn', 'Request withdrawn', -s.reqOffset + 1, s.withdrawalReason);
-    if (s.req === 'expired') pushTl('expired', 'Request expired', -s.reqOffset + DEFAULT_COLLAB_SETTINGS.defaultExpiryDays);
-    if (meeting) {
-      pushTl('meeting_proposed', 'Meeting proposed', -s.reqOffset + 2, `${meeting.mode === 'online' ? 'Online' : 'In person'}${meeting.platform ? ' · ' + meeting.platform : ''}`);
-      if (['scheduled'].includes(meeting.status)) pushTl('meeting_scheduled', 'Meeting scheduled', -s.reqOffset + 3);
-      if (meeting.status === 'reschedule_requested') pushTl('reschedule', 'Reschedule requested', -1, meeting.reschedules[0]?.reason);
-      if (meeting.status === 'cancelled') pushTl('meeting_cancelled', 'Meeting cancelled', -1, meeting.cancellationReason ?? undefined);
-      if (meeting.status === 'completed') pushTl('meeting_completed', 'Meeting completed', meeting.confirmedAt ? -Math.abs(s.meeting!.offset) : 0);
-      if (meeting.status === 'no_show') pushTl('meeting_no_show', 'Meeting marked as no-show', -Math.abs(s.meeting!.offset));
-    }
-    if (s.prog === 'completed') pushTl('completed', 'Collaboration completed', -1);
-    if (s.report) pushTl('reported', 'Collaboration reported', -Math.max(1, s.reqOffset - 2), s.report.desc);
-    if (s.req === 'blocked') pushTl('blocked', 'Collaboration blocked by admin', -1, s.blockReason);
-
     const record: CollaborationRecord = {
       id: s.id,
       initiator,
@@ -360,14 +286,7 @@ export function buildCollaborations(users: UserRecord[], portfolios: PortfolioRe
       declineReason: s.declineReason ?? null,
       withdrawalReason: s.withdrawalReason ?? null,
       expiryDate,
-      blocked: s.req === 'blocked',
-      blockReason: s.blockReason ?? null,
-      preBlock: s.req === 'blocked' ? { requestStatus: 'pending_response', progress: 'not_started' } : null,
       meeting,
-      communications: comms,
-      reports,
-      notes: [],
-      timeline: tl,
       createdAt: requestDate,
       lastUpdatedAt: iso(-1),
     };

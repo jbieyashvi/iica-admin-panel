@@ -117,25 +117,6 @@ export function ProductsPage() {
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
 
-  const summary = useMemo(
-    () => ({
-      total: products.length,
-      published: products.filter((p) => p.status === 'published').length,
-      awaiting: products.filter((p) => p.status === 'awaiting_review').length,
-      oos: products.filter((p) => p.status === 'out_of_stock').length,
-      hidden: products.filter((p) => p.status === 'hidden').length,
-    }),
-    [products],
-  );
-
-  const cards = [
-    { label: 'Total Products', value: summary.total, status: 'all' },
-    { label: 'Published', value: summary.published, status: 'published' },
-    { label: 'Awaiting Review', value: summary.awaiting, status: 'awaiting_review' },
-    { label: 'Out of Stock', value: summary.oos, status: 'out_of_stock' },
-    { label: 'Hidden', value: summary.hidden, status: 'hidden' },
-  ];
-
   const chips: { key: string; label: string }[] = [];
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
   if (type !== 'all') chips.push({ key: 'type', label: PRODUCT_TYPE_LABEL[type as never] });
@@ -178,19 +159,6 @@ export function ProductsPage() {
 
       {tab === 'products' && (
       <>
-      {/* Summary cards (clickable filters) */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        {cards.map((c) => (
-          <button
-            key={c.label}
-            onClick={() => update({ status: c.status })}
-            className={`card p-4 text-left transition-colors hover:border-magenta-200 ${status === c.status || (c.status === 'all' && status === 'all') ? 'ring-1 ring-magenta-300' : ''}`}
-          >
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
-          </button>
-        ))}
-      </div>
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

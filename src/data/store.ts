@@ -43,13 +43,7 @@ import type {
   IssueType,
   ProductOrder,
 } from '../types/orders';
-import type {
-  CollaborationRecord,
-  CollaborationSettings,
-  CommRecord,
-  CommType,
-  ReportStatus as CollabReportStatus,
-} from '../types/collaborations';
+import type { CollaborationSettings } from '../types/collaborations';
 import type { BannerLinkType, BannerRecord } from '../types/banners';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
@@ -1133,139 +1127,11 @@ export type { FulfilmentStatus, IssueStatus };
 // Collaborations & Meetings
 // ===========================================================================
 
-function replaceCollab(list: CollaborationRecord[], next: CollaborationRecord) {
-  return list.map((c) => (c.id === next.id ? next : c));
-}
-function pushCollabTimeline(c: CollaborationRecord, key: string, label: string, detail?: string): CollaborationRecord {
-  return { ...c, timeline: [...c.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
-}
-function addComm(c: CollaborationRecord, type: CommType, sender: string, recipient: string, channel: 'in_app' | 'email', body?: string): CollaborationRecord {
-  const entry: CommRecord = { id: uid('cm'), at: now(), sender, recipient, type, channel, delivery: channel === 'email' ? 'sent' : 'delivered', body };
-  return { ...c, communications: [entry, ...c.communications] };
-}
-function commitCollab(next: CollaborationRecord) {
-  commit({ ...state, collaborations: replaceCollab(state.collaborations, { ...next, lastUpdatedAt: now() }) });
-}
-function findCollab(id: string) {
-  return state.collaborations.find((c) => c.id === id);
-}
-
-// Prototype reminder — logs a notification record only. No real email/push.
-export function sendCollabReminder(collabId: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  let next = addComm(c, 'request_reminder', 'IICA Admin', `${c.initiator.name} & ${c.invited.name}`, 'in_app', 'Reminder to respond to the pending collaboration request.');
-  next = pushCollabTimeline(next, 'reminder', 'Request reminder sent', 'Prototype notification — no real message sent.');
-  commitCollab(next);
-}
-
-export function extendCollabExpiry(collabId: string, days: number, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  const base = c.expiryDate && new Date(c.expiryDate).getTime() > Date.now() ? new Date(c.expiryDate) : new Date();
-  const nextExpiry = addDays(base, days).toISOString();
-  // Reopen an expired request when its window is extended.
-  const requestStatus = c.requestStatus === 'expired' ? 'pending_response' : c.requestStatus;
-  let next: CollaborationRecord = { ...c, expiryDate: nextExpiry, requestStatus };
-  next = pushCollabTimeline(next, 'expiry_extended', 'Request expiry extended', `Extended by ${days} day${days === 1 ? '' : 's'}.`);
-  commitCollab(next);
-}
-
-// Safety/policy block — preserves the record, stops further activity and cancels
-// any pending meeting proposals.
-export function blockCollaboration(collabId: string, reason: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  const preBlock = c.blocked ? c.preBlock : { requestStatus: c.requestStatus, progress: c.progress };
-  let meeting = c.meeting;
-  if (meeting && ['proposed', 'scheduled', 'reschedule_requested', 'not_scheduled'].includes(meeting.status)) {
-    meeting = { ...meeting, status: 'cancelled', cancellationReason: `Collaboration blocked: ${reason}`, lastUpdatedAt: now() };
-  }
-  let next: CollaborationRecord = { ...c, blocked: true, blockReason: reason, preBlock, requestStatus: 'blocked', progress: 'cancelled', meeting };
-  next = addComm(next, 'cancellation_notice', 'IICA Admin', `${c.initiator.name} & ${c.invited.name}`, 'email', `Collaboration blocked for safety/policy review: ${reason}`);
-  next = pushCollabTimeline(next, 'blocked', 'Collaboration blocked by admin', reason);
-  commitCollab(next);
-}
-
-export function restoreCollaboration(collabId: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  const restoredReq = c.preBlock?.requestStatus ?? 'pending_response';
-  const restoredProg = c.preBlock?.progress ?? 'not_started';
-  let next: CollaborationRecord = { ...c, blocked: false, blockReason: null, preBlock: null, requestStatus: restoredReq, progress: restoredProg };
-  next = pushCollabTimeline(next, 'restored', 'Collaboration restored by admin');
-  commitCollab(next);
-}
-
-export function sendMeetingReminder(collabId: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c || !c.meeting) return;
-  let next = addComm(c, 'meeting_reminder', 'IICA Admin', `${c.initiator.name} & ${c.invited.name}`, 'in_app', 'Reminder about the scheduled collaboration meeting.');
-  next = pushCollabTimeline(next, 'meeting_reminder', 'Meeting reminder sent', 'Prototype notification — no real message sent.');
-  commitCollab(next);
-}
-
-// Admin reviews a reschedule request. Admin does NOT change the meeting date or
-// accept on behalf of creators — it logs the review and nudges both creators.
-export function reviewReschedule(collabId: string, rescheduleId: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c || !c.meeting) return;
-  const meeting = { ...c.meeting, reschedules: c.meeting.reschedules.map((r) => (r.id === rescheduleId ? { ...r, status: 'reviewed' as const } : r)), lastUpdatedAt: now() };
-  let next: CollaborationRecord = { ...c, meeting };
-  next = addComm(next, 'admin_notice', 'IICA Admin', `${c.initiator.name} & ${c.invited.name}`, 'in_app', 'Reschedule request reviewed — creators asked to confirm a new time between themselves.');
-  next = pushCollabTimeline(next, 'reschedule_reviewed', 'Reschedule request reviewed by admin', 'Creators to agree a new time; date not changed by admin.');
-  commitCollab(next);
-}
-
-export function cancelMeetingSafety(collabId: string, reason: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c || !c.meeting) return;
-  const meeting = { ...c.meeting, status: 'cancelled' as const, cancellationReason: reason, lastUpdatedAt: now() };
-  let next: CollaborationRecord = { ...c, meeting };
-  next = addComm(next, 'cancellation_notice', 'IICA Admin', `${c.initiator.name} & ${c.invited.name}`, 'email', `Meeting cancelled for safety/policy reason: ${reason}`);
-  next = pushCollabTimeline(next, 'meeting_cancelled', 'Meeting cancelled by admin (safety)', reason);
-  commitCollab(next);
-}
-
-export function sendAdminNotice(collabId: string, body: string, _actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  let next = addComm(c, 'admin_notice', 'IICA Admin', `${c.initiator.name} & ${c.invited.name}`, 'in_app', body);
-  next = pushCollabTimeline(next, 'admin_notice', 'Admin notice sent', body);
-  commitCollab(next);
-}
-
-export function addCollabNote(collabId: string, body: string, actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  commitCollab({ ...c, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...c.notes] });
-}
-
-export function reviewReport(collabId: string, reportId: string, statusAfter: CollabReportStatus, actor: AdminActor, reason?: string) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  const reports = c.reports.map((r) => (r.id === reportId ? { ...r, status: statusAfter, decisionReason: reason ?? r.decisionReason ?? null } : r));
-  let next: CollaborationRecord = { ...c, reports };
-  const label = statusAfter === 'dismissed' ? 'Report dismissed' : statusAfter === 'action_taken' ? 'Report marked action taken' : 'Report under review';
-  next = pushCollabTimeline(next, 'report', label, reason);
-  commitCollab(next);
-  void actor;
-}
-
-export function addReportNote(collabId: string, reportId: string, body: string, actor: AdminActor) {
-  const c = findCollab(collabId);
-  if (!c) return;
-  const reports = c.reports.map((r) => (r.id === reportId ? { ...r, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...r.notes] } : r));
-  commitCollab({ ...c, reports });
-}
-
-// Matching settings — persists only. Existing historical scores are never
-// recalculated automatically.
+// Collaborations are view-only in the admin panel. Matching settings persist
+// only; existing historical scores are never recalculated automatically.
 export function updateCollaborationSettings(patch: Partial<CollaborationSettings>, _actor: AdminActor) {
   commit({ ...state, collaborationSettings: { ...state.collaborationSettings, ...patch } });
 }
-
-export type { CollaborationRecord };
 
 // ===========================================================================
 // Reviews

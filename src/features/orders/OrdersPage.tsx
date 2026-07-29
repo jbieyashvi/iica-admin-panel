@@ -50,7 +50,6 @@ export function OrdersPage() {
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
-  const bucket = get('bucket', 'all');
   const type = get('type', 'all');
   const pay = get('pay', 'all');
   const ful = get('ful', 'all');
@@ -70,27 +69,8 @@ export function OrdersPage() {
     setParams(next, { replace: true });
   };
 
-  // Clicking a summary card sets a bucket and clears manual filters.
-  const applyBucket = (b: string) => {
-    const next = new URLSearchParams();
-    if (b !== 'all') next.set('bucket', b);
-    setParams(next, { replace: true });
-  };
-
-  const inBucket = (o: ProductOrder): boolean => {
-    switch (bucket) {
-      case 'pending': return o.paymentStatus === 'pending' || o.paymentStatus === 'initiated';
-      case 'awaiting': return o.fulfilmentStatus === 'awaiting_acceptance';
-      case 'transit': return o.fulfilmentStatus === 'in_transit';
-      case 'completed': return o.orderStatus === 'completed';
-      case 'issues': return openIssues(o) > 0;
-      default: return true;
-    }
-  };
-
   const filtered = useMemo(() => {
     let list = productOrders.filter((o) => {
-      if (!inBucket(o)) return false;
       if (q) {
         const hay = `${o.id} ${o.buyerName} ${o.productTitle} ${o.sellerName}`.toLowerCase();
         if (!hay.includes(q.toLowerCase())) return false;
@@ -112,33 +92,13 @@ export function OrdersPage() {
       }
     });
     return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productOrders, q, bucket, type, pay, ful, buyer, date, sort]);
+  }, [productOrders, q, type, pay, ful, buyer, date, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
 
-  const summary = useMemo(() => ({
-    total: productOrders.length,
-    pending: productOrders.filter((o) => o.paymentStatus === 'pending' || o.paymentStatus === 'initiated').length,
-    awaiting: productOrders.filter((o) => o.fulfilmentStatus === 'awaiting_acceptance').length,
-    transit: productOrders.filter((o) => o.fulfilmentStatus === 'in_transit').length,
-    completed: productOrders.filter((o) => o.orderStatus === 'completed').length,
-    issues: productOrders.filter((o) => openIssues(o) > 0).length,
-  }), [productOrders]);
-
-  const cards = [
-    { label: 'Total Orders', value: summary.total, bucket: 'all' },
-    { label: 'Payment Pending', value: summary.pending, bucket: 'pending' },
-    { label: 'Awaiting Seller Action', value: summary.awaiting, bucket: 'awaiting' },
-    { label: 'In Transit', value: summary.transit, bucket: 'transit' },
-    { label: 'Completed', value: summary.completed, bucket: 'completed' },
-    { label: 'Issues & Requests', value: summary.issues, bucket: 'issues' },
-  ];
-
   const chips: { key: string; label: string }[] = [];
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
-  if (bucket !== 'all') chips.push({ key: 'bucket', label: cards.find((c) => c.bucket === bucket)?.label ?? bucket });
   if (type !== 'all') chips.push({ key: 'type', label: PRODUCT_TYPE_LABEL[type as never] });
   if (pay !== 'all') chips.push({ key: 'pay', label: PAYMENT_STATUS_LABEL[pay as never] });
   if (ful !== 'all') chips.push({ key: 'ful', label: FULFILMENT_LABEL[ful as never] });
@@ -152,19 +112,6 @@ export function OrdersPage() {
   return (
     <div>
       <PageHeader title="Orders" description="Track product purchases, seller fulfilment and customer issues." />
-
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {cards.map((c) => (
-          <button
-            key={c.label}
-            onClick={() => applyBucket(c.bucket)}
-            className={`card p-4 text-left transition-colors hover:border-magenta-200 ${bucket === c.bucket ? 'ring-1 ring-magenta-300' : ''}`}
-          >
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
-          </button>
-        ))}
-      </div>
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

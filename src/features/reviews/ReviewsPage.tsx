@@ -50,17 +50,6 @@ export function ReviewsPage() {
 
   const canModerate = abilities.reviewsModerate;
 
-  const summary = useMemo(() => {
-    const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
-    const monthAgo = Date.now() - 30 * 86400000;
-    return {
-      total: reviews.length,
-      avg,
-      fiveStar: reviews.filter((r) => r.rating === 5).length,
-      thisMonth: reviews.filter((r) => new Date(r.submittedAt).getTime() >= monthAgo).length,
-    };
-  }, [reviews]);
-
   const filtered = useMemo(() => {
     let list = reviews.filter((r) => {
       if (rq) {
@@ -86,13 +75,6 @@ export function ReviewsPage() {
   const total = filtered.length;
   const paged = filtered.slice((rPage - 1) * rSize, rPage * rSize);
 
-  const cards = [
-    { label: 'Total Reviews', value: summary.total, apply: () => resetFilters() },
-    { label: 'Average Rating', value: summary.avg ? summary.avg.toFixed(1) : '—', apply: () => { resetFilters(); setRSort('high'); }, star: true },
-    { label: '5-Star Reviews', value: summary.fiveStar, apply: () => { resetFilters(); setRRating('5'); } },
-    { label: 'Reviews This Month', value: summary.thisMonth, apply: () => { resetFilters(); setRDate('30'); } },
-  ];
-
   function resetFilters() { setRq(''); setRType('all'); setRRating('all'); setRDate('any'); setRSort('newest'); setRPage(1); }
 
   const chips: { label: string; clear: () => void }[] = [];
@@ -112,15 +94,6 @@ export function ReviewsPage() {
   return (
     <div>
       <PageHeader title="Reviews" description="View and manage reviews submitted by users." />
-
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {cards.map((c) => (
-          <button key={c.label} onClick={c.apply} className="card p-4 text-left transition-colors hover:border-magenta-200">
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 flex items-center gap-1 font-serif text-2xl font-medium text-charcoal">{c.value}{c.star && summary.avg > 0 && <Star className="h-4 w-4 fill-amber-400 text-amber-400" />}</p>
-          </button>
-        ))}
-      </div>
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

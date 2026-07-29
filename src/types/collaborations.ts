@@ -1,5 +1,3 @@
-import type { InternalNote, TimelineEvent } from './users';
-
 // ---------------------------------------------------------------------------
 // Collaborations & Meetings domain. IICA matches eligible active creators via a
 // prototype AI scoring model across four dimensions. Records connect to Users,
@@ -49,33 +47,6 @@ export type MeetingMode = 'online' | 'in_person';
 
 export type MeetingPlatform = 'zoom' | 'google_meet' | 'ms_teams' | 'other';
 
-export type ReportReason =
-  | 'inappropriate_proposal'
-  | 'harassment'
-  | 'spam'
-  | 'misleading_profile'
-  | 'unsafe_meeting'
-  | 'unwanted_contact'
-  | 'other';
-
-export type ReportStatus = 'new' | 'under_review' | 'action_taken' | 'dismissed';
-
-export type CommType =
-  | 'collab_request'
-  | 'request_reminder'
-  | 'request_accepted'
-  | 'request_declined'
-  | 'meeting_proposal'
-  | 'meeting_confirmation'
-  | 'reschedule_request'
-  | 'meeting_reminder'
-  | 'cancellation_notice'
-  | 'admin_notice';
-
-export type CommChannel = 'in_app' | 'email';
-
-export type CommDelivery = 'sent' | 'delivered' | 'logged' | 'failed';
-
 export type MatchDimensionKey = 'location' | 'social' | 'intent' | 'creative';
 
 // Snapshot of a creator taken from User + Portfolio at record time. Keeps the
@@ -104,17 +75,6 @@ export interface MatchDimension {
   weight: number; // percent weight applied at scoring time
   explanation: string;
   signals: string[];
-}
-
-export interface CommRecord {
-  id: string;
-  at: string;
-  sender: string;
-  recipient: string;
-  type: CommType;
-  channel: CommChannel;
-  delivery: CommDelivery;
-  body?: string;
 }
 
 export interface RescheduleRequest {
@@ -146,18 +106,6 @@ export interface Meeting {
   lastUpdatedAt: string;
 }
 
-export interface CollabReport {
-  id: string;
-  reportedBy: string; // creator name
-  reportedCreator: string; // creator name
-  reason: ReportReason;
-  description: string;
-  reportedAt: string;
-  status: ReportStatus;
-  notes: InternalNote[];
-  decisionReason?: string | null;
-}
-
 export interface CollaborationRecord {
   id: string;
   initiator: CreatorSnapshot;
@@ -178,15 +126,7 @@ export interface CollaborationRecord {
   declineReason?: string | null;
   withdrawalReason?: string | null;
   expiryDate?: string | null;
-  blocked: boolean;
-  blockReason?: string | null;
-  // Snapshot of status before a block, used to restore cleanly.
-  preBlock?: { requestStatus: RequestStatus; progress: CollabProgress } | null;
   meeting: Meeting | null;
-  communications: CommRecord[];
-  reports: CollabReport[];
-  notes: InternalNote[];
-  timeline: TimelineEvent[];
   createdAt: string;
   lastUpdatedAt: string;
 }

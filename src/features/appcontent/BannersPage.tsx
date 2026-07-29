@@ -32,25 +32,7 @@ export function BannersPage() {
 
   const ordered = useMemo(() => [...banners].sort((a, b) => a.displayOrder - b.displayOrder), [banners]);
 
-  const summary = useMemo(() => {
-    const s = { total: banners.length, active: 0, scheduled: 0, inactive: 0 };
-    banners.forEach((b) => {
-      const st = computeBannerStatus(b);
-      if (st === 'active') s.active++;
-      else if (st === 'scheduled') s.scheduled++;
-      else if (st === 'inactive') s.inactive++;
-    });
-    return s;
-  }, [banners]);
-
   const liveBanners = useMemo(() => banners.filter((b) => isBannerLive(b)), [banners]);
-
-  const cards = [
-    { label: 'Total Banners', value: summary.total },
-    { label: 'Active Banners', value: summary.active },
-    { label: 'Scheduled Banners', value: summary.scheduled },
-    { label: 'Inactive Banners', value: summary.inactive },
-  ];
 
   const openAdd = () => { setEditBanner(null); setFormMode('add'); };
   const openEdit = (b: BannerRecord) => { setEditBanner(b); setFormMode('edit'); };
@@ -80,15 +62,6 @@ export function BannersPage() {
           </div>
         }
       />
-
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {cards.map((c) => (
-          <div key={c.label} className="card p-4">
-            <p className="text-sm text-charcoal-muted">{c.label}</p>
-            <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
-          </div>
-        ))}
-      </div>
 
       <div className="mb-4 rounded-lg border border-cream-200 bg-cream-100/50 px-4 py-2.5 text-sm text-charcoal-muted">
         Admin controls only this top banner carousel. All other mobile Home sections use their existing connected data and fixed design.

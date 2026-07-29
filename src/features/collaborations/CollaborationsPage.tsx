@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, CalendarClock, Search, Sparkles, ShieldAlert, User as UserIcon, Users as UsersIcon, X, SlidersHorizontal } from 'lucide-react';
+import { Eye, CalendarClock, Search, Sparkles, User as UserIcon, Users as UsersIcon, X, SlidersHorizontal } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
@@ -31,7 +31,6 @@ const SORTS = [
   { key: 'updated', label: 'Recently Updated' },
 ];
 
-const openReports = (c: CollaborationRecord) => c.reports.filter((r) => r.status !== 'dismissed').length;
 
 export function CollaborationsPage() {
   const { collaborations } = useData();
@@ -177,7 +176,6 @@ export function CollaborationsPage() {
             </thead>
             <tbody className="divide-y divide-cream-200">
               {paged.map((c) => {
-                const reported = openReports(c) > 0;
                 return (
                   <tr key={c.id} className="group hover:bg-cream-100/50">
                     <td className="px-4 py-3">
@@ -217,7 +215,6 @@ export function CollaborationsPage() {
                             { label: 'Open Initiator Profile', icon: <UserIcon className="h-4 w-4" />, onClick: () => navigate(`/admin/users/${c.initiator.userId}`) },
                             { label: 'Open Invited Creator Profile', icon: <UsersIcon className="h-4 w-4" />, onClick: () => navigate(`/admin/users/${c.invited.userId}`) },
                             { label: 'View Meeting', icon: <CalendarClock className="h-4 w-4" />, disabled: !c.meeting, disabledHint: 'No meeting scheduled yet.', onClick: () => detail(c.id, 'meeting') },
-                            ...(reported ? [{ label: 'Review Report', icon: <ShieldAlert className="h-4 w-4" />, onClick: () => detail(c.id, 'reports') }] : []),
                           ]}
                         />
                       </div>

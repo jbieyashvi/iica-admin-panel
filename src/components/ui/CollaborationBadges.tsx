@@ -4,8 +4,6 @@ import {
   MEETING_STATUS_TONE,
   PROGRESS_LABEL,
   PROGRESS_TONE,
-  REPORT_STATUS_LABEL,
-  REPORT_STATUS_TONE,
   REQUEST_STATUS_LABEL,
   REQUEST_STATUS_TONE,
   scoreTone,
@@ -13,7 +11,6 @@ import {
 import type {
   CollabProgress,
   MeetingStatus,
-  ReportStatus,
   RequestStatus,
 } from '../../types/collaborations';
 
@@ -27,10 +24,6 @@ export function ProgressBadge({ status }: { status: CollabProgress }) {
 
 export function MeetingStatusBadge({ status }: { status: MeetingStatus }) {
   return <Badge tone={MEETING_STATUS_TONE[status]}>{MEETING_STATUS_LABEL[status]}</Badge>;
-}
-
-export function ReportStatusBadge({ status }: { status: ReportStatus }) {
-  return <Badge tone={REPORT_STATUS_TONE[status]}>{REPORT_STATUS_LABEL[status]}</Badge>;
 }
 
 export function MatchScore({ score, size = 'md' }: { score: number; size?: 'sm' | 'md' }) {

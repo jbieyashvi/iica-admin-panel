@@ -1,56 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Bell, CalendarClock, FolderOpen, ShieldAlert, SlidersHorizontal, Sparkles, Ban, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CalendarClock, FolderOpen, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Textarea } from '../../components/ui/Field';
-import { RequestStatusBadge, ProgressBadge, MeetingStatusBadge, ReportStatusBadge, MatchScore } from '../../components/ui/CollaborationBadges';
-import { MembershipTimeline } from '../memberships/MembershipTimeline';
-import {
-  ExtendExpiryModal,
-  BlockCollaborationModal,
-  RestoreConfirmModal,
-  CancelMeetingModal,
-  AdminNoticeModal,
-  ReportDecisionModal,
-} from './CollaborationModals';
-import type { ReportDecisionSpec } from './CollaborationModals';
-import {
-  useData,
-  sendCollabReminder,
-  sendMeetingReminder,
-  reviewReschedule,
-  addCollabNote,
-  addReportNote,
-} from '../../data/store';
-import { useActor } from '../../lib/useActor';
-import { toast } from '../../components/ui/toast';
-import { RESTRICTED_HINT } from '../../lib/abilities';
+import { RequestStatusBadge, ProgressBadge, MeetingStatusBadge, MatchScore } from '../../components/ui/CollaborationBadges';
+import { useData } from '../../data/store';
 import { formatDate, formatDateTime } from '../../lib/format';
 import {
   INTENT_LABEL,
   FORMAT_LABEL,
   MEETING_MODE_LABEL,
   MEETING_PLATFORM_LABEL,
-  COMM_TYPE_LABEL,
-  COMM_CHANNEL_LABEL,
-  COMM_DELIVERY_LABEL,
-  REPORT_REASON_LABEL,
 } from '../../config/collaborationLabels';
-import type { CollaborationRecord, CollabReport, CreatorSnapshot } from '../../types/collaborations';
+import type { CollaborationRecord, CreatorSnapshot } from '../../types/collaborations';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'match', label: 'Match Breakdown' },
   { key: 'request', label: 'Request' },
   { key: 'meeting', label: 'Meeting' },
-  { key: 'communication', label: 'Communication' },
-  { key: 'reports', label: 'Reports & Safety' },
-  { key: 'history', label: 'Status History' },
 ];
 
 function Card({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
@@ -71,7 +43,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function actionOwner(c: CollaborationRecord): { owner: string; next: string } {
-  if (c.blocked) return { owner: 'Admin', next: 'Review or restore the collaboration' };
+  if (c.requestStatus === 'blocked') return { owner: 'Admin', next: 'Collaboration blocked' };
   switch (c.requestStatus) {
     case 'suggested': return { owner: 'Creators', next: 'A creator sends a collaboration request' };
     case 'request_sent':
@@ -96,30 +68,32 @@ export function CollaborationDetailPage() {
   const { collaborationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { collaborations } = useData();
-  const { abilities, actor } = useActor();
 
   const collab = collaborations.find((c) => c.id === collaborationId);
   const queryTab = params.get('tab');
-  const [tab, setTab] = useState(queryTab && TABS.some((t) => t.key === queryTab) ? queryTab : 'overview');
-  // When the viewed record changes (e.g. detail→detail deep link), honour ?tab.
+  const validTab = (t: string | null) => !!t && TABS.some((x) => x.key === t);
+  const [tab, setTab] = useState(validTab(queryTab) ? (queryTab as string) : 'overview');
+
+  // Honour ?tab when the record changes; strip an unknown/removed tab from the URL.
   const lastId = useRef(collaborationId);
   useEffect(() => {
     if (lastId.current !== collaborationId) {
       lastId.current = collaborationId;
-      setTab(queryTab && TABS.some((t) => t.key === queryTab) ? queryTab : 'overview');
+      setTab(validTab(queryTab) ? (queryTab as string) : 'overview');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collaborationId, queryTab]);
-  const [note, setNote] = useState('');
-  const [reportNote, setReportNote] = useState<Record<string, string>>({});
 
-  const [extendOpen, setExtendOpen] = useState(false);
-  const [blockOpen, setBlockOpen] = useState(false);
-  const [restoreOpen, setRestoreOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [noticeOpen, setNoticeOpen] = useState(false);
-  const [reportDecision, setReportDecision] = useState<{ report: CollabReport; spec: ReportDecisionSpec } | null>(null);
+  useEffect(() => {
+    if (queryTab && !validTab(queryTab)) {
+      const next = new URLSearchParams(params);
+      next.delete('tab');
+      setParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryTab]);
 
   const back = (location.state as { from?: string } | null)?.from ?? '/admin/collaborations';
 
@@ -133,14 +107,6 @@ export function CollaborationDetailPage() {
   }
 
   const owner = actionOwner(collab);
-  const openReportCount = collab.reports.filter((r) => r.status !== 'dismissed').length;
-
-  const remind = () => { sendCollabReminder(collab.id, actor); toast('Request reminder logged (prototype — no real message sent).'); };
-  const remindMeeting = () => { sendMeetingReminder(collab.id, actor); toast('Meeting reminder logged (prototype — no real message sent).'); };
-  const doReviewReschedule = (rid: string) => { reviewReschedule(collab.id, rid, actor); toast('Reschedule request reviewed. Creators asked to confirm a new time.'); };
-
-  const submitNote = () => { if (!note.trim()) return; addCollabNote(collab.id, note.trim(), actor); toast('Note added.'); setNote(''); };
-  const submitReportNote = (rid: string) => { const b = (reportNote[rid] ?? '').trim(); if (!b) return; addReportNote(collab.id, rid, b, actor); toast('Internal note added.'); setReportNote((s) => ({ ...s, [rid]: '' })); };
 
   const CreatorCard = ({ who }: { who: CreatorSnapshot }) => {
     const active = who.membershipStatus === 'active';
@@ -189,7 +155,6 @@ export function CollaborationDetailPage() {
               <RequestStatusBadge status={collab.requestStatus} />
               <ProgressBadge status={collab.progress} />
               <MeetingStatusBadge status={collab.meeting?.status ?? 'not_scheduled'} />
-              {collab.blocked && <Badge tone="red">Blocked</Badge>}
             </div>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-charcoal-muted">
               <span>{collab.id}</span>
@@ -205,7 +170,7 @@ export function CollaborationDetailPage() {
       </div>
 
       <div className="mb-5">
-        <Tabs tabs={TABS.map((t) => (t.key === 'reports' && openReportCount ? { ...t, count: openReportCount } : t))} active={tab} onChange={setTab} />
+        <Tabs tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
       {/* OVERVIEW */}
@@ -277,41 +242,31 @@ export function CollaborationDetailPage() {
 
       {/* REQUEST */}
       {tab === 'request' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <Card title="Collaboration Request">
+        <Card title="Collaboration Request">
+          <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
+            <div>
               <Row label="Request sender">{collab.initiator.name}</Row>
               <Row label="Invited creator">{collab.invited.name}</Row>
               <Row label="Request date">{collab.requestStatus === 'suggested' ? 'Not sent (suggested match)' : formatDate(collab.requestDate)}</Row>
               <Row label="Collaboration title">{collab.proposalTitle}</Row>
               <Row label="Collaboration intent">{INTENT_LABEL[collab.intent]}</Row>
               <Row label="Preferred format">{FORMAT_LABEL[collab.preferredFormat]}</Row>
+            </div>
+            <div>
               <Row label="Preferred meeting dates">{collab.preferredMeetingDates.map((d) => formatDate(d)).join(' · ')}</Row>
               <Row label="Response status">{<RequestStatusBadge status={collab.requestStatus} />}</Row>
               <Row label="Response date">{formatDate(collab.responseDate)}</Row>
               {collab.declineReason && <Row label="Decline reason">{collab.declineReason}</Row>}
               {collab.withdrawalReason && <Row label="Withdrawal reason">{collab.withdrawalReason}</Row>}
               <Row label="Expiry date">{formatDate(collab.expiryDate)}</Row>
-              {collab.blocked && collab.blockReason && <Row label="Block reason">{collab.blockReason}</Row>}
-              <div className="mt-3 border-t border-cream-200 pt-3">
-                <p className="text-sm text-charcoal-muted">Proposal message</p>
-                <p className="mt-1 text-sm text-charcoal">{collab.proposalMessage}</p>
-              </div>
-            </Card>
-          </div>
-          <Card title="Admin Actions">
-            <p className="mb-3 rounded-lg border border-cream-200 bg-cream-100/50 px-3 py-2 text-xs text-charcoal-muted">Admin cannot accept, decline or edit a creator's request, or create one on their behalf.</p>
-            <div className="flex flex-col gap-2">
-              <Button variant="secondary" icon={<Bell className="h-4 w-4" />} disabled={!abilities.collabReminders || collab.blocked || collab.requestStatus === 'suggested'} title={abilities.collabReminders ? '' : RESTRICTED_HINT} onClick={remind}>Send Reminder</Button>
-              <Button variant="secondary" icon={<CalendarClock className="h-4 w-4" />} disabled={!abilities.collabReminders || collab.blocked} title={abilities.collabReminders ? '' : RESTRICTED_HINT} onClick={() => setExtendOpen(true)}>Extend Expiry</Button>
-              {collab.blocked ? (
-                <Button variant="secondary" icon={<RotateCcw className="h-4 w-4" />} disabled={!abilities.collabBlock} title={abilities.collabBlock ? '' : RESTRICTED_HINT} onClick={() => setRestoreOpen(true)}>Restore Collaboration</Button>
-              ) : (
-                <Button variant="danger" icon={<Ban className="h-4 w-4" />} disabled={!abilities.collabBlock} title={abilities.collabBlock ? '' : RESTRICTED_HINT} onClick={() => setBlockOpen(true)}>Block Collaboration</Button>
-              )}
             </div>
-          </Card>
-        </div>
+          </div>
+          <div className="mt-3 border-t border-cream-200 pt-3">
+            <p className="text-sm text-charcoal-muted">Proposal message</p>
+            <p className="mt-1 text-sm text-charcoal">{collab.proposalMessage}</p>
+          </div>
+          <p className="mt-3 text-xs text-charcoal-muted">Admin cannot accept, decline or edit a creator's request, or create one on their behalf.</p>
+        </Card>
       )}
 
       {/* MEETING */}
@@ -361,132 +316,16 @@ export function CollaborationDetailPage() {
                         </div>
                         <p className="mt-1 text-sm text-charcoal">{r.reason}</p>
                         <p className="mt-0.5 text-xs text-charcoal-muted">Proposed new time: {formatDateTime(r.proposedAt)} · Requested {formatDate(r.requestedAt)}</p>
-                        {r.status === 'pending' && (
-                          <div className="mt-2">
-                            <Button size="sm" variant="secondary" disabled={!abilities.collabReschedule} title={abilities.collabReschedule ? '' : RESTRICTED_HINT} onClick={() => doReviewReschedule(r.id)}>Review Reschedule Request</Button>
-                          </div>
-                        )}
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-2 text-xs text-charcoal-muted">Reviewing does not change the meeting time — creators must agree a new time between themselves.</p>
+                  <p className="mt-2 text-xs text-charcoal-muted">Creators agree a new time between themselves — the meeting date is not changed here.</p>
                 </Card>
               )}
-
-              <Card title="Meeting Actions">
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="secondary" icon={<Bell className="h-4 w-4" />} disabled={!abilities.collabReminders || collab.blocked} title={abilities.collabReminders ? '' : RESTRICTED_HINT} onClick={remindMeeting}>Send Meeting Reminder</Button>
-                  <Button size="sm" variant="danger" icon={<Ban className="h-4 w-4" />} disabled={!abilities.collabCancelMeeting || ['cancelled', 'completed'].includes(collab.meeting.status)} title={abilities.collabCancelMeeting ? '' : RESTRICTED_HINT} onClick={() => setCancelOpen(true)}>Cancel for Safety Reason</Button>
-                </div>
-                <p className="mt-2 text-xs text-charcoal-muted">Admin cannot mark creators as agreed, silently change the date, or create a completed meeting.</p>
-              </Card>
             </>
           )}
         </div>
       )}
-
-      {/* COMMUNICATION */}
-      {tab === 'communication' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <Card title="Communication Log" action={
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" disabled={!abilities.collabReminders || collab.blocked || collab.requestStatus === 'suggested'} title={abilities.collabReminders ? '' : RESTRICTED_HINT} onClick={remind}>Send Reminder</Button>
-                <Button size="sm" variant="secondary" disabled={!abilities.collabReminders} title={abilities.collabReminders ? '' : RESTRICTED_HINT} onClick={() => setNoticeOpen(true)}>Send Admin Notice</Button>
-              </div>
-            }>
-              {collab.communications.length === 0 ? <p className="text-sm text-charcoal-muted">No communications yet.</p> : (
-                <ul className="space-y-3">
-                  {collab.communications.map((c) => (
-                    <li key={c.id} className="rounded-lg border border-cream-200 p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-charcoal">{COMM_TYPE_LABEL[c.type]}</span>
-                        <span className="text-xs text-charcoal-muted">{formatDateTime(c.at)}</span>
-                      </div>
-                      <p className="mt-0.5 text-xs text-charcoal-muted">{c.sender} → {c.recipient} · {COMM_CHANNEL_LABEL[c.channel]} · {COMM_DELIVERY_LABEL[c.delivery]}</p>
-                      {c.body && <p className="mt-1 text-sm text-charcoal">{c.body}</p>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="mt-3 text-xs text-charcoal-muted">Private creator-to-creator chat messages are never shown here.</p>
-            </Card>
-          </div>
-          <Card title="Internal Notes">
-            {abilities.addNotes && (
-              <div className="mb-3">
-                <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add an internal note…" />
-                <div className="mt-2 flex justify-end"><Button size="sm" onClick={submitNote} disabled={!note.trim()}>Add note</Button></div>
-              </div>
-            )}
-            {collab.notes.length === 0 ? <p className="text-sm text-charcoal-muted">No notes.</p> : (
-              <ul className="space-y-2">{collab.notes.map((n) => (<li key={n.id} className="rounded-lg border border-cream-200 bg-cream-100/50 p-2.5"><p className="text-sm text-charcoal">{n.body}</p><p className="mt-0.5 text-xs text-charcoal-muted">{n.author} · {formatDateTime(n.at)}</p></li>))}</ul>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* REPORTS & SAFETY */}
-      {tab === 'reports' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-charcoal-muted">Reviewing a report never automatically suspends a creator.</p>
-            {collab.blocked ? (
-              <Button size="sm" variant="secondary" icon={<RotateCcw className="h-4 w-4" />} disabled={!abilities.collabBlock} title={abilities.collabBlock ? '' : RESTRICTED_HINT} onClick={() => setRestoreOpen(true)}>Restore Collaboration</Button>
-            ) : (
-              <Button size="sm" variant="danger" icon={<Ban className="h-4 w-4" />} disabled={!abilities.collabBlock} title={abilities.collabBlock ? '' : RESTRICTED_HINT} onClick={() => setBlockOpen(true)}>Block Collaboration</Button>
-            )}
-          </div>
-          {collab.reports.length === 0 ? (
-            <div className="card"><EmptyState icon={<ShieldAlert className="h-6 w-6" />} title="No reports" description="This collaboration has not been reported." /></div>
-          ) : (
-            collab.reports.map((r) => (
-              <div key={r.id} className="card p-5">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2"><Badge tone="magenta">{REPORT_REASON_LABEL[r.reason]}</Badge><ReportStatusBadge status={r.status} /></div>
-                  <span className="text-xs text-charcoal-muted">{r.id} · {formatDate(r.reportedAt)}</span>
-                </div>
-                <Row label="Reported by">{r.reportedBy}</Row>
-                <Row label="Reported creator">{r.reportedCreator}</Row>
-                <Row label="Description">{r.description}</Row>
-                {r.decisionReason && <Row label="Decision reason">{r.decisionReason}</Row>}
-                {r.notes.length > 0 && (
-                  <div className="mt-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-charcoal-muted">Internal notes</p>
-                    <ul className="space-y-1.5">{r.notes.map((n) => <li key={n.id} className="text-xs text-charcoal-muted">{n.body} · {n.author} · {formatDateTime(n.at)}</li>)}</ul>
-                  </div>
-                )}
-                {abilities.collabReports && (
-                  <div className="mt-3 border-t border-cream-200 pt-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => setReportDecision({ report: r, spec: { action: 'Marked under review', statusAfter: 'under_review', requireReason: false } })}>Review Report</Button>
-                      <Button size="sm" variant="secondary" onClick={() => setReportDecision({ report: r, spec: { action: 'Marked action taken', statusAfter: 'action_taken', requireReason: true } })}>Mark Action Taken</Button>
-                      <Button size="sm" variant="secondary" onClick={() => setReportDecision({ report: r, spec: { action: 'Dismissed report', statusAfter: 'dismissed', requireReason: true } })}>Dismiss Report</Button>
-                    </div>
-                    <div className="mt-3">
-                      <Textarea rows={2} value={reportNote[r.id] ?? ''} onChange={(e) => setReportNote((s) => ({ ...s, [r.id]: e.target.value }))} placeholder="Add an internal note to this report…" />
-                      <div className="mt-2 flex justify-end"><Button size="sm" onClick={() => submitReportNote(r.id)} disabled={!(reportNote[r.id] ?? '').trim()}>Add Internal Note</Button></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* STATUS HISTORY */}
-      {tab === 'history' && (
-        <Card title="Status History"><MembershipTimeline events={collab.timeline} /></Card>
-      )}
-
-      {/* Modals */}
-      <ExtendExpiryModal collab={extendOpen ? collab : null} onClose={() => setExtendOpen(false)} />
-      <BlockCollaborationModal collab={blockOpen ? collab : null} onClose={() => setBlockOpen(false)} />
-      <RestoreConfirmModal collab={restoreOpen ? collab : null} onClose={() => setRestoreOpen(false)} />
-      <CancelMeetingModal collab={cancelOpen ? collab : null} onClose={() => setCancelOpen(false)} />
-      <AdminNoticeModal collab={noticeOpen ? collab : null} onClose={() => setNoticeOpen(false)} />
-      <ReportDecisionModal collab={reportDecision ? collab : null} report={reportDecision?.report ?? null} decision={reportDecision?.spec ?? null} onClose={() => setReportDecision(null)} />
     </div>
   );
 }
