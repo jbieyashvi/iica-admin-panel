@@ -8,7 +8,6 @@ import {
   ExternalLink,
   FileWarning,
   FolderOpen,
-  History,
   MessageSquareWarning,
   Play,
   RotateCcw,
@@ -28,7 +27,6 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ArchiveStatusBadge, YtStatusBadge } from '../../components/ui/EventBadges';
 import { ArchiveRequestChangesModal, ArchiveHideModal, ArchiveGuidelinesDrawer } from './ArchiveModals';
-import { AuditHistoryDrawer } from '../catalogue/CatalogueDrawers';
 import { useData, publishArchive, restoreArchive } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -90,7 +88,7 @@ interface Row {
 }
 
 export function ArchivePage() {
-  const { archives, users, memberships, portfolios, audit } = useData();
+  const { archives, users, memberships, portfolios } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -100,7 +98,6 @@ export function ArchivePage() {
   const [hideTarget, setHideTarget] = useState<ArchiveRecord | null>(null);
   const [publishTarget, setPublishTarget] = useState<Row | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<Row | null>(null);
-  const [auditTarget, setAuditTarget] = useState<Row | null>(null);
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
@@ -226,7 +223,6 @@ export function ArchivePage() {
     setRestoreTarget(null);
   };
 
-  const auditEntries = auditTarget ? audit.filter((x) => x.targetId === auditTarget.a.id || x.targetId === auditTarget.a.portfolioId) : [];
   const selectCls = 'text-sm';
 
   return (
@@ -353,7 +349,6 @@ export function ArchivePage() {
                             { label: 'Open YouTube', icon: <ExternalLink className="h-4 w-4" />, onClick: () => window.open(a.youtubeUrl, '_blank') },
                             { label: 'Open Creator Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => navigate(`/admin/portfolios/${a.portfolioId}`) },
                             { label: 'View Reports', icon: <MessageSquareWarning className="h-4 w-4" />, onClick: () => review(a.id) },
-                            { label: 'View Audit History', icon: <History className="h-4 w-4" />, onClick: () => setAuditTarget(row) },
                             { divider: true, label: 'd' },
                             { label: 'Request Changes', icon: <FileWarning className="h-4 w-4" />, disabled: !abilities.manageArchive, disabledHint: RESTRICTED_HINT, onClick: () => setChangesTarget(row) },
                             a.archiveStatus === 'hidden'
@@ -378,7 +373,6 @@ export function ArchivePage() {
       <ArchiveRequestChangesModal archive={changesTarget?.a ?? null} creatorName={changesTarget?.u?.name} onClose={() => setChangesTarget(null)} />
       <ArchiveHideModal archive={hideTarget} onClose={() => setHideTarget(null)} />
       <ArchiveGuidelinesDrawer open={guidelinesOpen} onClose={() => setGuidelinesOpen(false)} />
-      <AuditHistoryDrawer open={!!auditTarget} title={auditTarget?.a.title ?? ''} entries={auditEntries} onClose={() => setAuditTarget(null)} />
       <ConfirmDialog open={!!publishTarget} title={`Publish "${publishTarget?.a.title ?? ''}"?`} description="Makes the video visible in the public Archive. Content status only — not creator verification." confirmLabel="Publish" onConfirm={doPublish} onCancel={() => setPublishTarget(null)} />
       <ConfirmDialog open={!!restoreTarget} title="Restore video to Archive?" description="Confirms link validity and restores public Archive and Watch visibility." confirmLabel="Restore" onConfirm={doRestore} onCancel={() => setRestoreTarget(null)} />
     </div>

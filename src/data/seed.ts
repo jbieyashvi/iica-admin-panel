@@ -1,7 +1,6 @@
 import type { MembershipCategory } from '../types';
 import type {
   AccountType,
-  AuditEntry,
   DataState,
   MembershipRecord,
   MembershipStatus,
@@ -234,35 +233,6 @@ const PRICING: PricingRow[] = [
   { country: 'United Kingdom', currencyCode: 'GBP', symbol: '£', amount: 99, period: 'year' },
 ];
 
-const SEED_AUDIT: AuditEntry[] = [
-  {
-    id: 'aud_seed_1',
-    action: 'Membership activated',
-    targetType: 'membership',
-    targetId: 'mem_ananya',
-    targetLabel: 'Ananya Rao · AR.612.IICA',
-    prevState: 'Purchase Pending',
-    newState: 'Active',
-    adminName: 'System',
-    adminRole: 'Automated',
-    timestamp: '2025-01-18T10:05:00Z',
-    reason: 'Apple purchase confirmed',
-  },
-  {
-    id: 'aud_seed_2',
-    action: 'Account suspended',
-    targetType: 'user',
-    targetId: 'usr_vivaan',
-    targetLabel: 'Vivaan Gupta',
-    prevState: 'Active',
-    newState: 'Suspended',
-    adminName: 'Aparna Menon',
-    adminRole: 'Super Admin',
-    timestamp: '2026-07-01T09:30:00Z',
-    reason: 'Reported for policy violation in collaboration chat.',
-  },
-];
-
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);
   const memberships = ROWS.map(buildMembership).filter((m): m is MembershipRecord => m !== null);
@@ -272,7 +242,6 @@ export function buildSeedState(): DataState {
   return {
     users,
     memberships,
-    audit: SEED_AUDIT,
     pricing: PRICING,
     categories: buildCategorySeed(),
     portfolios,

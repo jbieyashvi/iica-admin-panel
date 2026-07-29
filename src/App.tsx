@@ -33,7 +33,6 @@ const PLACEHOLDER_ROUTES = [
   'notifications',
   'analytics',
   'admin-users',
-  'audit-log',
   'settings',
 ];
 

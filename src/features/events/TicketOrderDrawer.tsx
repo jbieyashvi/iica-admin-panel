@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Field, Input } from '../../components/ui/Field';
 import { PaymentBadge, BookingBadge } from '../../components/ui/EventBadges';
-import { checkInOrder, cancelBooking, initiateRefundReview, logOrderAction } from '../../data/store';
+import { checkInOrder, cancelBooking, initiateRefundReview } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
@@ -124,13 +124,13 @@ export function TicketOrderDrawer({ order, event, onClose }: { order: TicketOrde
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" variant="secondary" icon={<Mail className="h-4 w-4" />} disabled={!abilities.resendTickets} title={abilities.resendTickets ? '' : RESTRICTED_HINT} onClick={() => { logOrderAction(order.id, 'Ticket resent to buyer', actor); toast('Ticket resent (simulated).'); }}>Resend</Button>
-              <Button size="sm" variant="secondary" icon={<Printer className="h-4 w-4" />} onClick={() => { printTicket(order, event); logOrderAction(order.id, 'Ticket downloaded', actor); }}>Download</Button>
-              <Button size="sm" variant="secondary" icon={<Wallet className="h-4 w-4" />} disabled={!abilities.viewOrders} onClick={() => { logOrderAction(order.id, 'Viewed payment record', actor); toast(paid ? `Payment: ${order.paymentStatus}` : 'Free booking — no payment.', 'info'); }}>View Payment</Button>
+              <Button size="sm" variant="secondary" icon={<Mail className="h-4 w-4" />} disabled={!abilities.resendTickets} title={abilities.resendTickets ? '' : RESTRICTED_HINT} onClick={() => toast('Ticket resent (simulated).')}>Resend</Button>
+              <Button size="sm" variant="secondary" icon={<Printer className="h-4 w-4" />} onClick={() => printTicket(order, event)}>Download</Button>
+              <Button size="sm" variant="secondary" icon={<Wallet className="h-4 w-4" />} disabled={!abilities.viewOrders} onClick={() => toast(paid ? `Payment: ${order.paymentStatus}` : 'Free booking — no payment.', 'info')}>View Payment</Button>
               <Button size="sm" variant="secondary" icon={<CheckSquare className="h-4 w-4" />} disabled={!abilities.manageTickets || order.checkInStatus === 'checked_in'} title={abilities.manageTickets ? '' : RESTRICTED_HINT} onClick={() => { checkInOrder(order.id, actor); toast('Marked checked in.'); }}>Check In</Button>
               <Button size="sm" variant="secondary" icon={<Ban className="h-4 w-4" />} disabled={!abilities.manageTickets || order.bookingStatus === 'cancelled'} title={abilities.manageTickets ? '' : RESTRICTED_HINT} onClick={() => setMode('cancel')}>Cancel Booking</Button>
               <Button size="sm" variant="secondary" icon={<RefreshCcw className="h-4 w-4" />} disabled={!abilities.refundReview || !paid} title={!abilities.refundReview ? RESTRICTED_HINT : !paid ? 'Free booking — no refund.' : ''} onClick={() => setMode('refund')}>Refund Review</Button>
-              <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4 rotate-180" />} disabled={!abilities.contactBuyer} title={abilities.contactBuyer ? '' : RESTRICTED_HINT} onClick={() => { logOrderAction(order.id, 'Contacted buyer', actor); toast('Buyer contacted (simulated).'); }}>Contact Buyer</Button>
+              <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4 rotate-180" />} disabled={!abilities.contactBuyer} title={abilities.contactBuyer ? '' : RESTRICTED_HINT} onClick={() => toast('Buyer contacted (simulated).')}>Contact Buyer</Button>
             </div>
           )}
         </div>

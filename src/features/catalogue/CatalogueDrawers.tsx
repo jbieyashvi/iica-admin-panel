@@ -147,7 +147,7 @@ export function EditDiscoveryModal({ portfolio, onClose }: { portfolio: Portfoli
       open={!!portfolio}
       onClose={onClose}
       title="Edit Discovery Data"
-      description="Adjusts discovery metadata only. Logged in the audit trail."
+      description="Adjusts discovery metadata only."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
@@ -229,38 +229,3 @@ export function ActivityScoreDrawer({
   );
 }
 
-// ---- Audit History Drawer --------------------------------------------------
-export function AuditHistoryDrawer({
-  title,
-  entries,
-  onClose,
-  open,
-}: {
-  title: string;
-  entries: { id: string; action: string; adminName: string; adminRole: string; timestamp: string; prevState?: string | null; newState?: string | null; reason?: string | null }[];
-  onClose: () => void;
-  open: boolean;
-}) {
-  return (
-    <Drawer open={open} onClose={onClose} title="Audit History" description={title}>
-      {entries.length === 0 ? (
-        <p className="text-sm text-charcoal-muted">No admin actions recorded yet.</p>
-      ) : (
-        <ul className="space-y-3">
-          {entries.map((a) => (
-            <li key={a.id} className="border-b border-cream-200 pb-3 last:border-0">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-charcoal">{a.action}</span>
-                <span className="text-xs text-charcoal-muted">{formatDateTime(a.timestamp)}</span>
-              </div>
-              <p className="mt-0.5 text-xs text-charcoal-muted">
-                {a.prevState && a.newState ? `${a.prevState} → ${a.newState} · ` : ''}
-                {a.adminName} ({a.adminRole}){a.reason ? ` · ${a.reason}` : ''}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Drawer>
-  );
-}

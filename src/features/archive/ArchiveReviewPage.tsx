@@ -238,7 +238,7 @@ export function ArchiveReviewPage() {
                 <h3 className="text-sm font-semibold text-charcoal">Prototype Tools</h3>
                 <Badge tone="magenta">Prototype only</Badge>
               </div>
-              <p className="mb-3 text-xs text-charcoal-muted">Super Admin only. Separate from normal moderation. Each creates an audit entry.</p>
+              <p className="mb-3 text-xs text-charcoal-muted">Super Admin only. Separate from normal moderation.</p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setSimKind('broken')}>Simulate Broken YouTube Link</Button>
                 <Button variant="danger" size="sm" onClick={() => setSimKind('reset')}>Reset Archive/Event Demo Data</Button>

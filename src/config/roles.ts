@@ -39,7 +39,6 @@ const ALL: Permission[] = [
   'manage_engagement',
   'manage_platform',
   'manage_admins',
-  'view_audit_log',
   'manage_settings',
 ];
 

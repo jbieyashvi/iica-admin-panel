@@ -20,8 +20,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MembershipStatusBadge, PurchaseStatusBadge } from '../../components/ui/StatusBadge';
 import { MembershipSettingsModal } from './MembershipSettingsModal';
-import { useData, logMembershipAction } from '../../data/store';
-import { useActor } from '../../lib/useActor';
+import { useData } from '../../data/store';
 import { toast } from '../../components/ui/toast';
 import { exportCsv } from '../../lib/exportCsv';
 import { formatDate, timeAgo } from '../../lib/format';
@@ -59,7 +58,6 @@ interface JoinedRow {
 
 export function MembershipsPage() {
   const { memberships, users } = useData();
-  const { actor } = useActor();
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -351,18 +349,12 @@ export function MembershipsPage() {
                             icon: <Bell className="h-4 w-4" />,
                             disabled: !m.iicaId,
                             disabledHint: 'No IICA ID generated yet.',
-                            onClick: () => {
-                              logMembershipAction(m.id, 'Resent IICA ID notification', actor);
-                              toast('IICA ID notification resent (simulated).', 'info');
-                            },
+                            onClick: () => toast('IICA ID notification resent (simulated).', 'info'),
                           },
                           {
                             label: 'Refresh Purchase Status',
                             icon: <RefreshCw className="h-4 w-4" />,
-                            onClick: () => {
-                              logMembershipAction(m.id, 'Refreshed purchase status', actor);
-                              toast('Purchase status refreshed from store (simulated).', 'info');
-                            },
+                            onClick: () => toast('Purchase status refreshed from store (simulated).', 'info'),
                           },
                         ]}
                       />

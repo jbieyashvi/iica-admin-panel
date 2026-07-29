@@ -36,7 +36,7 @@ const TABS = [
   { key: 'purchases', label: 'Purchases' },
   { key: 'collaborations', label: 'Collaborations' },
   { key: 'support', label: 'Support' },
-  { key: 'activity', label: 'Activity & Audit' },
+  { key: 'activity', label: 'Activity' },
 ];
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -74,7 +74,7 @@ export function UserDetailPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { users, memberships, audit } = useData();
+  const { users, memberships } = useData();
   const { abilities, actor } = useActor();
 
   const user = users.find((u) => u.id === userId);
@@ -112,7 +112,6 @@ export function UserDetailPage() {
   const portfolio = derivePortfolio(user, membership);
   const collab = deriveCollab(user);
   const tickets = deriveSupport(user);
-  const userAudit = audit.filter((a) => a.targetId === user.id || (membership && a.targetId === membership.id));
 
   const submitNote = () => {
     if (!noteBody.trim()) return;
@@ -235,10 +234,10 @@ export function UserDetailPage() {
           </Panel>
           <Panel title="Recent Activity">
             <ul className="space-y-2.5">
-              {[...userAudit.slice(0, 4)].map((a) => (
-                <li key={a.id} className="flex items-start justify-between gap-3 text-sm">
-                  <span className="text-charcoal">{a.action}</span>
-                  <span className="shrink-0 text-xs text-charcoal-muted">{timeAgo(a.timestamp)}</span>
+              {[...(membership?.timeline ?? [])].reverse().slice(0, 4).map((e) => (
+                <li key={e.id} className="flex items-start justify-between gap-3 text-sm">
+                  <span className="text-charcoal">{e.label}</span>
+                  <span className="shrink-0 text-xs text-charcoal-muted">{timeAgo(e.at)}</span>
                 </li>
               ))}
               <li className="flex items-start justify-between gap-3 text-sm">
@@ -450,27 +449,6 @@ export function UserDetailPage() {
 
       {tab === 'activity' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Panel title="Audit Trail">
-            {userAudit.length === 0 ? (
-              <p className="text-sm text-charcoal-muted">No admin actions recorded for this user.</p>
-            ) : (
-              <ul className="space-y-3">
-                {userAudit.map((a) => (
-                  <li key={a.id} className="border-b border-cream-200 pb-3 last:border-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-charcoal">{a.action}</span>
-                      <span className="text-xs text-charcoal-muted">{formatDateTime(a.timestamp)}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-charcoal-muted">
-                      {a.prevState && a.newState ? `${a.prevState} → ${a.newState} · ` : ''}
-                      {a.adminName} ({a.adminRole})
-                      {a.reason ? ` · ${a.reason}` : ''}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
           <Panel title="Membership Timeline">
             {membership ? (
               <MembershipTimeline events={membership.timeline} />
@@ -479,9 +457,7 @@ export function UserDetailPage() {
             )}
           </Panel>
           {membership && abilities.viewPurchases && (
-            <div className="lg:col-span-2">
-              <PaymentPanel membership={membership} />
-            </div>
+            <PaymentPanel membership={membership} />
           )}
         </div>
       )}
@@ -500,7 +476,7 @@ export function UserDetailPage() {
         open={noteOpen}
         onClose={() => setNoteOpen(false)}
         title="Add internal note"
-        description="Visible to admins only. Recorded in the audit trail."
+        description="Visible to admins only."
         footer={
           <>
             <Button variant="secondary" onClick={() => setNoteOpen(false)}>

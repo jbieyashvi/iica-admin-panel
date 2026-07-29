@@ -120,30 +120,6 @@ export interface MembershipRecord {
   lastUpdatedAt: string;
 }
 
-export interface AuditEntry {
-  id: string;
-  action: string;
-  targetType:
-    | 'user'
-    | 'membership'
-    | 'pricing'
-    | 'category'
-    | 'portfolio'
-    | 'archive'
-    | 'event'
-    | 'order'
-    | 'proposal'
-    | 'event_category';
-  targetId: string;
-  targetLabel: string;
-  prevState?: string | null;
-  newState?: string | null;
-  adminName: string;
-  adminRole: string;
-  timestamp: string;
-  reason?: string | null;
-}
-
 export interface PricingRow {
   country: string;
   currencyCode: string;
@@ -155,7 +131,6 @@ export interface PricingRow {
 export interface DataState {
   users: UserRecord[];
   memberships: MembershipRecord[];
-  audit: AuditEntry[];
   pricing: PricingRow[];
   categories: import('./portfolio').CategoryRecord[];
   portfolios: import('./portfolio').PortfolioRecord[];
@@ -168,7 +143,7 @@ export interface DataState {
   version: number;
 }
 
-// Actor performing a mutation (drives audit entries).
+// Actor performing a mutation.
 export interface AdminActor {
   name: string;
   role: string; // human label, e.g. "Super Admin"

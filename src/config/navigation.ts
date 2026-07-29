@@ -18,7 +18,6 @@ import {
   Bell,
   BarChart3,
   ShieldCheck,
-  ScrollText,
   Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -87,7 +86,6 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Administration',
     items: [
       { label: 'Admin Users', to: '/admin/admin-users', icon: ShieldCheck, permission: 'manage_admins' },
-      { label: 'Audit Log', to: '/admin/audit-log', icon: ScrollText, permission: 'view_audit_log' },
       { label: 'Settings', to: '/admin/settings', icon: Settings, permission: 'manage_settings' },
     ],
   },

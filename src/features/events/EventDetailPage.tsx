@@ -44,7 +44,7 @@ const TABS = [
   { key: 'tickets', label: 'Tickets' },
   { key: 'orders', label: 'Orders & Attendees' },
   { key: 'reports', label: 'Reports' },
-  { key: 'activity', label: 'Activity & Audit' },
+  { key: 'activity', label: 'Activity' },
 ];
 
 function Card({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
@@ -71,7 +71,7 @@ export function EventDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const { events, orders, users, memberships, audit } = useData();
+  const { events, orders, users, memberships } = useData();
   const { abilities, actor } = useActor();
 
   const event = events.find((e) => e.id === eventId);
@@ -103,7 +103,6 @@ export function EventDetailPage() {
   const evOrders = orders.filter((o) => o.eventId === event.id);
   const eligible = isEligible(host, membership);
   const free = event.ticketType === 'free';
-  const eventAudit = audit.filter((a) => a.targetId === event.id || evOrders.some((o) => o.id === a.targetId));
 
   const SIM_META: Record<Sim, { label: string; desc: string }> = {
     purchase: { label: 'Simulate Ticket Purchase', desc: 'Creates a paid order and increments tickets sold.' },
@@ -299,21 +298,8 @@ export function EventDetailPage() {
       )}
 
       {tab === 'activity' && (
-        <Card title="Activity & Audit">
+        <Card title="Activity">
           <MembershipTimeline events={event.timeline} />
-          {eventAudit.length > 0 && (
-            <ul className="mt-4 space-y-3 border-t border-cream-200 pt-4">
-              {eventAudit.map((a) => (
-                <li key={a.id} className="border-b border-cream-200 pb-3 last:border-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-charcoal">{a.action}</span>
-                    <span className="text-xs text-charcoal-muted">{formatDateTime(a.timestamp)}</span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-charcoal-muted">{a.prevState && a.newState ? `${a.prevState} → ${a.newState} · ` : ''}{a.adminName} ({a.adminRole}){a.reason ? ` · ${a.reason}` : ''}</p>
-                </li>
-              ))}
-            </ul>
-          )}
         </Card>
       )}
 
@@ -325,7 +311,7 @@ export function EventDetailPage() {
             <h3 className="text-sm font-semibold text-charcoal">Prototype Tools</h3>
             <Badge tone="magenta">Prototype only</Badge>
           </div>
-          <p className="mb-4 text-sm text-charcoal-muted">Super Admin only. Kept separate from normal operational actions. Each creates an audit entry.</p>
+          <p className="mb-4 text-sm text-charcoal-muted">Super Admin only. Kept separate from normal operational actions.</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={() => setSim('purchase')} disabled={event.ticketType === 'external'}>Simulate Ticket Purchase</Button>
             <Button variant="secondary" size="sm" onClick={() => setSim('free')} disabled={event.ticketType === 'external'}>Simulate Free Booking</Button>

@@ -7,7 +7,6 @@ import {
   EyeOff,
   FolderOpen,
   Gauge,
-  History,
   Info,
   MapPin,
   Pencil,
@@ -27,7 +26,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Field, Input } from '../../components/ui/Field';
-import { CorrectLocationModal, EditDiscoveryModal, ActivityScoreDrawer, AuditHistoryDrawer } from './CatalogueDrawers';
+import { CorrectLocationModal, EditDiscoveryModal, ActivityScoreDrawer } from './CatalogueDrawers';
 import { useData, setCatalogueHidden } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -67,7 +66,7 @@ interface Row {
 }
 
 export function CataloguePage() {
-  const { portfolios, users, memberships, audit } = useData();
+  const { portfolios, users, memberships } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -76,7 +75,6 @@ export function CataloguePage() {
   const [locationTarget, setLocationTarget] = useState<Row | null>(null);
   const [discoveryTarget, setDiscoveryTarget] = useState<PortfolioRecord | null>(null);
   const [activityTarget, setActivityTarget] = useState<Row | null>(null);
-  const [auditTarget, setAuditTarget] = useState<Row | null>(null);
   const [hideTarget, setHideTarget] = useState<Row | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<Row | null>(null);
   const [hideReason, setHideReason] = useState('');
@@ -225,9 +223,6 @@ export function CataloguePage() {
   };
 
   const selectCls = 'text-sm';
-  const auditEntries = auditTarget
-    ? audit.filter((a) => a.targetId === auditTarget.p.id || a.targetId === auditTarget.p.userId)
-    : [];
 
   return (
     <div>
@@ -378,7 +373,6 @@ export function CataloguePage() {
                             { label: 'View Catalogue Profile', icon: <Eye className="h-4 w-4" />, onClick: () => openReview(p.id) },
                             { label: 'Open Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => openReview(p.id) },
                             { label: 'View Activity Breakdown', icon: <ActivityIcon className="h-4 w-4" />, onClick: () => setActivityTarget(row) },
-                            { label: 'View Audit History', icon: <History className="h-4 w-4" />, onClick: () => setAuditTarget(row) },
                             { divider: true, label: 'd' },
                             { label: 'Edit Discovery Data', icon: <Pencil className="h-4 w-4" />, disabled: !abilities.manageCatalogue, disabledHint: RESTRICTED_HINT, onClick: () => setDiscoveryTarget(p) },
                             { label: 'Correct Location', icon: <MapPin className="h-4 w-4" />, disabled: !abilities.correctLocation, disabledHint: RESTRICTED_HINT, onClick: () => setLocationTarget(row) },
@@ -408,7 +402,6 @@ export function CataloguePage() {
       <CorrectLocationModal portfolio={locationTarget?.p ?? null} user={locationTarget?.u} onClose={() => setLocationTarget(null)} />
       <EditDiscoveryModal portfolio={discoveryTarget} onClose={() => setDiscoveryTarget(null)} />
       <ActivityScoreDrawer portfolio={activityTarget?.p ?? null} user={activityTarget?.u} onClose={() => setActivityTarget(null)} />
-      <AuditHistoryDrawer open={!!auditTarget} title={auditTarget?.u?.name ?? ''} entries={auditEntries} onClose={() => setAuditTarget(null)} />
 
       <ConfirmDialog
         open={!!restoreTarget}

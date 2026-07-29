@@ -3,7 +3,6 @@ import type { MembershipCategory } from '../types';
 import type {
   AccountType,
   AdminActor,
-  AuditEntry,
   DataState,
   MembershipRecord,
   MembershipStatus,
@@ -37,7 +36,7 @@ import { buildArchiveSeed, buildEventSeed, buildOrderSeed } from './seedEvents';
 import { computeActivityScore } from './portfolioLogic';
 
 const STORAGE_KEY = 'data_state';
-const SEED_VERSION = 3;
+const SEED_VERSION = 4;
 
 // ---- Store internals -------------------------------------------------------
 
@@ -81,10 +80,6 @@ export function useData(): DataState {
 const now = () => new Date().toISOString();
 const addDays = (from: Date, days: number) => new Date(from.getTime() + days * 86400000);
 
-function audit(entry: Omit<AuditEntry, 'id' | 'timestamp'>): AuditEntry {
-  return { ...entry, id: uid('aud'), timestamp: now() };
-}
-
 function replaceUser(users: UserRecord[], next: UserRecord) {
   return users.map((u) => (u.id === next.id ? next : u));
 }
@@ -104,7 +99,7 @@ export interface AddUserInput {
   membershipCategory?: MembershipCategory;
 }
 
-export function addUser(input: AddUserInput, actor: AdminActor): UserRecord {
+export function addUser(input: AddUserInput, _actor: AdminActor): UserRecord {
   const id = uid('usr');
   const isCreator = input.accountType === 'creator' && !!input.membershipCategory;
   const iicaId = isCreator ? makeIicaId(input.name, (initialsOf(input.name).charCodeAt(0) * 7 + 313) % 1000) : undefined;
@@ -169,25 +164,7 @@ export function addUser(input: AddUserInput, actor: AdminActor): UserRecord {
     memberships = [membership, ...memberships];
   }
 
-  commit({
-    ...state,
-    users: [user, ...state.users],
-    memberships,
-    audit: [
-      audit({
-        action: 'User created',
-        targetType: 'user',
-        targetId: id,
-        targetLabel: input.name,
-        prevState: null,
-        newState: input.accountType,
-        adminName: actor.name,
-        adminRole: actor.role,
-        reason: 'Prototype administration',
-      }),
-      ...state.audit,
-    ],
-  });
+  commit({ ...state, users: [user, ...state.users], memberships });
   return user;
 }
 
@@ -201,7 +178,6 @@ export interface SuspendInput {
 export function suspendUser(userId: string, input: SuspendInput, actor: AdminActor) {
   const user = state.users.find((u) => u.id === userId);
   if (!user) return;
-  const prev = user.membershipStatus;
   const updated: UserRecord = {
     ...user,
     membershipStatus: 'suspended',
@@ -219,28 +195,10 @@ export function suspendUser(userId: string, input: SuspendInput, actor: AdminAct
       lastUpdatedAt: now(),
     });
   }
-  commit({
-    ...state,
-    users: replaceUser(state.users, updated),
-    memberships,
-    audit: [
-      audit({
-        action: 'Account suspended',
-        targetType: 'user',
-        targetId: userId,
-        targetLabel: user.name,
-        prevState: prev,
-        newState: 'suspended',
-        adminName: actor.name,
-        adminRole: actor.role,
-        reason: input.reason,
-      }),
-      ...state.audit,
-    ],
-  });
+  commit({ ...state, users: replaceUser(state.users, updated), memberships });
 }
 
-export function reactivateUser(userId: string, actor: AdminActor) {
+export function reactivateUser(userId: string, _actor: AdminActor) {
   const user = state.users.find((u) => u.id === userId);
   if (!user) return;
   const mem = state.memberships.find((m) => m.userId === userId);
@@ -262,24 +220,7 @@ export function reactivateUser(userId: string, actor: AdminActor) {
       lastUpdatedAt: now(),
     });
   }
-  commit({
-    ...state,
-    users: replaceUser(state.users, updated),
-    memberships,
-    audit: [
-      audit({
-        action: 'Account reactivated',
-        targetType: 'user',
-        targetId: userId,
-        targetLabel: user.name,
-        prevState: 'suspended',
-        newState: restored,
-        adminName: actor.name,
-        adminRole: actor.role,
-      }),
-      ...state.audit,
-    ],
-  });
+  commit({ ...state, users: replaceUser(state.users, updated), memberships });
 }
 
 export function addNote(userId: string, body: string, actor: AdminActor) {
@@ -289,78 +230,25 @@ export function addNote(userId: string, body: string, actor: AdminActor) {
     ...user,
     notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...user.notes],
   };
-  commit({
-    ...state,
-    users: replaceUser(state.users, updated),
-    audit: [
-      audit({
-        action: 'Internal note added',
-        targetType: 'user',
-        targetId: userId,
-        targetLabel: user.name,
-        adminName: actor.name,
-        adminRole: actor.role,
-      }),
-      ...state.audit,
-    ],
-  });
+  commit({ ...state, users: replaceUser(state.users, updated) });
 }
 
-/** Non-mutating audited actions (notification resend, status refresh, receipt view). */
-export function logMembershipAction(membershipId: string, action: string, actor: AdminActor) {
-  const mem = state.memberships.find((m) => m.id === membershipId);
-  if (!mem) return;
-  const user = state.users.find((u) => u.id === mem.userId);
-  commit({
-    ...state,
-    audit: [
-      audit({
-        action,
-        targetType: 'membership',
-        targetId: membershipId,
-        targetLabel: `${user?.name ?? 'Creator'} · ${mem.iicaId ?? '—'}`,
-        adminName: actor.name,
-        adminRole: actor.role,
-      }),
-      ...state.audit,
-    ],
-  });
-}
-
-export function updatePricing(rows: DataState['pricing'], actor: AdminActor) {
-  commit({
-    ...state,
-    pricing: rows,
-    audit: [
-      audit({
-        action: 'Proposed pricing updated',
-        targetType: 'pricing',
-        targetId: 'pricing',
-        targetLabel: 'Regional membership pricing',
-        adminName: actor.name,
-        adminRole: actor.role,
-      }),
-      ...state.audit,
-    ],
-  });
+export function updatePricing(rows: DataState['pricing'], _actor: AdminActor) {
+  commit({ ...state, pricing: rows });
 }
 
 // ---- Prototype simulation (Super Admin) ------------------------------------
 
 type SimKind = 'completed' | 'failed' | 'renewal_due' | 'expired' | 'reset';
 
-export function simulate(membershipId: string, kind: SimKind, actor: AdminActor) {
+export function simulate(membershipId: string, kind: SimKind, _actor: AdminActor) {
   const mem = state.memberships.find((m) => m.id === membershipId);
   if (!mem) return;
   const user = state.users.find((u) => u.id === mem.userId);
   const start = new Date();
   let next: MembershipRecord = mem;
-  let action = '';
-  let newState = '';
 
   if (kind === 'completed') {
-    action = 'Simulated purchase completed';
-    newState = 'active';
     next = {
       ...mem,
       purchaseStatus: 'completed',
@@ -387,8 +275,6 @@ export function simulate(membershipId: string, kind: SimKind, actor: AdminActor)
       lastUpdatedAt: now(),
     };
   } else if (kind === 'failed') {
-    action = 'Simulated purchase failed';
-    newState = 'purchase_pending';
     next = {
       ...mem,
       purchaseStatus: 'failed',
@@ -399,8 +285,6 @@ export function simulate(membershipId: string, kind: SimKind, actor: AdminActor)
       lastUpdatedAt: now(),
     };
   } else if (kind === 'renewal_due') {
-    action = 'Simulated renewal due';
-    newState = 'renewal_due';
     next = {
       ...mem,
       membershipStatus: 'renewal_due',
@@ -410,8 +294,6 @@ export function simulate(membershipId: string, kind: SimKind, actor: AdminActor)
       lastUpdatedAt: now(),
     };
   } else if (kind === 'expired') {
-    action = 'Simulated membership expired';
-    newState = 'expired';
     next = {
       ...mem,
       membershipStatus: 'expired',
@@ -421,8 +303,6 @@ export function simulate(membershipId: string, kind: SimKind, actor: AdminActor)
       lastUpdatedAt: now(),
     };
   } else {
-    action = 'Reset membership demo';
-    newState = mem.iicaId ? 'iica_id_generated' : 'form_submitted';
     next = {
       ...mem,
       purchaseStatus: 'not_started',
@@ -459,25 +339,7 @@ export function simulate(membershipId: string, kind: SimKind, actor: AdminActor)
     });
   }
 
-  commit({
-    ...state,
-    users,
-    memberships: replaceMembership(state.memberships, next),
-    audit: [
-      audit({
-        action,
-        targetType: 'membership',
-        targetId: membershipId,
-        targetLabel: `${user?.name ?? 'Creator'} · ${mem.iicaId ?? '—'}`,
-        prevState: mem.membershipStatus,
-        newState,
-        adminName: actor.name,
-        adminRole: actor.role,
-        reason: 'Prototype simulation',
-      }),
-      ...state.audit,
-    ],
-  });
+  commit({ ...state, users, memberships: replaceMembership(state.memberships, next) });
 }
 
 /** Wipe all admin changes and re-seed. Used by the "Reset Membership Demo" tools. */
@@ -521,11 +383,7 @@ export function addCategory(input: AddCategoryInput, actor: AdminActor): Categor
     createdAt: now(),
     updatedAt: now(),
   };
-  commit({
-    ...state,
-    categories: [...state.categories, cat],
-    audit: [audit({ action: 'Category created', targetType: 'category', targetId: cat.id, targetLabel: cat.name, newState: cat.status, adminName: actor.name, adminRole: actor.role }), ...state.audit],
-  });
+  commit({ ...state, categories: [...state.categories, cat] });
   return cat;
 }
 
@@ -539,11 +397,7 @@ export function editCategory(id: string, patch: { description?: string; catalogu
     updatedAt: now(),
     history: [{ id: uid('ch'), action: 'Category updated', by: actor.name, role: actor.role, at: now() }, ...cat.history],
   };
-  commit({
-    ...state,
-    categories: replaceCategory(state.categories, next),
-    audit: [audit({ action: 'Category updated', targetType: 'category', targetId: id, targetLabel: cat.name, adminName: actor.name, adminRole: actor.role }), ...state.audit],
-  });
+  commit({ ...state, categories: replaceCategory(state.categories, next) });
 }
 
 export function setCategoryStatus(id: string, status: CategoryStatus, actor: AdminActor, reason?: string) {
@@ -555,14 +409,10 @@ export function setCategoryStatus(id: string, status: CategoryStatus, actor: Adm
     updatedAt: now(),
     history: [{ id: uid('ch'), action: status === 'active' ? 'Category activated' : 'Category deactivated', by: actor.name, role: actor.role, at: now(), detail: reason }, ...cat.history],
   };
-  commit({
-    ...state,
-    categories: replaceCategory(state.categories, next),
-    audit: [audit({ action: status === 'active' ? 'Category activated' : 'Category deactivated', targetType: 'user', targetId: id, targetLabel: cat.name, prevState: cat.status, newState: status, adminName: actor.name, adminRole: actor.role, reason }), ...state.audit],
-  });
+  commit({ ...state, categories: replaceCategory(state.categories, next) });
 }
 
-export function reorderCategory(id: string, direction: 'up' | 'down', actor: AdminActor) {
+export function reorderCategory(id: string, direction: 'up' | 'down', _actor: AdminActor) {
   const sorted = [...state.categories].sort((a, b) => a.order - b.order);
   const idx = sorted.findIndex((c) => c.id === id);
   if (idx < 0) return;
@@ -575,7 +425,6 @@ export function reorderCategory(id: string, direction: 'up' | 'down', actor: Adm
       const s = sorted.find((x) => x.id === c.id)!;
       return { ...c, order: s.order };
     }),
-    audit: [audit({ action: 'Category reordered', targetType: 'user', targetId: id, targetLabel: sorted[idx].name, adminName: actor.name, adminRole: actor.role }), ...state.audit],
   });
 }
 
@@ -596,49 +445,40 @@ function recalc(p: PortfolioRecord): PortfolioRecord {
   return { ...p, activityScore: computeActivityScore(p, true), scoreCalculatedAt: now(), lastUpdatedAt: now() };
 }
 
-function portfolioLabel(p: PortfolioRecord): string {
-  const u = state.users.find((x) => x.id === p.userId);
-  return `${u?.name ?? 'Creator'} · ${p.iicaId ?? '—'}`;
-}
-
 function pushTimeline(p: PortfolioRecord, key: string, label: string, detail?: string): PortfolioRecord {
   return { ...p, timeline: [...p.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
 }
 
-function commitPortfolio(next: PortfolioRecord, auditEntry: Omit<AuditEntry, 'id' | 'timestamp'>) {
-  commit({
-    ...state,
-    portfolios: replacePortfolio(state.portfolios, next),
-    audit: [audit(auditEntry), ...state.audit],
-  });
+function commitPortfolio(next: PortfolioRecord) {
+  commit({ ...state, portfolios: replacePortfolio(state.portfolios, next) });
 }
 
-export function publishPortfolio(portfolioId: string, actor: AdminActor) {
+export function publishPortfolio(portfolioId: string, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = recalc(pushTimeline({ ...p, status: 'published', hiddenFromCatalogue: false }, 'published', 'Portfolio published'));
-  commitPortfolio(next, { action: 'Portfolio published', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), prevState: p.status, newState: 'published', adminName: actor.name, adminRole: actor.role });
+  commitPortfolio(next);
 }
 
-export function unpublishPortfolio(portfolioId: string, reason: string, actor: AdminActor) {
+export function unpublishPortfolio(portfolioId: string, reason: string, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = recalc(pushTimeline({ ...p, status: 'draft' }, 'unpublished', 'Portfolio unpublished', reason));
-  commitPortfolio(next, { action: 'Portfolio unpublished', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), prevState: p.status, newState: 'draft', adminName: actor.name, adminRole: actor.role, reason });
+  commitPortfolio(next);
 }
 
-export function requestPortfolioChanges(portfolioId: string, input: { sections: string[]; message: string; note?: string }, actor: AdminActor) {
+export function requestPortfolioChanges(portfolioId: string, input: { sections: string[]; message: string; note?: string }, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = recalc(pushTimeline({ ...p, status: 'changes_requested' }, 'changes', 'Changes requested', `${input.sections.join(', ')} — ${input.message}`));
-  commitPortfolio(next, { action: 'Requested portfolio changes', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), prevState: p.status, newState: 'changes_requested', adminName: actor.name, adminRole: actor.role, reason: input.message });
+  commitPortfolio(next);
 }
 
-export function setCatalogueHidden(portfolioId: string, hidden: boolean, reason: string, actor: AdminActor) {
+export function setCatalogueHidden(portfolioId: string, hidden: boolean, reason: string, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = recalc({ ...p, hiddenFromCatalogue: hidden, hiddenReason: hidden ? reason : null });
-  commitPortfolio(next, { action: hidden ? 'Hidden from catalogue' : 'Restored to catalogue', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), newState: hidden ? 'hidden' : 'visible', adminName: actor.name, adminRole: actor.role, reason });
+  commitPortfolio(next);
 }
 
 export function correctLocation(portfolioId: string, correction: Omit<LocationCorrection, 'at' | 'by'>, actor: AdminActor) {
@@ -646,19 +486,19 @@ export function correctLocation(portfolioId: string, correction: Omit<LocationCo
   if (!p) return;
   const full: LocationCorrection = { ...correction, at: now(), by: actor.name };
   const next = recalc(pushTimeline({ ...p, locationCorrection: full }, 'location', 'Location corrected by admin', `${correction.city}, ${correction.country}`));
-  commitPortfolio(next, { action: 'Location corrected', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), newState: `${correction.city}, ${correction.country}`, adminName: actor.name, adminRole: actor.role, reason: correction.reason });
+  commitPortfolio(next);
 }
 
-export function revertLocation(portfolioId: string, actor: AdminActor) {
+export function revertLocation(portfolioId: string, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p || !p.locationCorrection) return;
   const next = recalc(pushTimeline({ ...p, locationCorrection: null }, 'location_revert', 'Location correction reverted'));
-  commitPortfolio(next, { action: 'Location correction reverted', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), adminName: actor.name, adminRole: actor.role });
+  commitPortfolio(next);
 }
 
 type ContentSection = 'testimonials' | 'gallery' | 'watch';
 
-export function setContentHidden(portfolioId: string, section: ContentSection, itemId: string, hidden: boolean, actor: AdminActor, reason?: string) {
+export function setContentHidden(portfolioId: string, section: ContentSection, itemId: string, hidden: boolean, _actor: AdminActor, reason?: string) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const content = { ...p.content };
@@ -683,22 +523,17 @@ export function setContentHidden(portfolioId: string, section: ContentSection, i
     );
   }
 
-  commit({
-    ...state,
-    portfolios: replacePortfolio(state.portfolios, next),
-    archives,
-    audit: [audit({ action: hidden ? `Hid ${section} item` : `Restored ${section} item`, targetType: 'portfolio', targetId: portfolioId, targetLabel: portfolioLabel(p), adminName: actor.name, adminRole: actor.role, reason }), ...state.audit],
-  });
+  commit({ ...state, portfolios: replacePortfolio(state.portfolios, next), archives });
 }
 
-export function resolveReport(portfolioId: string, reportId: string, actor: AdminActor) {
+export function resolveReport(portfolioId: string, reportId: string, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = recalc({ ...p, reports: p.reports.map((r) => (r.id === reportId ? { ...r, status: 'resolved' } : r)) });
-  commitPortfolio(next, { action: 'Report resolved', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), adminName: actor.name, adminRole: actor.role });
+  commitPortfolio(next);
 }
 
-export function editDiscovery(portfolioId: string, patch: { domainGenre?: string; skills?: string[] }, actor: AdminActor) {
+export function editDiscovery(portfolioId: string, patch: { domainGenre?: string; skills?: string[] }, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = recalc({
@@ -706,14 +541,14 @@ export function editDiscovery(portfolioId: string, patch: { domainGenre?: string
     domainGenre: patch.domainGenre ?? p.domainGenre,
     content: { ...p.content, skills: patch.skills ?? p.content.skills },
   });
-  commitPortfolio(next, { action: 'Discovery data updated', targetType: 'portfolio', targetId: portfolioId, targetLabel: portfolioLabel(p), adminName: actor.name, adminRole: actor.role });
+  commitPortfolio(next);
 }
 
 export function addPortfolioNote(portfolioId: string, body: string, actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
   if (!p) return;
   const next = { ...p, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...p.notes] };
-  commitPortfolio(next, { action: 'Portfolio note added', targetType: 'user', targetId: portfolioId, targetLabel: portfolioLabel(p), adminName: actor.name, adminRole: actor.role });
+  commitPortfolio(next);
 }
 
 export type { PortfolioStatus };
@@ -724,10 +559,6 @@ export type { PortfolioStatus };
 
 function replaceArchive(list: ArchiveRecord[], next: ArchiveRecord) {
   return list.map((a) => (a.id === next.id ? next : a));
-}
-function archiveLabel(a: ArchiveRecord) {
-  const u = state.users.find((x) => x.id === a.userId);
-  return `${u?.name ?? 'Creator'} · ${a.title}`;
 }
 function pushArcTimeline(a: ArchiveRecord, key: string, label: string, detail?: string): ArchiveRecord {
   return { ...a, timeline: [...a.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
@@ -741,7 +572,7 @@ function syncWatchVisibility(portfolioId: string, watchItemId: string, hidden: b
   });
 }
 
-export function publishArchive(archiveId: string, actor: AdminActor) {
+export function publishArchive(archiveId: string, _actor: AdminActor) {
   const a = state.archives.find((x) => x.id === archiveId);
   if (!a) return;
   const next = pushArcTimeline({ ...a, archiveStatus: 'published', publishedAt: now(), hiddenReason: null, lastUpdatedAt: now() }, 'published', 'Published to Archive');
@@ -749,7 +580,6 @@ export function publishArchive(archiveId: string, actor: AdminActor) {
     ...state,
     archives: replaceArchive(state.archives, next),
     portfolios: syncWatchVisibility(a.portfolioId, a.watchItemId, false),
-    audit: [audit({ action: 'Archive video published', targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), prevState: a.archiveStatus, newState: 'published', adminName: actor.name, adminRole: actor.role }), ...state.audit],
   });
 }
 
@@ -758,14 +588,10 @@ export function requestArchiveChanges(archiveId: string, reason: string, message
   if (!a) return;
   const notes = note ? [{ id: uid('note'), body: note, author: actor.name, role: actor.role, at: now() }, ...a.notes] : a.notes;
   const next = pushArcTimeline({ ...a, archiveStatus: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${reason} — ${message}`);
-  commit({
-    ...state,
-    archives: replaceArchive(state.archives, next),
-    audit: [audit({ action: 'Requested archive changes', targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), prevState: a.archiveStatus, newState: 'changes_requested', adminName: actor.name, adminRole: actor.role, reason: `${reason}: ${message}` }), ...state.audit],
-  });
+  commit({ ...state, archives: replaceArchive(state.archives, next) });
 }
 
-export function hideArchive(archiveId: string, reason: string, actor: AdminActor) {
+export function hideArchive(archiveId: string, reason: string, _actor: AdminActor) {
   const a = state.archives.find((x) => x.id === archiveId);
   if (!a) return;
   const next = pushArcTimeline({ ...a, archiveStatus: 'hidden', hiddenReason: reason, lastUpdatedAt: now() }, 'hidden', 'Hidden from Archive', reason);
@@ -773,11 +599,10 @@ export function hideArchive(archiveId: string, reason: string, actor: AdminActor
     ...state,
     archives: replaceArchive(state.archives, next),
     portfolios: syncWatchVisibility(a.portfolioId, a.watchItemId, true),
-    audit: [audit({ action: 'Archive video hidden', targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), prevState: a.archiveStatus, newState: 'hidden', adminName: actor.name, adminRole: actor.role, reason }), ...state.audit],
   });
 }
 
-export function restoreArchive(archiveId: string, actor: AdminActor) {
+export function restoreArchive(archiveId: string, _actor: AdminActor) {
   const a = state.archives.find((x) => x.id === archiveId);
   if (!a) return;
   const next = pushArcTimeline({ ...a, archiveStatus: 'published', hiddenReason: null, lastUpdatedAt: now() }, 'restored', 'Restored to Archive');
@@ -785,33 +610,28 @@ export function restoreArchive(archiveId: string, actor: AdminActor) {
     ...state,
     archives: replaceArchive(state.archives, next),
     portfolios: syncWatchVisibility(a.portfolioId, a.watchItemId, false),
-    audit: [audit({ action: 'Archive video restored', targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), prevState: a.archiveStatus, newState: 'published', adminName: actor.name, adminRole: actor.role }), ...state.audit],
   });
 }
 
-export function setArchiveYoutubeStatus(archiveId: string, status: YouTubeStatus, actor: AdminActor) {
+export function setArchiveYoutubeStatus(archiveId: string, status: YouTubeStatus, _actor: AdminActor) {
   const a = state.archives.find((x) => x.id === archiveId);
   if (!a) return;
   const next = pushArcTimeline({ ...a, youtubeStatus: status, lastUpdatedAt: now() }, 'yt', `YouTube status set to ${status}`);
-  commit({
-    ...state,
-    archives: replaceArchive(state.archives, next),
-    audit: [audit({ action: 'Archive link status updated', targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), newState: status, adminName: actor.name, adminRole: actor.role }), ...state.audit],
-  });
+  commit({ ...state, archives: replaceArchive(state.archives, next) });
 }
 
 export function addArchiveNote(archiveId: string, body: string, actor: AdminActor) {
   const a = state.archives.find((x) => x.id === archiveId);
   if (!a) return;
   const next = { ...a, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...a.notes] };
-  commit({ ...state, archives: replaceArchive(state.archives, next), audit: [audit({ action: 'Archive note added', targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+  commit({ ...state, archives: replaceArchive(state.archives, next) });
 }
 
-export function archiveReportAction(archiveId: string, reportId: string, status: ReportStatus, actor: AdminActor, reason?: string) {
+export function archiveReportAction(archiveId: string, reportId: string, status: ReportStatus, _actor: AdminActor, _reason?: string) {
   const a = state.archives.find((x) => x.id === archiveId);
   if (!a) return;
   const next = { ...a, reports: a.reports.map((r) => (r.id === reportId ? { ...r, status } : r)), lastUpdatedAt: now() };
-  commit({ ...state, archives: replaceArchive(state.archives, next), audit: [audit({ action: `Archive report ${status}`, targetType: 'archive', targetId: archiveId, targetLabel: archiveLabel(a), newState: status, adminName: actor.name, adminRole: actor.role, reason }), ...state.audit] });
+  commit({ ...state, archives: replaceArchive(state.archives, next) });
 }
 
 // ===========================================================================
@@ -824,58 +644,51 @@ function replaceEvent(list: EventRecord[], next: EventRecord) {
 function pushEvtTimeline(e: EventRecord, key: string, label: string, detail?: string): EventRecord {
   return { ...e, timeline: [...e.timeline, { id: uid('tl'), key, label, at: now(), detail }] };
 }
-function commitEvent(next: EventRecord, entry: Omit<AuditEntry, 'id' | 'timestamp'>, extra?: Partial<DataState>) {
-  commit({ ...state, ...extra, events: replaceEvent(state.events, next), audit: [audit(entry), ...state.audit] });
+function commitEvent(next: EventRecord, extra?: Partial<DataState>) {
+  commit({ ...state, ...extra, events: replaceEvent(state.events, next) });
 }
 
-export function publishEvent(eventId: string, actor: AdminActor) {
+export function publishEvent(eventId: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = pushEvtTimeline({ ...e, status: 'published', lastUpdatedAt: now() }, 'published', 'Event published');
-  commitEvent(next, { action: 'Event published', targetType: 'event', targetId: eventId, targetLabel: e.title, prevState: e.status, newState: 'published', adminName: actor.name, adminRole: actor.role });
+  commitEvent(pushEvtTimeline({ ...e, status: 'published', lastUpdatedAt: now() }, 'published', 'Event published'));
 }
 
 export function requestEventChanges(eventId: string, input: { fields: string[]; message: string; note?: string }, actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
   const notes = input.note ? [{ id: uid('note'), body: input.note, author: actor.name, role: actor.role, at: now() }, ...e.notes] : e.notes;
-  const next = pushEvtTimeline({ ...e, status: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${input.fields.join(', ')} — ${input.message}`);
-  commitEvent(next, { action: 'Requested event changes', targetType: 'event', targetId: eventId, targetLabel: e.title, prevState: e.status, newState: 'changes_requested', adminName: actor.name, adminRole: actor.role, reason: input.message });
+  commitEvent(pushEvtTimeline({ ...e, status: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${input.fields.join(', ')} — ${input.message}`));
 }
 
-export function hideEvent(eventId: string, reason: string, actor: AdminActor) {
+export function hideEvent(eventId: string, reason: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = pushEvtTimeline({ ...e, status: 'hidden', lastUpdatedAt: now() }, 'hidden', 'Event hidden', reason);
-  commitEvent(next, { action: 'Event hidden', targetType: 'event', targetId: eventId, targetLabel: e.title, prevState: e.status, newState: 'hidden', adminName: actor.name, adminRole: actor.role, reason });
+  commitEvent(pushEvtTimeline({ ...e, status: 'hidden', lastUpdatedAt: now() }, 'hidden', 'Event hidden', reason));
 }
 
-export function cancelEvent(eventId: string, reason: string, actor: AdminActor) {
+export function cancelEvent(eventId: string, reason: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = pushEvtTimeline({ ...e, status: 'cancelled', lastUpdatedAt: now() }, 'cancelled', 'Event cancelled', reason);
-  commitEvent(next, { action: 'Event cancelled', targetType: 'event', targetId: eventId, targetLabel: e.title, prevState: e.status, newState: 'cancelled', adminName: actor.name, adminRole: actor.role, reason });
+  commitEvent(pushEvtTimeline({ ...e, status: 'cancelled', lastUpdatedAt: now() }, 'cancelled', 'Event cancelled', reason));
 }
 
-export function restoreEvent(eventId: string, actor: AdminActor) {
+export function restoreEvent(eventId: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = pushEvtTimeline({ ...e, status: 'published', lastUpdatedAt: now() }, 'restored', 'Event restored to published');
-  commitEvent(next, { action: 'Event restored', targetType: 'event', targetId: eventId, targetLabel: e.title, prevState: e.status, newState: 'published', adminName: actor.name, adminRole: actor.role });
+  commitEvent(pushEvtTimeline({ ...e, status: 'published', lastUpdatedAt: now() }, 'restored', 'Event restored to published'));
 }
 
 export function addEventNote(eventId: string, body: string, actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = { ...e, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...e.notes] };
-  commitEvent(next, { action: 'Event note added', targetType: 'event', targetId: eventId, targetLabel: e.title, adminName: actor.name, adminRole: actor.role });
+  commitEvent({ ...e, notes: [{ id: uid('note'), body, author: actor.name, role: actor.role, at: now() }, ...e.notes] });
 }
 
-export function eventReportAction(eventId: string, reportId: string, status: ReportStatus, actor: AdminActor, reason?: string) {
+export function eventReportAction(eventId: string, reportId: string, status: ReportStatus, _actor: AdminActor, _reason?: string) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = { ...e, reports: e.reports.map((r) => (r.id === reportId ? { ...r, status } : r)), lastUpdatedAt: now() };
-  commitEvent(next, { action: `Event report ${status}`, targetType: 'event', targetId: eventId, targetLabel: e.title, newState: status, adminName: actor.name, adminRole: actor.role, reason });
+  commitEvent({ ...e, reports: e.reports.map((r) => (r.id === reportId ? { ...r, status } : r)), lastUpdatedAt: now() });
 }
 
 export interface AddEventInput {
@@ -898,7 +711,7 @@ export interface AddEventInput {
   publish: boolean;
 }
 
-export function addAdminEvent(input: AddEventInput, actor: AdminActor): EventRecord {
+export function addAdminEvent(input: AddEventInput, _actor: AdminActor): EventRecord {
   const id = uid('evt');
   const tiers: TicketTier[] = input.tiers.map((t, i) => ({
     id: `${id}_tier${i}`, name: t.name, price: t.price, capacity: t.capacity, sold: 0, reserved: 0,
@@ -922,7 +735,7 @@ export function addAdminEvent(input: AddEventInput, actor: AdminActor): EventRec
     ],
     submittedAt: input.publish ? now() : null, lastUpdatedAt: now(),
   };
-  commit({ ...state, events: [ev, ...state.events], audit: [audit({ action: input.publish ? 'Admin event created & published' : 'Admin event created (draft)', targetType: 'event', targetId: id, targetLabel: input.title, newState: ev.status, adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+  commit({ ...state, events: [ev, ...state.events] });
   return ev;
 }
 
@@ -933,22 +746,19 @@ export function addAdminEvent(input: AddEventInput, actor: AdminActor): EventRec
 function replaceOrder(list: TicketOrder[], next: TicketOrder) {
   return list.map((o) => (o.id === next.id ? next : o));
 }
-function orderLabel(o: TicketOrder) {
-  return `${o.id} · ${o.buyerName}`;
-}
 
-export function checkInOrder(orderId: string, actor: AdminActor) {
+export function checkInOrder(orderId: string, _actor: AdminActor) {
   const o = state.orders.find((x) => x.id === orderId);
   if (!o) return;
   const next: TicketOrder = { ...o, checkInStatus: 'checked_in', bookingStatus: 'checked_in' };
-  commit({ ...state, orders: replaceOrder(state.orders, next), audit: [audit({ action: 'Order checked in', targetType: 'order', targetId: orderId, targetLabel: orderLabel(o), newState: 'checked_in', adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+  commit({ ...state, orders: replaceOrder(state.orders, next) });
 }
 
-export function cancelBooking(orderId: string, reason: string, actor: AdminActor) {
+export function cancelBooking(orderId: string, _reason: string, _actor: AdminActor) {
   const o = state.orders.find((x) => x.id === orderId);
   if (!o) return;
   const next: TicketOrder = { ...o, bookingStatus: 'cancelled' };
-  commit({ ...state, orders: replaceOrder(state.orders, next), audit: [audit({ action: 'Booking cancelled', targetType: 'order', targetId: orderId, targetLabel: orderLabel(o), prevState: o.bookingStatus, newState: 'cancelled', adminName: actor.name, adminRole: actor.role, reason }), ...state.audit] });
+  commit({ ...state, orders: replaceOrder(state.orders, next) });
 }
 
 // Refund REVIEW only — never silently completes a refund.
@@ -959,13 +769,7 @@ export function initiateRefundReview(orderId: string, amount: number, reason: st
     ...o,
     refundHistory: [{ id: uid('ref'), amount, at: now(), by: actor.name, reason, status: 'requested' }, ...o.refundHistory],
   };
-  commit({ ...state, orders: replaceOrder(state.orders, next), audit: [audit({ action: 'Refund review initiated', targetType: 'order', targetId: orderId, targetLabel: orderLabel(o), newState: 'refund_requested', adminName: actor.name, adminRole: actor.role, reason }), ...state.audit] });
-}
-
-export function logOrderAction(orderId: string, action: string, actor: AdminActor) {
-  const o = state.orders.find((x) => x.id === orderId);
-  if (!o) return;
-  commit({ ...state, audit: [audit({ action, targetType: 'order', targetId: orderId, targetLabel: orderLabel(o), adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+  commit({ ...state, orders: replaceOrder(state.orders, next) });
 }
 
 // ===========================================================================
@@ -976,7 +780,7 @@ function setProposal(id: string, patch: Partial<{ status: ProposalStatus; note: 
   return state.categoryProposals.map((p) => (p.id === id ? { ...p, ...patch } : p));
 }
 
-export function approveProposal(proposalId: string, actor: AdminActor) {
+export function approveProposal(proposalId: string, _actor: AdminActor) {
   const p = state.categoryProposals.find((x) => x.id === proposalId);
   if (!p) return;
   const exists = state.eventCategories.some((c) => c.name.toLowerCase() === p.proposedName.toLowerCase());
@@ -984,30 +788,30 @@ export function approveProposal(proposalId: string, actor: AdminActor) {
     ? state.eventCategories
     : [...state.eventCategories.filter((c) => c.name !== 'Others'), { id: uid('ecat'), name: p.proposedName, order: state.eventCategories.length, isDefault: false }, ...state.eventCategories.filter((c) => c.name === 'Others')];
   const events = state.events.map((e) => (e.id === p.eventId ? { ...e, customCategoryPending: false, category: p.proposedName } : e));
-  commit({ ...state, eventCategories: newCats, categoryProposals: setProposal(proposalId, { status: 'approved' }), events, audit: [audit({ action: 'Custom category approved', targetType: 'proposal', targetId: proposalId, targetLabel: p.proposedName, newState: 'approved', adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+  commit({ ...state, eventCategories: newCats, categoryProposals: setProposal(proposalId, { status: 'approved' }), events });
 }
 
-export function mapProposal(proposalId: string, targetName: string, actor: AdminActor) {
+export function mapProposal(proposalId: string, targetName: string, _actor: AdminActor) {
   const p = state.categoryProposals.find((x) => x.id === proposalId);
   if (!p) return;
   const events = state.events.map((e) => (e.id === p.eventId ? { ...e, customCategoryPending: false, category: targetName } : e));
-  commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'mapped', mappedTo: targetName }), events, audit: [audit({ action: 'Custom category mapped', targetType: 'proposal', targetId: proposalId, targetLabel: `${p.proposedName} → ${targetName}`, newState: 'mapped', adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+  commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'mapped', mappedTo: targetName }), events });
 }
 
-export function requestProposalName(proposalId: string, note: string, actor: AdminActor) {
+export function requestProposalName(proposalId: string, note: string, _actor: AdminActor) {
   const p = state.categoryProposals.find((x) => x.id === proposalId);
   if (!p) return;
-  commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'needs_name', note }), audit: [audit({ action: 'Requested clearer category name', targetType: 'proposal', targetId: proposalId, targetLabel: p.proposedName, newState: 'needs_name', adminName: actor.name, adminRole: actor.role, reason: note }), ...state.audit] });
+  commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'needs_name', note }) });
 }
 
-export function rejectProposal(proposalId: string, reason: string, actor: AdminActor) {
+export function rejectProposal(proposalId: string, reason: string, _actor: AdminActor) {
   const p = state.categoryProposals.find((x) => x.id === proposalId);
   if (!p) return;
-  commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'rejected', note: reason }), audit: [audit({ action: 'Custom category rejected', targetType: 'proposal', targetId: proposalId, targetLabel: p.proposedName, newState: 'rejected', adminName: actor.name, adminRole: actor.role, reason }), ...state.audit] });
+  commit({ ...state, categoryProposals: setProposal(proposalId, { status: 'rejected', note: reason }) });
 }
 
-export function updateEventSettings(patch: Partial<DataState['eventSettings']>, actor: AdminActor) {
-  commit({ ...state, eventSettings: { ...state.eventSettings, ...patch }, audit: [audit({ action: 'Event settings updated', targetType: 'event_category', targetId: 'settings', targetLabel: 'Event settings', adminName: actor.name, adminRole: actor.role }), ...state.audit] });
+export function updateEventSettings(patch: Partial<DataState['eventSettings']>, _actor: AdminActor) {
+  commit({ ...state, eventSettings: { ...state.eventSettings, ...patch } });
 }
 
 // ===========================================================================
@@ -1019,7 +823,7 @@ function recomputeEventStatusFromTiers(e: EventRecord): EventStatus {
   return e.status;
 }
 
-export function simTicketPurchase(eventId: string, actor: AdminActor) {
+export function simTicketPurchase(eventId: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e || e.ticketType === 'external') return;
   const tier = e.tiers.find((t) => t.price > 0) ?? e.tiers[0];
@@ -1039,10 +843,10 @@ export function simTicketPurchase(eventId: string, actor: AdminActor) {
     const updated = { ...x, tiers: x.tiers.map((t) => (t.id === tier.id ? { ...t, sold: Math.min(t.capacity, t.sold + qty) } : t)), lastUpdatedAt: now() };
     return { ...updated, status: recomputeEventStatusFromTiers(updated) };
   });
-  commit({ ...state, events, orders: [order, ...state.orders], audit: [audit({ action: 'Simulated ticket purchase', targetType: 'event', targetId: eventId, targetLabel: e.title, adminName: actor.name, adminRole: actor.role, reason: 'Prototype simulation' }), ...state.audit] });
+  commit({ ...state, events, orders: [order, ...state.orders] });
 }
 
-export function simFreeBooking(eventId: string, actor: AdminActor) {
+export function simFreeBooking(eventId: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
   const tier = e.tiers[0];
@@ -1055,14 +859,13 @@ export function simFreeBooking(eventId: string, actor: AdminActor) {
     ticketIds: [uid('TKT')], bookingDate: now(), refundHistory: [],
   };
   const events = state.events.map((x) => (x.id === eventId ? { ...x, tiers: x.tiers.map((t, i) => (i === 0 ? { ...t, sold: Math.min(t.capacity, t.sold + 1) } : t)), lastUpdatedAt: now() } : x));
-  commit({ ...state, events, orders: [order, ...state.orders], audit: [audit({ action: 'Simulated free booking', targetType: 'event', targetId: eventId, targetLabel: e.title, adminName: actor.name, adminRole: actor.role, reason: 'Prototype simulation' }), ...state.audit] });
+  commit({ ...state, events, orders: [order, ...state.orders] });
 }
 
-export function simSoldOut(eventId: string, actor: AdminActor) {
+export function simSoldOut(eventId: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
   if (!e) return;
-  const next = { ...e, status: 'sold_out' as EventStatus, tiers: e.tiers.map((t) => ({ ...t, sold: t.capacity })), lastUpdatedAt: now() };
-  commitEvent(next, { action: 'Simulated sold out', targetType: 'event', targetId: eventId, targetLabel: e.title, newState: 'sold_out', adminName: actor.name, adminRole: actor.role, reason: 'Prototype simulation' });
+  commitEvent({ ...e, status: 'sold_out' as EventStatus, tiers: e.tiers.map((t) => ({ ...t, sold: t.capacity })), lastUpdatedAt: now() });
 }
 
 export function simEventCancellation(eventId: string, actor: AdminActor) {
@@ -1074,7 +877,7 @@ export function simBrokenLink(archiveId: string, actor: AdminActor) {
 }
 
 // Rebuild only Archive + Event data from seed, keeping users/portfolios intact.
-export function resetArchiveEventDemo(actor: AdminActor) {
+export function resetArchiveEventDemo(_actor: AdminActor) {
   const nowMs = Date.now();
   const { events, proposals } = buildEventSeed(state.users, nowMs);
   commit({
@@ -1083,7 +886,6 @@ export function resetArchiveEventDemo(actor: AdminActor) {
     events,
     orders: buildOrderSeed(events, nowMs),
     categoryProposals: proposals,
-    audit: [audit({ action: 'Archive/Event demo data reset', targetType: 'event', targetId: 'demo', targetLabel: 'Archive & Events', adminName: actor.name, adminRole: actor.role, reason: 'Prototype simulation' }), ...state.audit],
   });
 }
 

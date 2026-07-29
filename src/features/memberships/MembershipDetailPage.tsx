@@ -26,7 +26,6 @@ import { PaymentPanel } from './PaymentPanel';
 import { MembershipTimeline } from './MembershipTimeline';
 import {
   useData,
-  logMembershipAction,
   simulate,
   suspendUser,
   reactivateUser,
@@ -63,7 +62,7 @@ export function MembershipDetailPage() {
   const { membershipId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { memberships, users, audit } = useData();
+  const { memberships, users } = useData();
   const { abilities, actor } = useActor();
 
   const membership = memberships.find((m) => m.id === membershipId);
@@ -91,7 +90,6 @@ export function MembershipDetailPage() {
     );
   }
 
-  const membershipAudit = audit.filter((a) => a.targetId === membership.id || a.targetId === membership.userId);
 
   const copyId = async () => {
     if (!membership.iicaId) return;
@@ -233,10 +231,7 @@ export function MembershipDetailPage() {
                   variant="secondary"
                   size="sm"
                   icon={<Bell className="h-4 w-4" />}
-                  onClick={() => {
-                    logMembershipAction(membership.id, 'Resent IICA ID notification', actor);
-                    toast('IICA ID notification resent (simulated).', 'info');
-                  }}
+                  onClick={() => toast('IICA ID notification resent (simulated).', 'info')}
                 >
                   Resend IICA ID Notification
                 </Button>
@@ -256,10 +251,7 @@ export function MembershipDetailPage() {
                 variant="secondary"
                 size="sm"
                 icon={<ClipboardCheck className="h-4 w-4" />}
-                onClick={() => {
-                  logMembershipAction(membership.id, 'Reviewed purchase record', actor);
-                  toast('Purchase record reviewed.', 'info');
-                }}
+                onClick={() => toast('Purchase record reviewed.', 'info')}
               >
                 Review Purchase Record
               </Button>
@@ -267,10 +259,7 @@ export function MembershipDetailPage() {
                 variant="secondary"
                 size="sm"
                 icon={<RefreshCw className="h-4 w-4" />}
-                onClick={() => {
-                  logMembershipAction(membership.id, 'Refreshed purchase status', actor);
-                  toast('Purchase status refreshed from store (simulated).', 'info');
-                }}
+                onClick={() => toast('Purchase status refreshed from store (simulated).', 'info')}
               >
                 Refresh Purchase Status
               </Button>
@@ -280,10 +269,7 @@ export function MembershipDetailPage() {
                 icon={<Receipt className="h-4 w-4" />}
                 disabled={membership.payment.receiptStatus !== 'available'}
                 title={membership.payment.receiptStatus !== 'available' ? 'No receipt available yet.' : ''}
-                onClick={() => {
-                  logMembershipAction(membership.id, 'Viewed receipt', actor);
-                  toast('Receipt opened (simulated).', 'info');
-                }}
+                onClick={() => toast('Receipt opened (simulated).', 'info')}
               >
                 View Receipt
               </Button>
@@ -326,29 +312,6 @@ export function MembershipDetailPage() {
           </div>
         )}
 
-        {/* Audit for this membership */}
-        <div className="lg:col-span-2">
-          <Panel title="Audit Trail">
-            {membershipAudit.length === 0 ? (
-              <p className="text-sm text-charcoal-muted">No admin actions recorded yet.</p>
-            ) : (
-              <ul className="space-y-3">
-                {membershipAudit.map((a) => (
-                  <li key={a.id} className="border-b border-cream-200 pb-3 last:border-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-charcoal">{a.action}</span>
-                      <span className="text-xs text-charcoal-muted">{formatDateTime(a.timestamp)}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-charcoal-muted">
-                      {a.prevState && a.newState ? `${a.prevState} → ${a.newState} · ` : ''}
-                      {a.adminName} ({a.adminRole}){a.reason ? ` · ${a.reason}` : ''}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
       </div>
 
       {/* Note modal */}
@@ -356,7 +319,7 @@ export function MembershipDetailPage() {
         open={noteOpen}
         onClose={() => setNoteOpen(false)}
         title="Add internal note"
-        description="Recorded against the creator's account and audit trail."
+        description="Recorded against the creator's account."
         footer={
           <>
             <Button variant="secondary" onClick={() => setNoteOpen(false)}>Cancel</Button>
