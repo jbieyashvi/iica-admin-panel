@@ -5,7 +5,6 @@ import {
   Eye,
   FolderOpen,
   Activity as ActivityIcon,
-  Plus,
   RotateCcw,
   Search,
   ShoppingCart,
@@ -19,9 +18,7 @@ import { Select } from '../../components/ui/Field';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Tooltip } from '../../components/ui/Tooltip';
 import { AccountTypeBadge, MembershipStatusBadge } from '../../components/ui/StatusBadge';
-import { AddUserModal } from './AddUserModal';
 import { SuspendModal } from './SuspendModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useData, reactivateUser } from '../../data/store';
@@ -52,7 +49,6 @@ export function UsersPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
 
-  const [addOpen, setAddOpen] = useState(false);
   const [suspendTarget, setSuspendTarget] = useState<UserRecord | null>(null);
   const [reactivateTarget, setReactivateTarget] = useState<UserRecord | null>(null);
 
@@ -146,13 +142,6 @@ export function UsersPage() {
       <PageHeader
         title="Users"
         description="Manage guests, registered users and creator accounts."
-        actions={
-          <Tooltip label={abilities.editUsers ? '' : RESTRICTED_HINT} side="bottom">
-            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.editUsers}>
-              Add User
-            </Button>
-          </Tooltip>
-        }
       />
 
       {/* Summary cards */}
@@ -352,7 +341,6 @@ export function UsersPage() {
         )}
       </div>
 
-      <AddUserModal open={addOpen} onClose={() => setAddOpen(false)} />
       <SuspendModal user={suspendTarget} open={!!suspendTarget} onClose={() => setSuspendTarget(null)} />
       <ConfirmDialog
         open={!!reactivateTarget}
