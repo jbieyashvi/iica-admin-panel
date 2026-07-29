@@ -48,7 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Platform',
     items: [
-      { label: 'Categories', to: '/admin/categories', icon: Tags, permission: 'manage_catalogue' },
+      { label: 'Membership Categories', to: '/admin/categories', icon: Tags, permission: 'manage_catalogue' },
       { label: 'Settings', to: '/admin/settings', icon: Settings, permission: 'manage_settings' },
     ],
   },
