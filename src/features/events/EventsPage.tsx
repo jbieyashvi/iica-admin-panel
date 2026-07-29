@@ -6,10 +6,10 @@ import {
   Eye,
   EyeOff,
   FileWarning,
+  Plus,
   RotateCcw,
   Search,
   Settings,
-  Tag,
   Ticket,
   Upload,
   X,
@@ -19,6 +19,7 @@ import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
 import { Badge } from '../../components/ui/Badge';
 import { Select } from '../../components/ui/Field';
+import { Tabs } from '../../components/ui/Tabs';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -27,6 +28,7 @@ import { EventStatusBadge } from '../../components/ui/EventBadges';
 import { EventRequestChangesModal, EventHideModal, EventCancelModal } from './EventModals';
 import { AddEventModal } from './AddEventModal';
 import { EventSettingsModal } from './EventSettingsModal';
+import { EventCategoriesPanel } from './EventCategoriesPanel';
 import { useData, publishEvent, restoreEvent } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -34,7 +36,7 @@ import { formatDateTime, priceLabel } from '../../lib/format';
 import { EVENT_STATUSES, EVENT_STATUS_LABEL, EVENT_FORMATS, FORMAT_LABEL } from '../../config/eventLabels';
 import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
 import { RESTRICTED_HINT } from '../../lib/abilities';
-import type { EventRecord } from '../../types/events';
+import type { EventRecord, EventCategoryRecord } from '../../types/events';
 
 const SORTS = [
   { key: 'date', label: 'Event Date' },
@@ -55,6 +57,7 @@ export function EventsPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [catForm, setCatForm] = useState<EventCategoryRecord | 'new' | null>(null);
   const [changesTarget, setChangesTarget] = useState<EventRecord | null>(null);
   const [hideTarget, setHideTarget] = useState<EventRecord | null>(null);
   const [cancelTarget, setCancelTarget] = useState<EventRecord | null>(null);
@@ -85,6 +88,9 @@ export function EventsPage() {
     if (resetPage) next.delete('page');
     setParams(next, { replace: true });
   };
+
+  const tab = get('tab') === 'categories' ? 'categories' : 'events';
+  const setTab = (t: string) => update({ tab: t === 'events' ? '' : t }, false);
 
   const cities = useMemo(() => [...new Set(events.map((e) => e.location.city).filter(Boolean))] as string[], [events]);
   const countries = useMemo(() => [...new Set(events.map((e) => e.location.country).filter(Boolean))] as string[], [events]);
@@ -164,17 +170,28 @@ export function EventsPage() {
         title="Events"
         description="Review events, ticketing, venues and creator submissions."
         actions={
-          <>
-            <Button variant="secondary" icon={<Tag className="h-4 w-4" />} onClick={() => navigate('/admin/event-categories')}>Event Categories</Button>
-            <Button variant="secondary" icon={<CalendarPlus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Add Admin Event</Button>
-            <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
-              Event Settings
-              {pendingProposals > 0 && <span className="ml-1 rounded-full bg-magenta-500 px-1.5 text-[10px] font-semibold text-white">{pendingProposals}</span>}
-            </Button>
-          </>
+          tab === 'categories' ? (
+            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCatForm('new')} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Add Event Category</Button>
+          ) : (
+            <>
+              <Button variant="secondary" icon={<CalendarPlus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Add Admin Event</Button>
+              <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
+                Event Settings
+                {pendingProposals > 0 && <span className="ml-1 rounded-full bg-magenta-500 px-1.5 text-[10px] font-semibold text-white">{pendingProposals}</span>}
+              </Button>
+            </>
+          )
         }
       />
 
+      <div className="mb-5">
+        <Tabs tabs={[{ key: 'events', label: 'Events' }, { key: 'categories', label: 'Categories' }]} active={tab} onChange={setTab} />
+      </div>
+
+      {tab === 'categories' && <EventCategoriesPanel formTarget={catForm} setFormTarget={setCatForm} />}
+
+      {tab === 'events' && (
+      <>
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {[
           { label: 'Total Events', value: summary.total },
@@ -320,6 +337,8 @@ export function EventsPage() {
         {total === 0 && <EmptyState icon={<Ticket className="h-6 w-6" />} title="No events match your filters" description="Try adjusting or clearing the filters above." action={<Button variant="secondary" onClick={clearAll}>Clear All</Button>} />}
         {total > 0 && <Pagination page={page} pageSize={size} total={total} onPage={(p) => update({ page: String(p) }, false)} onPageSize={(n) => update({ size: String(n) })} />}
       </div>
+      </>
+      )}
 
       <AddEventModal open={addOpen} onClose={() => setAddOpen(false)} />
       <EventSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

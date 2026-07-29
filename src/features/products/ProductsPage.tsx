@@ -8,7 +8,6 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Tags,
   Upload,
   User as UserIcon,
   X,
@@ -17,6 +16,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
 import { Select } from '../../components/ui/Field';
+import { Tabs } from '../../components/ui/Tabs';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -24,13 +24,14 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ProductStatusBadge, ProductTypeBadge } from '../../components/ui/ProductBadges';
 import { AddProductModal } from './AddProductModal';
 import { ProductRequestChangesModal, ProductHideModal } from './ProductModals';
+import { ProductCategoriesPanel } from './ProductCategoriesPanel';
 import { useData, publishProduct, restoreProduct } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import { timeAgo, priceLabel } from '../../lib/format';
 import { PRODUCT_STATUSES, PRODUCT_STATUS_LABEL, PRODUCT_TYPES, PRODUCT_TYPE_LABEL } from '../../config/productLabels';
 import { RESTRICTED_HINT } from '../../lib/abilities';
-import type { ProductRecord } from '../../types/products';
+import type { ProductRecord, ProductCategoryRecord } from '../../types/products';
 
 const SORTS = [
   { key: 'added', label: 'Recently Added' },
@@ -53,6 +54,7 @@ export function ProductsPage() {
   const [params, setParams] = useSearchParams();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [catForm, setCatForm] = useState<ProductCategoryRecord | 'new' | null>(null);
   const [changesTarget, setChangesTarget] = useState<ProductRecord | null>(null);
   const [hideTarget, setHideTarget] = useState<ProductRecord | null>(null);
   const [publishTarget, setPublishTarget] = useState<ProductRecord | null>(null);
@@ -76,6 +78,9 @@ export function ProductsPage() {
     if (resetPage) next.delete('page');
     setParams(next, { replace: true });
   };
+
+  const tab = get('tab') === 'categories' ? 'categories' : 'products';
+  const setTab = (t: string) => update({ tab: t === 'products' ? '' : t }, false);
 
   const categories = useMemo(() => [...new Set(products.map((p) => p.category))].sort(), [products]);
 
@@ -157,13 +162,22 @@ export function ProductsPage() {
         title="Products"
         description="Review and manage creator product listings."
         actions={
-          <>
-            <Button variant="secondary" icon={<Tags className="h-4 w-4" />} onClick={() => navigate('/admin/product-categories')}>Product Categories</Button>
+          tab === 'categories' ? (
+            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCatForm('new')} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>Add Product Category</Button>
+          ) : (
             <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>Add Product</Button>
-          </>
+          )
         }
       />
 
+      <div className="mb-5">
+        <Tabs tabs={[{ key: 'products', label: 'Products' }, { key: 'categories', label: 'Categories' }]} active={tab} onChange={setTab} />
+      </div>
+
+      {tab === 'categories' && <ProductCategoriesPanel formTarget={catForm} setFormTarget={setCatForm} />}
+
+      {tab === 'products' && (
+      <>
       {/* Summary cards (clickable filters) */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
@@ -292,6 +306,8 @@ export function ProductsPage() {
           <Pagination page={page} pageSize={size} total={total} onPage={(p) => update({ page: String(p) }, false)} onPageSize={(n) => update({ size: String(n) })} />
         )}
       </div>
+      </>
+      )}
 
       <AddProductModal open={addOpen} onClose={() => setAddOpen(false)} />
       <ProductRequestChangesModal product={changesTarget} onClose={() => setChangesTarget(null)} />

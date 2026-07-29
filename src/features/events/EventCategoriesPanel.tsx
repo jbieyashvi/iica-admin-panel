@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, CheckCircle2, ListChecks, Pencil, Plus } from 'lucide-react';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Button } from '../../components/ui/Button';
+import { Ban, CheckCircle2, ListChecks, Pencil } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -14,15 +12,23 @@ import { formatDate } from '../../lib/format';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import type { EventCategoryRecord } from '../../types/events';
 
-export function EventCategoriesPage() {
+// Headerless Event Categories panel — rendered inside the Events page "Categories"
+// tab. The "Add Event Category" action lives in the shared page header (formTarget
+// lifted to the parent).
+export function EventCategoriesPanel({
+  formTarget,
+  setFormTarget,
+}: {
+  formTarget: EventCategoryRecord | 'new' | null;
+  setFormTarget: (t: EventCategoryRecord | 'new' | null) => void;
+}) {
   const { eventCategories, events } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
 
-  const [formTarget, setFormTarget] = useState<EventCategoryRecord | 'new' | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<EventCategoryRecord | null>(null);
-
   const canManage = abilities.manageEvents;
+
   const usage = useMemo(() => {
     const map: Record<string, number> = {};
     events.forEach((e) => (map[e.category] = (map[e.category] ?? 0) + 1));
@@ -40,16 +46,6 @@ export function EventCategoriesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Event Categories"
-        description="Centrally managed categories for events. Inactive categories cannot be selected for new events."
-        actions={
-          <Button icon={<Plus className="h-4 w-4" />} onClick={() => setFormTarget('new')} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>
-            Add Category
-          </Button>
-        }
-      />
-
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">

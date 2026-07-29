@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, CheckCircle2, ListChecks, Pencil, Plus } from 'lucide-react';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Button } from '../../components/ui/Button';
+import { Ban, CheckCircle2, ListChecks, Pencil } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -16,14 +14,21 @@ import type { ProductCategoryRecord } from '../../types/products';
 
 const TYPE_ORDER: Record<string, number> = { masterclass: 0, digital: 1, physical: 2 };
 
-export function ProductCategoriesPage() {
+// Headerless Product Categories panel — rendered inside the Products page
+// "Categories" tab. The "Add Product Category" action lives in the shared page
+// header (formTarget lifted to the parent).
+export function ProductCategoriesPanel({
+  formTarget,
+  setFormTarget,
+}: {
+  formTarget: ProductCategoryRecord | 'new' | null;
+  setFormTarget: (t: ProductCategoryRecord | 'new' | null) => void;
+}) {
   const { productCategories, products } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
 
-  const [formTarget, setFormTarget] = useState<ProductCategoryRecord | 'new' | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductCategoryRecord | null>(null);
-
   const canManage = abilities.manageProducts;
 
   const usage = useMemo(() => {
@@ -49,16 +54,6 @@ export function ProductCategoriesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Product Categories"
-        description="Manage categories available for creator products."
-        actions={
-          <Button icon={<Plus className="h-4 w-4" />} onClick={() => setFormTarget('new')} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>
-            Add Category
-          </Button>
-        }
-      />
-
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
@@ -89,7 +84,7 @@ export function ProductCategoriesPage() {
                       <div className="flex justify-end">
                         <DropdownMenu
                           items={[
-                            { label: 'View Products', icon: <ListChecks className="h-4 w-4" />, onClick: () => navigate(`/admin/products?type=${c.type}&cat=${encodeURIComponent(c.name)}`) },
+                            { label: 'View Related Products', icon: <ListChecks className="h-4 w-4" />, onClick: () => navigate(`/admin/products?type=${c.type}&cat=${encodeURIComponent(c.name)}`) },
                             { label: 'Edit', icon: <Pencil className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setFormTarget(c) },
                             { divider: true, label: 'd' },
                             c.status === 'active'

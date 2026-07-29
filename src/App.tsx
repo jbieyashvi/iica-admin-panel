@@ -14,10 +14,8 @@ import { PortfolioReviewPage } from './features/portfolios/PortfolioReviewPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { EventsPage } from './features/events/EventsPage';
 import { EventDetailPage } from './features/events/EventDetailPage';
-import { EventCategoriesPage } from './features/events/EventCategoriesPage';
 import { ProductsPage } from './features/products/ProductsPage';
 import { ProductDetailPage } from './features/products/ProductDetailPage';
-import { ProductCategoriesPage } from './features/products/ProductCategoriesPage';
 import { OrdersPage } from './features/orders/OrdersPage';
 import { OrderDetailPage } from './features/orders/OrderDetailPage';
 import { CollaborationsPage } from './features/collaborations/CollaborationsPage';
@@ -57,10 +55,10 @@ export default function App() {
           <Route path="archive/:archiveId" element={<Navigate to="/admin/archive" replace />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
-          <Route path="event-categories" element={<EventCategoriesPage />} />
+          <Route path="event-categories" element={<Navigate to="/admin/events?tab=categories" replace />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="products/:productId" element={<ProductDetailPage />} />
-          <Route path="product-categories" element={<ProductCategoriesPage />} />
+          <Route path="product-categories" element={<Navigate to="/admin/products?tab=categories" replace />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
           <Route path="collaborations" element={<CollaborationsPage />} />
