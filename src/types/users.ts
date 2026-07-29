@@ -8,11 +8,15 @@ export type { MembershipCategory } from './index';
 
 export type AccountType = 'guest' | 'registered' | 'creator';
 
-// Lifecycle statuses. IICA-ID generation is a system event (not a status);
-// a member only becomes "active" after a Paid membership purchase.
+// Membership lifecycle. An IICA ID is generated for a Registered User after the
+// form is submitted (pre-payment); the account only becomes a Creator Member
+// once payment succeeds (Active). Guests are Not Applicable.
 export type MembershipStatus =
+  | 'not_applicable'
   | 'not_started'
   | 'form_submitted'
+  | 'iica_id_generated'
+  | 'purchase_link_sent'
   | 'purchase_pending'
   | 'active'
   | 'renewal_due'
@@ -62,6 +66,7 @@ export interface UserRecord {
   membershipCategory?: MembershipCategory;
   membershipStatus: MembershipStatus;
   iicaId?: string;
+  guestId?: string; // internal admin identifier for Guests (GST-1048); not an IICA ID
   joinedAt: string;
   lastActiveAt: string;
   suspension?: SuspensionInfo | null;
@@ -112,6 +117,7 @@ export interface MembershipRecord {
   form: MembershipForm;
   idGeneratedAt?: string | null;
   idHistory: { id: string; at: string }[];
+  purchaseLinkSentAt?: string | null; // prototype purchase-link sent to registered email
   payment: PaymentInfo;
   startDate?: string | null;
   renewalDate?: string | null;

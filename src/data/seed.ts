@@ -42,6 +42,7 @@ interface Row {
   category?: MembershipCategory;
   status: MembershipStatus;
   iicaNum?: number; // 3-digit for IICA ID
+  guestId?: string;
   platform?: PurchasePlatform;
   purchase?: PurchaseStatus;
   joinedAt: string;
@@ -49,12 +50,19 @@ interface Row {
   suspendedReason?: string;
 }
 
+// Statuses at which an IICA ID exists (generated pre-payment for Registered
+// Users, retained through the Creator Member lifecycle). Never for guests /
+// not-started / form-submitted.
+const HAS_IICA = new Set<MembershipStatus>([
+  'iica_id_generated', 'purchase_link_sent', 'purchase_pending', 'active', 'renewal_due', 'expired', 'cancelled', 'suspended',
+]);
+
 // prettier-ignore
 const ROWS: Row[] = [
   // --- Guests (browse / guest checkout, no membership) ---
-  { id: 'usr_rohit',  name: 'Rohit Sharma',   email: 'rohit.sharma@example.com',   phone: '+91 98200 11223', country: 'India', city: 'Mumbai',    accountType: 'guest', status: 'not_started', joinedAt: '2026-07-20', lastActiveAt: '2026-07-26T18:40:00Z' },
-  { id: 'usr_sneha',  name: 'Sneha Iyer',     email: 'sneha.iyer@example.com',     phone: '+91 98410 55210', country: 'India', city: 'Chennai',   accountType: 'guest', status: 'not_started', joinedAt: '2026-07-18', lastActiveAt: '2026-07-25T09:10:00Z' },
-  { id: 'usr_imran',  name: 'Imran Sheikh',   email: 'imran.sheikh@example.com',   phone: '+91 90030 44119', country: 'India', city: 'Hyderabad', accountType: 'guest', status: 'not_started', joinedAt: '2026-06-30', lastActiveAt: '2026-07-11T12:00:00Z' },
+  { id: 'usr_rohit',  name: 'Rohit Sharma',   email: 'rohit.sharma@example.com',   phone: '+91 98200 11223', country: 'India', city: 'Mumbai',    accountType: 'guest', status: 'not_applicable', guestId: 'GST-1012', joinedAt: '2026-07-20', lastActiveAt: '2026-07-26T18:40:00Z' },
+  { id: 'usr_sneha',  name: 'Sneha Iyer',     email: 'sneha.iyer@example.com',     phone: '+91 98410 55210', country: 'India', city: 'Chennai',   accountType: 'guest', status: 'not_applicable', guestId: 'GST-1027', joinedAt: '2026-07-18', lastActiveAt: '2026-07-25T09:10:00Z' },
+  { id: 'usr_imran',  name: 'Imran Sheikh',   email: 'imran.sheikh@example.com',   phone: '+91 90030 44119', country: 'India', city: 'Hyderabad', accountType: 'guest', status: 'not_applicable', guestId: 'GST-1048', joinedAt: '2026-06-30', lastActiveAt: '2026-07-11T12:00:00Z' },
 
   // --- Registered buyers (account created, no membership started) ---
   { id: 'usr_nisha',  name: 'Nisha Reddy',    email: 'nisha.reddy@example.com',    phone: '+91 99000 88771', country: 'India', city: 'Bengaluru', accountType: 'registered', status: 'not_started', joinedAt: '2026-05-14', lastActiveAt: '2026-07-27T06:20:00Z' },
@@ -81,9 +89,9 @@ const ROWS: Row[] = [
   { id: 'usr_leila',  name: 'Leila Ahmed',       email: 'leila.ahmed@example.com',   phone: '+971 50 771 2200', country: 'UAE',           city: 'Dubai',    accountType: 'creator', category: 'VIP Connoisseur',  status: 'renewal_due', iicaNum: 322, platform: 'apple',  purchase: 'completed', joinedAt: '2024-09-25', lastActiveAt: '2026-07-22T12:50:00Z' },
 
   // --- In-progress applicants ---
-  { id: 'usr_priya',  name: 'Priya Nair',        email: 'priya.nair@example.com',    phone: '+91 90420 55110', country: 'India', city: 'Kochi',     accountType: 'registered', category: 'Artist',          status: 'form_submitted',    platform: 'apple',  purchase: 'not_started', joinedAt: '2026-07-24', lastActiveAt: '2026-07-27T02:10:00Z' },
-  { id: 'usr_rahul',  name: 'Rahul Verma',       email: 'rahul.verma@example.com',   phone: '+91 98991 44556', country: 'India', city: 'Jaipur',    accountType: 'registered', category: 'Model',           status: 'form_submitted',   platform: 'google', purchase: 'not_started', joinedAt: '2026-07-19', lastActiveAt: '2026-07-26T15:00:00Z' },
-  { id: 'usr_sara',   name: 'Sara Khan',         email: 'sara.khan@example.com',     phone: '+91 90010 22778', country: 'India', city: 'Lucknow',   accountType: 'registered', category: 'Fitness Champion', status: 'purchase_pending', platform: 'apple', purchase: 'pending',     joinedAt: '2026-07-15', lastActiveAt: '2026-07-27T01:00:00Z' },
+  { id: 'usr_priya',  name: 'Priya Nair',        email: 'priya.nair@example.com',    phone: '+91 90420 55110', country: 'India', city: 'Kochi',     accountType: 'registered', category: 'Artist',          status: 'iica_id_generated',  iicaNum: 418, platform: 'apple',  purchase: 'not_started', joinedAt: '2026-07-24', lastActiveAt: '2026-07-27T02:10:00Z' },
+  { id: 'usr_rahul',  name: 'Rahul Verma',       email: 'rahul.verma@example.com',   phone: '+91 98991 44556', country: 'India', city: 'Jaipur',    accountType: 'registered', category: 'Model',           status: 'purchase_link_sent', iicaNum: 732, platform: 'google', purchase: 'not_started', joinedAt: '2026-07-19', lastActiveAt: '2026-07-26T15:00:00Z' },
+  { id: 'usr_sara',   name: 'Sara Khan',         email: 'sara.khan@example.com',     phone: '+91 90010 22778', country: 'India', city: 'Lucknow',   accountType: 'registered', category: 'Fitness Champion', status: 'purchase_pending',   iicaNum: 660, platform: 'apple', purchase: 'pending',     joinedAt: '2026-07-15', lastActiveAt: '2026-07-27T01:00:00Z' },
 
   // --- Expired / cancelled / suspended ---
   { id: 'usr_tanvi',  name: 'Tanvi Deshpande',   email: 'tanvi.d@example.com',       phone: '+91 90230 66112', country: 'India', city: 'Nagpur',    accountType: 'creator', category: 'Yoga Coach',       status: 'expired',   iicaNum: 190, platform: 'google', purchase: 'completed', joinedAt: '2024-06-14', lastActiveAt: '2026-06-02T10:00:00Z' },
@@ -101,8 +109,10 @@ function buildTimeline(row: Row): TimelineEvent[] {
     t.push({ id: `${row.id}_tl_${key}`, key, label, at: new Date(base + offset * day).toISOString(), detail });
 
   if (row.category) push('form_submitted', 'Membership form submitted', 0, `Category: ${row.category}`);
-  // IICA ID is generated only after a successful (Paid) purchase.
-  if (row.iicaNum != null && row.purchase === 'completed') push('iica_id_generated', 'IICA ID generated', 3);
+  // IICA ID is generated after the membership form is submitted (pre-payment).
+  if (row.iicaNum != null && HAS_IICA.has(row.status)) push('iica_id_generated', 'IICA ID generated', 1);
+  if (['purchase_link_sent', 'purchase_pending', 'active', 'renewal_due', 'expired', 'cancelled', 'suspended'].includes(row.status))
+    push('purchase_link_sent', 'Purchase link sent to registered email', 2);
 
   const reachedPurchase = ['purchase_pending', 'active', 'renewal_due', 'expired', 'cancelled', 'suspended'];
   if (reachedPurchase.includes(row.status)) push('purchase_initiated', 'Purchase initiated', 2);
@@ -180,8 +190,11 @@ function buildMembership(row: Row): MembershipRecord | null {
       category: row.category,
       submittedAt: new Date(base).toISOString(),
     },
-    idGeneratedAt: iicaId ? new Date(base + 3 * day).toISOString() : null,
-    idHistory: iicaId ? [{ id: iicaId, at: new Date(base + 3 * day).toISOString() }] : [],
+    idGeneratedAt: iicaId ? new Date(base + 1 * day).toISOString() : null,
+    idHistory: iicaId ? [{ id: iicaId, at: new Date(base + 1 * day).toISOString() }] : [],
+    purchaseLinkSentAt: ['purchase_link_sent', 'purchase_pending', 'active', 'renewal_due', 'expired', 'cancelled', 'suspended'].includes(row.status)
+      ? new Date(base + 2 * day).toISOString()
+      : null,
     payment,
     startDate: activated ? new Date(base + 3 * day).toISOString() : null,
     renewalDate: payment.renewalDate,
@@ -197,9 +210,10 @@ function initials(name: string): string {
   return w.length === 1 ? w[0].slice(0, 2).toUpperCase() : (w[0][0] + w[1][0]).toUpperCase();
 }
 
-// IICA ID only exists once a membership purchase has been completed (Paid).
+// IICA ID exists from the "IICA ID Generated" stage onward (pre-payment for
+// Registered Users, retained for Creator Members).
 function iidOf(row: Row): string | undefined {
-  return row.iicaNum != null && row.purchase === 'completed'
+  return row.iicaNum != null && HAS_IICA.has(row.status)
     ? `${initials(row.name)}.${String(row.iicaNum).padStart(3, '0')}.IICA`
     : undefined;
 }
@@ -216,6 +230,7 @@ function buildUser(row: Row): UserRecord {
     membershipCategory: row.category,
     membershipStatus: row.status,
     iicaId: iidOf(row),
+    guestId: row.guestId,
     joinedAt: new Date(row.joinedAt).toISOString(),
     lastActiveAt: row.lastActiveAt,
     suspension: row.suspendedReason
@@ -251,7 +266,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 20;
+export const SEED_VERSION = 21;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);

@@ -63,7 +63,7 @@ export function DashboardPage() {
 
   // ---- Summary cards ----
   const cards = useMemo(() => {
-    const totalUsers = users.filter((u) => u.accountType !== 'guest').length;
+    const totalUsers = users.length; // Guests + Registered Users + Creator Members
     const activeCreators = users.filter((u) => u.accountType === 'creator' && u.membershipStatus === 'active').length;
     const totalOrders = productOrders.filter((o) => inPeriod(o.orderedAt)).length;
     let revenue = 0;

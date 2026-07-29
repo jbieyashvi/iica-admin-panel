@@ -100,8 +100,13 @@ export function UserDetailPage() {
     );
   }
 
-  const isCreator = user.accountType === 'creator' && !!membership;
-  const tabDefs = isCreator ? TABS : TABS.filter((t) => t.key !== 'membership');
+  const isGuest = user.accountType === 'guest';
+  // Guests have no membership or portfolio; Registered Users + Creator Members do.
+  const tabDefs = isGuest
+    ? TABS.filter((t) => !['membership', 'portfolio'].includes(t.key))
+    : membership
+      ? TABS
+      : TABS.filter((t) => t.key !== 'membership');
   const rawTab = params.get('tab') ?? 'overview';
   const tab = tabDefs.some((t) => t.key === rawTab) ? rawTab : 'overview';
   const setTab = (key: string) => {
@@ -227,9 +232,11 @@ export function UserDetailPage() {
           </Panel>
           <Panel title="Account">
             <Row label="Account type">{<AccountTypeBadge type={user.accountType} />}</Row>
+            {isGuest && <Row label="Guest User ID">{user.guestId ?? '—'}</Row>}
             <Row label="Membership status">{<MembershipStatusBadge status={user.membershipStatus} />}</Row>
             <Row label="Journey stage">{journeyStage(user.membershipStatus)}</Row>
-            <Row label="IICA ID">{user.iicaId ?? '—'}</Row>
+            {!isGuest && <Row label="IICA ID">{user.iicaId ?? '—'}</Row>}
+            {!isGuest && <Row label="Membership category">{user.membershipCategory ?? '—'}</Row>}
             <Row label="Joined">{formatDate(user.joinedAt)}</Row>
             <Row label="Last active">{formatDateTime(user.lastActiveAt)}</Row>
           </Panel>
@@ -278,9 +285,12 @@ export function UserDetailPage() {
       {tab === 'membership' && membership && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Panel title="Membership">
-            <Row label="IICA ID">{membership.iicaId ?? '—'}</Row>
             <Row label="Membership category">{membership.category}</Row>
             <Row label="Form submission date">{formatDate(membership.form.submittedAt)}</Row>
+            <Row label="IICA ID">{membership.iicaId ?? '—'}</Row>
+            <Row label="IICA ID generated">{formatDate(membership.idGeneratedAt)}</Row>
+            <Row label="Purchase link">{membership.purchaseLinkSentAt ? <Badge tone="blue">Sent</Badge> : <Badge tone="neutral">Not sent</Badge>}</Row>
+            <Row label="Link sent date">{formatDate(membership.purchaseLinkSentAt)}</Row>
             <Row label="Purchase platform">{PURCHASE_PLATFORM_LABEL[membership.purchasePlatform]}</Row>
             <Row label="Purchase status">{<PurchaseStatusBadge status={membership.purchaseStatus} />}</Row>
             <Row label="Membership status">{<MembershipStatusBadge status={membership.membershipStatus} />}</Row>
@@ -443,8 +453,11 @@ export function UserDetailPage() {
 
 function journeyStage(status: string): string {
   const map: Record<string, string> = {
+    not_applicable: 'Guest',
     not_started: 'Registered user',
     form_submitted: 'Application submitted',
+    iica_id_generated: 'IICA ID issued',
+    purchase_link_sent: 'Purchase link sent',
     purchase_pending: 'Completing purchase',
     active: 'Active creator',
     renewal_due: 'Renewal due',

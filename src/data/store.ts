@@ -64,30 +64,29 @@ function migrateStatuses(s: DataState): DataState {
   const events = s.events.map((e) => (REMOVED.has(e.status as string) ? ((changed = true), { ...e, status: map(e.status) }) : e));
   const portfolios = s.portfolios.map((p) => (REMOVED.has(p.status as string) ? ((changed = true), { ...p, status: map(p.status) }) : p));
 
-  const PAID = new Set(['active', 'renewal_due', 'expired', 'cancelled', 'suspended']);
-  const remapMs = (st: string): MembershipStatus =>
-    (st === 'not_applicable' ? 'not_started' : st === 'iica_id_generated' ? 'form_submitted' : st) as MembershipStatus;
+  // Creator Member = paid lifecycle; IICA ID exists from "IICA ID Generated" on.
+  const CREATOR = new Set(['active', 'renewal_due', 'expired', 'cancelled', 'suspended']);
+  const HAS_IICA = new Set(['iica_id_generated', 'purchase_link_sent', 'purchase_pending', 'active', 'renewal_due', 'expired', 'cancelled', 'suspended']);
 
+  let guestSeq = 0;
   const users = s.users.map((u) => {
-    const ms = remapMs(u.membershipStatus as string);
-    // Guests stay guests with no membership / IICA ID.
+    // Guests stay guests: Not Applicable, no IICA, keep/assign an internal Guest ID.
     if (u.accountType === 'guest') {
-      if (ms !== u.membershipStatus || u.iicaId) changed = true;
-      return { ...u, membershipStatus: ms, iicaId: undefined };
+      const guestId = u.guestId ?? `GST-${1000 + (guestSeq++)}`;
+      if (u.membershipStatus !== 'not_applicable' || u.iicaId || guestId !== u.guestId) changed = true;
+      return { ...u, membershipStatus: 'not_applicable' as MembershipStatus, iicaId: undefined, guestId };
     }
-    const paid = PAID.has(ms);
-    const accountType: AccountType = paid ? 'creator' : 'registered';
-    const iicaId = paid ? u.iicaId : undefined;
-    if (ms !== u.membershipStatus || accountType !== u.accountType || iicaId !== u.iicaId) changed = true;
-    return { ...u, membershipStatus: ms, accountType, iicaId };
+    const ms = u.membershipStatus;
+    const accountType: AccountType = CREATOR.has(ms) ? 'creator' : 'registered';
+    const iicaId = HAS_IICA.has(ms) ? u.iicaId : undefined;
+    if (accountType !== u.accountType || iicaId !== u.iicaId) changed = true;
+    return { ...u, accountType, iicaId };
   });
 
   const memberships = s.memberships.map((m) => {
-    const ms = remapMs(m.membershipStatus as string);
-    const paid = PAID.has(ms) && m.purchaseStatus === 'completed';
-    const iicaId = paid ? m.iicaId : undefined;
-    if (ms !== m.membershipStatus || iicaId !== m.iicaId) changed = true;
-    return { ...m, membershipStatus: ms, iicaId, idGeneratedAt: iicaId ? m.idGeneratedAt : null, idHistory: iicaId ? m.idHistory : [] };
+    const iicaId = HAS_IICA.has(m.membershipStatus) ? m.iicaId : undefined;
+    if (iicaId !== m.iicaId) changed = true;
+    return { ...m, iicaId, idGeneratedAt: iicaId ? m.idGeneratedAt : null, idHistory: iicaId ? m.idHistory : [] };
   });
 
   // Portfolios: only paid Creator Members keep a record; historical (expired /
