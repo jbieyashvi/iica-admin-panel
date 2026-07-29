@@ -45,21 +45,31 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Content & Commerce',
+    title: 'Content',
     items: [
       { label: 'Archive', to: '/admin/archive', icon: Video, permission: 'manage_archive' },
       { label: 'Events', to: '/admin/events', icon: CalendarDays, permission: 'manage_events' },
+      { label: 'Reviews', to: '/admin/reviews', icon: MessageSquareQuote, permission: 'manage_reviews' },
+      { label: 'Banners', to: '/admin/banners', icon: Megaphone, permission: 'manage_banners' },
+    ],
+  },
+  {
+    title: 'Commerce',
+    items: [
       { label: 'Products', to: '/admin/products', icon: Package, permission: 'manage_products' },
       { label: 'Orders', to: '/admin/orders', icon: ShoppingBag, permission: 'manage_orders' },
+    ],
+  },
+  {
+    title: 'Finance',
+    items: [
       { label: 'Transactions', to: '/admin/transactions', icon: Receipt, permission: 'manage_transactions' },
       { label: 'Commissions & Payouts', to: '/admin/commissions-payouts', icon: Wallet, permission: 'manage_payouts' },
-      { label: 'Reviews', to: '/admin/reviews', icon: MessageSquareQuote, permission: 'manage_reviews' },
     ],
   },
   {
     title: 'Platform',
     items: [
-      { label: 'Banners', to: '/admin/banners', icon: Megaphone, permission: 'manage_banners' },
       { label: 'Membership Categories', to: '/admin/categories', icon: Tags, permission: 'manage_categories' },
       { label: 'Admin Users', to: '/admin/admin-users', icon: ShieldCheck, permission: 'manage_admins' },
     ],
