@@ -4,7 +4,6 @@ import {
   BookOpen,
   CheckCircle2,
   Eye,
-  FileWarning,
   FolderOpen,
   History,
   MessageSquareWarning,
@@ -22,7 +21,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
-import { RequestChangesModal, UnpublishModal, PortfolioGuidelinesDrawer } from './PortfolioModals';
+import { UnpublishModal, PortfolioGuidelinesDrawer } from './PortfolioModals';
 import { useData, publishPortfolio } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -79,7 +78,6 @@ export function PortfoliosPage() {
   const [params, setParams] = useSearchParams();
 
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
-  const [changesTarget, setChangesTarget] = useState<Row | null>(null);
   const [unpublishTarget, setUnpublishTarget] = useState<PortfolioRecord | null>(null);
   const [publishTarget, setPublishTarget] = useState<Row | null>(null);
 
@@ -301,13 +299,6 @@ export function PortfoliosPage() {
                             { label: 'View Reports', icon: <MessageSquareWarning className="h-4 w-4" />, onClick: () => review(p.id) },
                             { label: 'View History', icon: <History className="h-4 w-4" />, onClick: () => review(p.id) },
                             { divider: true, label: 'd' },
-                            {
-                              label: 'Request Changes',
-                              icon: <FileWarning className="h-4 w-4" />,
-                              disabled: !abilities.moderatePortfolio,
-                              disabledHint: RESTRICTED_HINT,
-                              onClick: () => setChangesTarget(row),
-                            },
                             p.status === 'published'
                               ? {
                                   label: 'Unpublish',
@@ -347,7 +338,6 @@ export function PortfoliosPage() {
         )}
       </div>
 
-      <RequestChangesModal portfolio={changesTarget?.p ?? null} creatorName={changesTarget?.u?.name} onClose={() => setChangesTarget(null)} />
       <UnpublishModal portfolio={unpublishTarget} onClose={() => setUnpublishTarget(null)} />
       <PortfolioGuidelinesDrawer open={guidelinesOpen} onClose={() => setGuidelinesOpen(false)} />
       <ConfirmDialog

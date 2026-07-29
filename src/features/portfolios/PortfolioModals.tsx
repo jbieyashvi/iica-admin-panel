@@ -3,90 +3,11 @@ import { BookOpen, Info } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Drawer } from '../../components/ui/Drawer';
 import { Button } from '../../components/ui/Button';
-import { Field, Input, Textarea } from '../../components/ui/Field';
-import { requestPortfolioChanges, unpublishPortfolio } from '../../data/store';
+import { Field, Input } from '../../components/ui/Field';
+import { unpublishPortfolio } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import type { PortfolioRecord } from '../../types/portfolio';
-
-export const PORTFOLIO_SECTIONS = [
-  'Profile Basics', 'About', 'Domains & Skills', 'Highlights', 'Awards', 'Watch',
-  'Spotify', 'Events', 'Gallery', 'Testimonials', "What's New", 'Collaborations',
-];
-
-export function RequestChangesModal({ portfolio, creatorName, onClose }: { portfolio: PortfolioRecord | null; creatorName?: string; onClose: () => void }) {
-  const { actor } = useActor();
-  const [sections, setSections] = useState<string[]>([]);
-  const [message, setMessage] = useState('');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [lastId, setLastId] = useState<string | null>(null);
-
-  if (portfolio && portfolio.id !== lastId) {
-    setLastId(portfolio.id);
-    setSections([]);
-    setMessage('');
-    setNote('');
-    setError(null);
-  }
-  if (!portfolio) return null;
-
-  const toggle = (s: string) => setSections((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
-
-  const submit = () => {
-    if (sections.length === 0) return setError('Select at least one affected section.');
-    if (!message.trim()) return setError('A message to the creator is required.');
-    requestPortfolioChanges(portfolio.id, { sections, message: message.trim(), note: note.trim() || undefined }, actor);
-    toast('Change request sent to creator.', 'info');
-    onClose();
-  };
-
-  return (
-    <Modal
-      open={!!portfolio}
-      onClose={onClose}
-      title="Request Changes"
-      description="Ask the creator to update specific sections before publishing."
-      size="lg"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit}>Send request</Button>
-        </>
-      }
-    >
-      {error && <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-      <div className="space-y-4">
-        <div>
-          <p className="mb-1.5 text-sm font-medium text-charcoal">Affected sections</p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {PORTFOLIO_SECTIONS.map((s) => (
-              <label key={s} className="flex items-center gap-2 rounded-lg border border-cream-200 px-2.5 py-1.5 text-sm text-charcoal">
-                <input type="checkbox" checked={sections.includes(s)} onChange={() => toggle(s)} className="h-4 w-4 rounded border-cream-200 text-magenta-500 focus:ring-magenta-500/30" />
-                {s}
-              </label>
-            ))}
-          </div>
-        </div>
-        <Field label="Message to creator" htmlFor="rc-msg" required>
-          <Textarea id="rc-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Explain what needs to change…" />
-        </Field>
-        <Field label="Internal note" htmlFor="rc-note" hint="Admins only.">
-          <Input id="rc-note" value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
-        {message.trim() && (
-          <div className="rounded-lg border border-cream-200 bg-cream-100/50 px-3.5 py-3">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-charcoal-muted">Notification preview</p>
-            <p className="text-sm text-charcoal">
-              Hi {creatorName ?? 'there'}, our team reviewed your portfolio and has requested changes to:{' '}
-              <span className="font-medium">{sections.join(', ') || '—'}</span>. {message}
-            </p>
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-}
 
 export function UnpublishModal({ portfolio, onClose }: { portfolio: PortfolioRecord | null; onClose: () => void }) {
   const { actor } = useActor();

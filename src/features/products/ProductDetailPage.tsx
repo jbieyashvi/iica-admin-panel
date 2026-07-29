@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArrowLeft, Ban, FileWarning, RotateCcw, Upload, User as UserIcon } from 'lucide-react';
+import { Archive, ArrowLeft, Ban, RotateCcw, Upload, User as UserIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
@@ -10,7 +10,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ProductStatusBadge, ProductTypeBadge } from '../../components/ui/ProductBadges';
 import { MembershipTimeline } from '../memberships/MembershipTimeline';
-import { ProductRequestChangesModal, ProductHideModal, ProductArchiveModal } from './ProductModals';
+import { ProductHideModal, ProductArchiveModal } from './ProductModals';
 import { useData, publishProduct, restoreProduct, addProductNote } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -45,7 +45,6 @@ export function ProductDetailPage() {
   const product = products.find((p) => p.id === productId);
   const membership = memberships.find((m) => m.userId === product?.sellerUserId);
 
-  const [changesOpen, setChangesOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -103,7 +102,6 @@ export function ProductDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button icon={<Upload className="h-4 w-4" />} onClick={() => setPublishOpen(true)} disabled={!canPublish} title={!canManage ? RESTRICTED_HINT : !sellerEligible ? 'Seller needs an active creator membership.' : !categoryActive ? 'Selected category is inactive.' : product.status === 'published' ? 'Already published.' : ''}>Publish</Button>
-            <Button variant="secondary" icon={<FileWarning className="h-4 w-4" />} onClick={() => setChangesOpen(true)} disabled={!canManage || product.status === 'archived'} title={canManage ? '' : RESTRICTED_HINT}>Request Changes</Button>
             {product.status === 'hidden'
               ? <Button variant="secondary" icon={<RotateCcw className="h-4 w-4" />} onClick={() => setRestoreOpen(true)} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT}>Restore</Button>
               : <Button variant="secondary" icon={<Ban className="h-4 w-4" />} onClick={() => setHideOpen(true)} disabled={!canManage || !['published', 'out_of_stock'].includes(product.status)} title={canManage ? '' : RESTRICTED_HINT}>Hide</Button>}
@@ -257,7 +255,6 @@ export function ProductDetailPage() {
       </div>
 
       {/* Modals */}
-      <ProductRequestChangesModal product={changesOpen ? product : null} onClose={() => setChangesOpen(false)} />
       <ProductHideModal product={hideOpen ? product : null} onClose={() => setHideOpen(false)} />
       <ProductArchiveModal product={archiveOpen ? product : null} onClose={() => setArchiveOpen(false)} />
       <ConfirmDialog

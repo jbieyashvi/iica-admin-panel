@@ -29,8 +29,6 @@ export interface ArchiveRecord {
 
 export type EventStatus =
   | 'draft'
-  | 'submitted'
-  | 'changes_requested'
   | 'published'
   | 'sold_out'
   | 'completed'

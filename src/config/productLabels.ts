@@ -12,8 +12,6 @@ export const PRODUCT_TYPES: ProductType[] = ['masterclass', 'digital', 'physical
 
 export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
   draft: 'Draft',
-  awaiting_review: 'Awaiting Review',
-  changes_requested: 'Changes Requested',
   published: 'Published',
   out_of_stock: 'Out of Stock',
   hidden: 'Hidden',
@@ -22,8 +20,6 @@ export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
 
 export const PRODUCT_STATUS_TONE: Record<ProductStatus, Tone> = {
   draft: 'blue',
-  awaiting_review: 'amber',
-  changes_requested: 'red',
   published: 'green',
   out_of_stock: 'amber',
   hidden: 'neutral',
@@ -32,8 +28,6 @@ export const PRODUCT_STATUS_TONE: Record<ProductStatus, Tone> = {
 
 export const PRODUCT_STATUSES: ProductStatus[] = [
   'draft',
-  'awaiting_review',
-  'changes_requested',
   'published',
   'out_of_stock',
   'hidden',

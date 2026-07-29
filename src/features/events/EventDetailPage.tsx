@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Ban,
   EyeOff,
-  FileWarning,
   FlaskConical,
   RotateCcw,
   Upload,
@@ -18,7 +17,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EventStatusBadge, PaymentBadge, BookingBadge, ReportStatusBadge } from '../../components/ui/EventBadges';
 import { MembershipTimeline } from '../memberships/MembershipTimeline';
-import { EventRequestChangesModal, EventHideModal, EventCancelModal } from './EventModals';
+import { EventHideModal, EventCancelModal } from './EventModals';
 import { TicketOrderDrawer } from './TicketOrderDrawer';
 import {
   useData,
@@ -78,7 +77,6 @@ export function EventDetailPage() {
   const host = users.find((u) => u.id === event?.hostUserId);
   const membership = memberships.find((m) => m.userId === event?.hostUserId);
 
-  const [changesOpen, setChangesOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -146,7 +144,6 @@ export function EventDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button icon={<Upload className="h-4 w-4" />} onClick={() => setPublishOpen(true)} disabled={!abilities.manageEvents || event.status === 'published' || event.status === 'cancelled'} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Publish</Button>
-            <Button variant="secondary" icon={<FileWarning className="h-4 w-4" />} onClick={() => setChangesOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Request Changes</Button>
             {event.status === 'hidden'
               ? <Button variant="secondary" icon={<RotateCcw className="h-4 w-4" />} onClick={() => setRestoreOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Restore</Button>
               : <Button variant="secondary" icon={<EyeOff className="h-4 w-4" />} onClick={() => setHideOpen(true)} disabled={!abilities.manageEvents} title={abilities.manageEvents ? '' : RESTRICTED_HINT}>Hide</Button>}
@@ -323,7 +320,6 @@ export function EventDetailPage() {
       )}
 
       {/* Modals */}
-      <EventRequestChangesModal event={changesOpen ? event : null} onClose={() => setChangesOpen(false)} />
       <EventHideModal event={hideOpen ? event : null} onClose={() => setHideOpen(false)} />
       <EventCancelModal event={cancelOpen ? event : null} onClose={() => setCancelOpen(false)} />
       <TicketOrderDrawer order={orderTarget} event={event} onClose={() => setOrderTarget(null)} />

@@ -55,12 +55,28 @@ const STORAGE_KEY = 'data_state';
 
 // ---- Store internals -------------------------------------------------------
 
+// One-time safe migration: the review-queue statuses have been removed.
+// Awaiting Review / Changes Requested / Submitted all collapse to Draft.
+// Idempotent — running it on already-clean data is a no-op.
+function migrateStatuses(s: DataState): DataState {
+  const REMOVED = new Set(['awaiting_review', 'changes_requested', 'submitted']);
+  const map = <T extends string>(st: T): T => (REMOVED.has(st as string) ? ('draft' as T) : st);
+  let changed = false;
+  const products = s.products.map((p) => (REMOVED.has(p.status as string) ? ((changed = true), { ...p, status: map(p.status) }) : p));
+  const events = s.events.map((e) => (REMOVED.has(e.status as string) ? ((changed = true), { ...e, status: map(e.status) }) : e));
+  const portfolios = s.portfolios.map((p) => (REMOVED.has(p.status as string) ? ((changed = true), { ...p, status: map(p.status) }) : p));
+  if (!changed) return s;
+  const next = { ...s, products, events, portfolios };
+  writeStorage(STORAGE_KEY, next);
+  return next;
+}
+
 function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
   const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners);
-  if (stored && stored.version === SEED_VERSION && intact) return stored;
+  if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
   return seeded;
@@ -485,12 +501,6 @@ export function unpublishPortfolio(portfolioId: string, reason: string, _actor: 
   commitPortfolio(next);
 }
 
-export function requestPortfolioChanges(portfolioId: string, input: { sections: string[]; message: string; note?: string }, _actor: AdminActor) {
-  const p = state.portfolios.find((x) => x.id === portfolioId);
-  if (!p) return;
-  const next = recalc(pushTimeline({ ...p, status: 'changes_requested' }, 'changes', 'Changes requested', `${input.sections.join(', ')} — ${input.message}`));
-  commitPortfolio(next);
-}
 
 export function setCatalogueHidden(portfolioId: string, hidden: boolean, reason: string, _actor: AdminActor) {
   const p = state.portfolios.find((x) => x.id === portfolioId);
@@ -574,12 +584,6 @@ export function publishEvent(eventId: string, _actor: AdminActor) {
   commitEvent(pushEvtTimeline({ ...e, status: 'published', lastUpdatedAt: now() }, 'published', 'Event published'));
 }
 
-export function requestEventChanges(eventId: string, input: { fields: string[]; message: string; note?: string }, actor: AdminActor) {
-  const e = state.events.find((x) => x.id === eventId);
-  if (!e) return;
-  const notes = input.note ? [{ id: uid('note'), body: input.note, author: actor.name, role: actor.role, at: now() }, ...e.notes] : e.notes;
-  commitEvent(pushEvtTimeline({ ...e, status: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${input.fields.join(', ')} — ${input.message}`));
-}
 
 export function hideEvent(eventId: string, reason: string, _actor: AdminActor) {
   const e = state.events.find((x) => x.id === eventId);
@@ -954,12 +958,6 @@ export function publishProduct(productId: string, _actor: AdminActor) {
   commitProduct(pushProdTimeline({ ...p, status: 'published', lastUpdatedAt: now() }, 'published', 'Product published'));
 }
 
-export function requestProductChanges(productId: string, input: { fields: string[]; message: string; note?: string }, actor: AdminActor) {
-  const p = state.products.find((x) => x.id === productId);
-  if (!p) return;
-  const notes = input.note ? [{ id: uid('note'), body: input.note, author: actor.name, role: actor.role, at: now() }, ...p.notes] : p.notes;
-  commitProduct(pushProdTimeline({ ...p, status: 'changes_requested', notes, lastUpdatedAt: now() }, 'changes', 'Changes requested', `${input.fields.join(', ')} — ${input.message}`));
-}
 
 export function hideProduct(productId: string, reason: string, _actor: AdminActor) {
   const p = state.products.find((x) => x.id === productId);

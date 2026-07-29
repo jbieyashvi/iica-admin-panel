@@ -13,8 +13,6 @@ type Tone = 'neutral' | 'magenta' | 'green' | 'amber' | 'red' | 'blue';
 
 export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
   draft: 'Draft',
-  submitted: 'Submitted',
-  changes_requested: 'Changes Requested',
   published: 'Published',
   sold_out: 'Sold Out',
   completed: 'Completed',
@@ -23,8 +21,6 @@ export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
 };
 export const EVENT_STATUS_TONE: Record<EventStatus, Tone> = {
   draft: 'blue',
-  submitted: 'amber',
-  changes_requested: 'red',
   published: 'green',
   sold_out: 'magenta',
   completed: 'neutral',
@@ -98,7 +94,7 @@ export const REPORT_STATUS_TONE: Record<ReportStatus, Tone> = {
 };
 
 export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
-  pending: 'Pending Review',
+  pending: 'Pending',
   approved: 'Approved',
   mapped: 'Mapped',
   rejected: 'Rejected',
@@ -113,7 +109,7 @@ export const PROPOSAL_STATUS_TONE: Record<ProposalStatus, Tone> = {
 };
 
 // Ordered lists
-export const EVENT_STATUSES: EventStatus[] = ['draft', 'submitted', 'changes_requested', 'published', 'sold_out', 'completed', 'cancelled', 'hidden'];
+export const EVENT_STATUSES: EventStatus[] = ['draft', 'published', 'sold_out', 'completed', 'cancelled', 'hidden'];
 export const EVENT_FORMATS: EventFormat[] = ['in_person', 'online', 'hybrid'];
 
 export const DEFAULT_EVENT_CATEGORIES = ['Concert', 'LIVE Gig', 'Workshop', 'Music Jam', 'In-door Baithak', 'Fan Meet n Greet', 'Painting Session', 'Others'];

@@ -9,8 +9,6 @@ import type { InternalNote, TimelineEvent } from './users';
 export type PortfolioStatus =
   | 'not_started'
   | 'draft'
-  | 'submitted'
-  | 'changes_requested'
   | 'published'
   | 'archived';
 

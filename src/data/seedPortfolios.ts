@@ -71,15 +71,15 @@ const SPEC: Record<string, Spec> = {
   usr_ananya: { status: 'published', reported: 1 },
   usr_kabir: { status: 'published' },
   usr_meera: { status: 'published' },
-  usr_aarav: { status: 'submitted' },
+  usr_aarav: { status: 'draft' },
   usr_royal: { status: 'published' },
-  usr_heritage: { status: 'changes_requested', reported: 1 },
+  usr_heritage: { status: 'draft', reported: 1 },
   usr_vikram: { status: 'published' },
   usr_nikhil: { status: 'draft' },
   usr_aisha: { status: 'published' },
   usr_devang: { status: 'published' },
   usr_james: { status: 'published' },
-  usr_sophia: { status: 'submitted', reported: 1, badLink: true },
+  usr_sophia: { status: 'draft', reported: 1, badLink: true },
   usr_abhishek: { status: 'published' },
   usr_leila: { status: 'published' },
   usr_tanvi: { status: 'published' }, // expired membership → ineligible
@@ -193,10 +193,6 @@ export function buildPortfolioSeed(users: UserRecord[], memberships: MembershipR
     const timeline: TimelineEvent[] = [
       { id: `${user.id}_ptl0`, key: 'created', label: 'Portfolio created', at: ts(base, 4) },
     ];
-    if (['submitted', 'changes_requested', 'published', 'archived'].includes(spec.status))
-      timeline.push({ id: `${user.id}_ptl1`, key: 'submitted', label: 'Submitted for review', at: ts(base, 30) });
-    if (spec.status === 'changes_requested')
-      timeline.push({ id: `${user.id}_ptl2`, key: 'changes', label: 'Changes requested by moderator', at: ts(base, 34), detail: 'Please update the About section and add a valid Watch link.' });
     if (spec.status === 'published')
       timeline.push({ id: `${user.id}_ptl3`, key: 'published', label: 'Portfolio published', at: ts(base, 36) });
     if (spec.status === 'archived')
@@ -244,7 +240,7 @@ export function buildPortfolioSeed(users: UserRecord[], memberships: MembershipR
       reports,
       notes: [],
       timeline,
-      lastSubmittedAt: ['submitted', 'changes_requested', 'published', 'archived'].includes(spec.status) ? ts(base, 30) : null,
+      lastSubmittedAt: ['published', 'archived'].includes(spec.status) ? ts(base, 30) : null,
       lastUpdatedAt: ts(base, spec.status === 'published' ? 300 : 30),
     };
     // finalise derived fields

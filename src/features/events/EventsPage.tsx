@@ -5,7 +5,6 @@ import {
   CalendarPlus,
   Eye,
   EyeOff,
-  FileWarning,
   Plus,
   RotateCcw,
   Search,
@@ -25,7 +24,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EventStatusBadge } from '../../components/ui/EventBadges';
-import { EventRequestChangesModal, EventHideModal, EventCancelModal } from './EventModals';
+import { EventHideModal, EventCancelModal } from './EventModals';
 import { AddEventModal } from './AddEventModal';
 import { EventSettingsModal } from './EventSettingsModal';
 import { EventCategoriesPanel } from './EventCategoriesPanel';
@@ -57,7 +56,6 @@ export function EventsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [catForm, setCatForm] = useState<EventCategoryRecord | 'new' | null>(null);
-  const [changesTarget, setChangesTarget] = useState<EventRecord | null>(null);
   const [hideTarget, setHideTarget] = useState<EventRecord | null>(null);
   const [cancelTarget, setCancelTarget] = useState<EventRecord | null>(null);
   const [publishTarget, setPublishTarget] = useState<EventRecord | null>(null);
@@ -291,7 +289,6 @@ export function EventsPage() {
                           { label: 'View Tickets & Orders', icon: <Ticket className="h-4 w-4" />, onClick: () => navigate(`/admin/events/${e.id}?tab=orders`) },
                           { divider: true, label: 'd' },
                           { label: 'Publish Event', icon: <Upload className="h-4 w-4" />, disabled: !abilities.manageEvents || e.status === 'published' || e.status === 'cancelled', disabledHint: !abilities.manageEvents ? RESTRICTED_HINT : 'Not applicable in this state.', onClick: () => setPublishTarget(e) },
-                          { label: 'Request Changes', icon: <FileWarning className="h-4 w-4" />, disabled: !abilities.manageEvents, disabledHint: RESTRICTED_HINT, onClick: () => setChangesTarget(e) },
                           e.status === 'hidden'
                             ? { label: 'Restore Event', icon: <RotateCcw className="h-4 w-4" />, disabled: !abilities.manageEvents, disabledHint: RESTRICTED_HINT, onClick: () => setRestoreTarget(e) }
                             : { label: 'Hide Event', icon: <EyeOff className="h-4 w-4" />, disabled: !abilities.manageEvents, disabledHint: RESTRICTED_HINT, onClick: () => setHideTarget(e) },
@@ -313,7 +310,6 @@ export function EventsPage() {
 
       <AddEventModal open={addOpen} onClose={() => setAddOpen(false)} />
       <EventSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <EventRequestChangesModal event={changesTarget} onClose={() => setChangesTarget(null)} />
       <EventHideModal event={hideTarget} onClose={() => setHideTarget(null)} />
       <EventCancelModal event={cancelTarget} onClose={() => setCancelTarget(null)} />
       <ConfirmDialog open={!!publishTarget} title={`Publish "${publishTarget?.title ?? ''}"?`} description="Validates host eligibility and configuration, then makes the event visible in the app." confirmLabel="Publish" onConfirm={() => { if (publishTarget) { publishEvent(publishTarget.id, actor); toast('Event published.'); } setPublishTarget(null); }} onCancel={() => setPublishTarget(null)} />

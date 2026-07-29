@@ -2,64 +2,13 @@ import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
-import { Field, Input, Select, Textarea } from '../../components/ui/Field';
-import { requestEventChanges, hideEvent, cancelEvent } from '../../data/store';
+import { Field, Input, Select } from '../../components/ui/Field';
+import { hideEvent, cancelEvent } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import { useData } from '../../data/store';
 import { formatMoney } from '../../lib/format';
 import type { EventRecord } from '../../types/events';
-
-const FIELDS = ['Title', 'Description', 'Category', 'Format', 'Date & Time', 'Location', 'Tickets', 'Cover Image'];
-
-export function EventRequestChangesModal({ event, onClose }: { event: EventRecord | null; onClose: () => void }) {
-  const { actor } = useActor();
-  const [fields, setFields] = useState<string[]>([]);
-  const [message, setMessage] = useState('');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [lastId, setLastId] = useState<string | null>(null);
-
-  if (event && event.id !== lastId) {
-    setLastId(event.id);
-    setFields([]);
-    setMessage('');
-    setNote('');
-    setError(null);
-  }
-  if (!event) return null;
-
-  const toggle = (f: string) => setFields((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
-  const submit = () => {
-    if (fields.length === 0) return setError('Select at least one affected field.');
-    if (!message.trim()) return setError('A message to the creator is required.');
-    requestEventChanges(event.id, { fields, message: message.trim(), note: note.trim() || undefined }, actor);
-    toast('Change request sent to creator.', 'info');
-    onClose();
-  };
-
-  return (
-    <Modal open={!!event} onClose={onClose} title="Request Changes" description="Ask the host to update event details." size="lg"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>Send request</Button></>}>
-      {error && <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-      <div className="space-y-4">
-        <div>
-          <p className="mb-1.5 text-sm font-medium text-charcoal">Affected fields</p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {FIELDS.map((f) => (
-              <label key={f} className="flex items-center gap-2 rounded-lg border border-cream-200 px-2.5 py-1.5 text-sm text-charcoal">
-                <input type="checkbox" checked={fields.includes(f)} onChange={() => toggle(f)} className="h-4 w-4 rounded border-cream-200 text-magenta-500 focus:ring-magenta-500/30" />
-                {f}
-              </label>
-            ))}
-          </div>
-        </div>
-        <Field label="Message to creator" htmlFor="ev-msg" required><Textarea id="ev-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} /></Field>
-        <Field label="Internal note" htmlFor="ev-note" hint="Admins only."><Input id="ev-note" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-      </div>
-    </Modal>
-  );
-}
 
 export function EventHideModal({ event, onClose }: { event: EventRecord | null; onClose: () => void }) {
   const { actor } = useActor();

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  Archive,
   Ban,
   Eye,
-  FileWarning,
   Package,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
@@ -23,7 +24,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ProductStatusBadge, ProductTypeBadge } from '../../components/ui/ProductBadges';
 import { AddProductModal } from './AddProductModal';
-import { ProductRequestChangesModal, ProductHideModal } from './ProductModals';
+import { ProductHideModal, ProductArchiveModal } from './ProductModals';
 import { ProductCategoriesPanel } from './ProductCategoriesPanel';
 import { useData, publishProduct, restoreProduct } from '../../data/store';
 import { useActor } from '../../lib/useActor';
@@ -55,8 +56,8 @@ export function ProductsPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [catForm, setCatForm] = useState<ProductCategoryRecord | 'new' | null>(null);
-  const [changesTarget, setChangesTarget] = useState<ProductRecord | null>(null);
   const [hideTarget, setHideTarget] = useState<ProductRecord | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<ProductRecord | null>(null);
   const [publishTarget, setPublishTarget] = useState<ProductRecord | null>(null);
 
   const get = (k: string, d = '') => params.get(k) ?? d;
@@ -244,19 +245,30 @@ export function ProductsPage() {
                       <DropdownMenu
                         items={[
                           { label: 'View Product', icon: <Eye className="h-4 w-4" />, onClick: () => detail(p.id) },
-                          { label: 'Open Seller Profile', icon: <UserIcon className="h-4 w-4" />, onClick: () => navigate(`/admin/users/${p.sellerUserId}`) },
-                          { divider: true, label: 'd' },
-                          ...(['draft', 'awaiting_review', 'changes_requested'].includes(p.status)
-                            ? [{ label: 'Publish', icon: <Upload className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setPublishTarget(p) }]
+                          ...(p.status === 'draft'
+                            ? [
+                                { label: 'Edit Product', icon: <Pencil className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => detail(p.id) },
+                                { label: 'Publish', icon: <Upload className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setPublishTarget(p) },
+                              ]
                             : []),
-                          ...(p.status !== 'archived' && p.status !== 'hidden'
-                            ? [{ label: 'Request Changes', icon: <FileWarning className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setChangesTarget(p) }]
+                          ...(p.status === 'published'
+                            ? [
+                                { label: 'Open Seller Profile', icon: <UserIcon className="h-4 w-4" />, onClick: () => navigate(`/admin/users/${p.sellerUserId}`) },
+                                { label: 'Hide', icon: <Ban className="h-4 w-4" />, danger: true, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setHideTarget(p) },
+                                { label: 'Archive', icon: <Archive className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setArchiveTarget(p) },
+                              ]
                             : []),
-                          ...(['published', 'out_of_stock'].includes(p.status)
-                            ? [{ label: 'Hide', icon: <Ban className="h-4 w-4" />, danger: true, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setHideTarget(p) }]
+                          ...(p.status === 'out_of_stock'
+                            ? [
+                                { label: 'Edit Inventory', icon: <Pencil className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => detail(p.id) },
+                                { label: 'Archive', icon: <Archive className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setArchiveTarget(p) },
+                              ]
                             : []),
                           ...(p.status === 'hidden'
-                            ? [{ label: 'Restore', icon: <RotateCcw className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => { restoreProduct(p.id, actor); toast('Product restored to Shop.'); } }]
+                            ? [
+                                { label: 'Restore', icon: <RotateCcw className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => { restoreProduct(p.id, actor); toast('Product restored to Shop.'); } },
+                                { label: 'Archive', icon: <Archive className="h-4 w-4" />, disabled: !canManage, disabledHint: RESTRICTED_HINT, onClick: () => setArchiveTarget(p) },
+                              ]
                             : []),
                         ]}
                       />
@@ -278,8 +290,8 @@ export function ProductsPage() {
       )}
 
       <AddProductModal open={addOpen} onClose={() => setAddOpen(false)} />
-      <ProductRequestChangesModal product={changesTarget} onClose={() => setChangesTarget(null)} />
       <ProductHideModal product={hideTarget} onClose={() => setHideTarget(null)} />
+      <ProductArchiveModal product={archiveTarget} onClose={() => setArchiveTarget(null)} />
       <ConfirmDialog
         open={!!publishTarget}
         title={`Publish "${publishTarget?.title ?? ''}"?`}

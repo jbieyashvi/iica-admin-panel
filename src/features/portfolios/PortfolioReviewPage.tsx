@@ -5,7 +5,6 @@ import {
   BookOpen,
   Check,
   CircleDot,
-  FileWarning,
   FolderOpen,
   MapPin,
   Monitor,
@@ -24,7 +23,7 @@ import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/Portf
 import { MembershipStatusBadge } from '../../components/ui/StatusBadge';
 import { MembershipTimeline } from '../memberships/MembershipTimeline';
 import { PortfolioPreview } from './PortfolioPreview';
-import { RequestChangesModal, UnpublishModal, PortfolioGuidelinesDrawer } from './PortfolioModals';
+import { UnpublishModal, PortfolioGuidelinesDrawer } from './PortfolioModals';
 import { CorrectLocationModal } from '../catalogue/CatalogueDrawers';
 import {
   useData,
@@ -73,7 +72,6 @@ export function PortfolioReviewPage() {
   const membership = memberships.find((m) => m.userId === portfolio?.userId);
 
   const [device, setDevice] = useState<'mobile' | 'desktop'>('desktop');
-  const [changesOpen, setChangesOpen] = useState(false);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -315,9 +313,6 @@ export function PortfolioReviewPage() {
               >
                 Publish
               </Button>
-              <Button variant="secondary" icon={<FileWarning className="h-4 w-4" />} onClick={() => setChangesOpen(true)} disabled={!canModerate} title={canModerate ? '' : RESTRICTED_HINT}>
-                Request Changes
-              </Button>
               <Button variant="secondary" icon={<FolderOpen className="h-4 w-4" />} onClick={() => setUnpublishOpen(true)} disabled={!abilities.publishPortfolio || portfolio.status !== 'published'} title={!abilities.publishPortfolio ? RESTRICTED_HINT : portfolio.status !== 'published' ? 'Only published portfolios can be unpublished.' : ''}>
                 Unpublish
               </Button>
@@ -333,7 +328,6 @@ export function PortfolioReviewPage() {
       </div>
 
       {/* Modals */}
-      <RequestChangesModal portfolio={changesOpen ? portfolio : null} creatorName={user?.name} onClose={() => setChangesOpen(false)} />
       <UnpublishModal portfolio={unpublishOpen ? portfolio : null} onClose={() => setUnpublishOpen(false)} />
       <CorrectLocationModal portfolio={locationOpen ? portfolio : null} user={user} onClose={() => setLocationOpen(false)} />
       <PortfolioGuidelinesDrawer open={guidelinesOpen} onClose={() => setGuidelinesOpen(false)} />

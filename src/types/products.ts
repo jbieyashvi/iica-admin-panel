@@ -8,8 +8,6 @@ export type ProductType = 'masterclass' | 'digital' | 'physical';
 
 export type ProductStatus =
   | 'draft'
-  | 'awaiting_review'
-  | 'changes_requested'
   | 'published'
   | 'out_of_stock'
   | 'hidden'
