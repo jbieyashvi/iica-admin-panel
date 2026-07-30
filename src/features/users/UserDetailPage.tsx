@@ -17,7 +17,6 @@ import { Field, Textarea } from '../../components/ui/Field';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { AccountTypeBadge, MembershipStatusBadge, PurchaseStatusBadge } from '../../components/ui/StatusBadge';
-import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
 import { Badge } from '../../components/ui/Badge';
 import { SuspendModal } from './SuspendModal';
 import { MembershipTimeline } from '../memberships/MembershipTimeline';
@@ -28,10 +27,9 @@ import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import { formatDate, formatDateTime, formatMoney, timeAgo, formatNumber } from '../../lib/format';
 import { PURCHASE_PLATFORM_LABEL } from '../../config/userLabels';
-import { VISIBILITY_LABEL } from '../../config/portfolioLabels';
-import { catalogueVisibility, completionChecklist, completionPercent, effectiveLocation } from '../../data/portfolioLogic';
+import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
 import { deriveOrders, deriveCollab, totalSpend } from '../../data/derive';
-import { FolderOpen } from 'lucide-react';
+import { Check, Circle, FolderOpen } from 'lucide-react';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -106,16 +104,17 @@ export function UserDetailPage() {
 
   const isGuest = user.accountType === 'guest';
   const isCreator = user.accountType === 'creator';
-  // Tabs adapt to account type + lifecycle: guests get no Membership/Portfolio;
-  // Portfolio only for Creator Members (past a completed payment) with a record.
+  // Portfolio only for a Creator Member past a completed (Paid) membership with a
+  // valid IICA ID — an IICA ID generated before payment does NOT unlock it.
+  const showPortfolio = isCreator && !!user.iicaId && membership?.purchaseStatus === 'completed' && !!portfolioRecord;
+  // Tabs adapt to account type + lifecycle.
   const tabKeys: string[] = isGuest
     ? ['overview', 'purchases']
     : (() => {
         const k = ['overview'];
         if (membership) k.push('membership');
-        if (isCreator && portfolioRecord) k.push('portfolio');
+        if (showPortfolio) k.push('portfolio');
         k.push('purchases');
-        if (isCreator) k.push('collaborations');
         k.push('activity');
         return k;
       })();
@@ -325,70 +324,155 @@ export function UserDetailPage() {
 
       {tab === 'portfolio' && portfolioRecord && (() => {
         const p = portfolioRecord;
-        const completion = p.status === 'not_started' ? 0 : completionPercent(completionChecklist(p.content, true, true));
-        const visibility = catalogueVisibility(p, user, membership);
+        const c = p.content;
         const loc = effectiveLocation(p, user);
-        const socials = Object.entries(p.content.socials).filter(([, v]) => !!v);
-        // Automatic public-catalogue reason (admin cannot change it here).
-        const catalogueReason = visibility === 'visible'
-          ? 'Visible in Catalogue'
+        const socials = Object.entries(c.socials).filter(([, v]) => !!v);
+        const visibility = catalogueVisibility(p, user, membership);
+        const publicVisible = visibility === 'visible';
+        const notStarted = p.status === 'not_started';
+        const portfolioStatusLabel = p.hiddenFromCatalogue ? 'Hidden' : notStarted ? 'Not Started' : p.status === 'draft' ? 'Draft' : 'Published';
+
+        // Completion measured only from actual portfolio fields.
+        const sections: [string, boolean][] = [
+          ['Creator Introduction', c.about.trim().length > 0],
+          ['Profile and Cover Images', !!c.profileImage && !!c.coverImage],
+          ['Creator Category and Domain', !!p.category && !!p.domainGenre],
+          ['Bio', c.about.trim().length > 20],
+          ['Skills', c.skills.length > 0],
+          ['Experience', c.highlights.length > 0 || c.awards.length > 0],
+          ['Portfolio Work/Media', c.gallery.length > 0 || c.watch.length > 0],
+          ['Social Links', socials.length > 0],
+          ['Collaboration Statement', c.collaborations.length > 0],
+          ['Location and Availability', !!loc.city && loc.city !== '—'],
+        ];
+        const done = notStarted ? 0 : sections.filter(([, ok]) => ok).length;
+        const completion = notStarted ? 0 : Math.round((done / sections.length) * 100);
+
+        const reason = publicVisible ? null
           : user.membershipStatus === 'expired' ? 'Membership Expired'
           : user.membershipStatus === 'suspended' ? 'Membership Suspended'
+          : notStarted ? 'Portfolio Not Started'
           : p.status === 'draft' ? 'Portfolio Draft'
-          : p.status === 'not_started' ? 'Portfolio not started'
           : p.hiddenFromCatalogue ? 'Portfolio Hidden'
           : 'Not eligible for public catalogue';
+
+        const work = [
+          ...c.gallery.filter((g) => !g.hidden).map((g) => ({ id: g.id, title: g.caption, type: 'Image', date: '' })),
+          ...c.watch.filter((w) => !w.hidden).map((w) => ({ id: w.id, title: w.title, type: 'Video', date: w.publishDate })),
+        ];
+
         return (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Panel
-              title="Portfolio"
-              action={<Button size="sm" variant="secondary" icon={<FolderOpen className="h-4 w-4" />} onClick={() => navigate(`/admin/portfolios/${p.id}`, { state: { from: `/admin/users/${user.id}?tab=portfolio` } })}>View Portfolio</Button>}
-            >
-              <Row label="Completion">
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-1.5 w-24 overflow-hidden rounded-full bg-cream-100">
-                    <span className="block h-full rounded-full bg-magenta-500" style={{ width: `${completion}%` }} />
-                  </span>
-                  {completion}%
-                </span>
-              </Row>
-              <Row label="Portfolio status">{<PortfolioStatusBadge status={p.status} />}</Row>
-              <Row label="Public visibility">{<VisibilityBadge visibility={visibility} />}</Row>
-              <Row label="Creator category">{p.category}</Row>
-              <Row label="Domain / Genre">{p.domainGenre}</Row>
-              <Row label="Location">{loc.city}, {loc.country}</Row>
-              <Row label="Skills">{p.content.skills.length ? p.content.skills.join(', ') : '—'}</Row>
-              <Row label="Submitted">{formatDate(p.lastSubmittedAt)}</Row>
-              <Row label="Updated">{formatDate(p.lastUpdatedAt)}</Row>
-              <Row label="Public profile views">{formatNumber(p.profileViews)}</Row>
-              <Row label="Activity score">{p.activityScore}</Row>
-              <p className="mt-3 text-xs text-charcoal-muted">Read-only. Publishing, editing and visibility are creator-controlled.</p>
-            </Panel>
-            <div className="space-y-6">
-              <Panel title="Bio & Links">
-                <p className="mb-3 text-sm text-charcoal">{p.content.about || <span className="text-charcoal-muted">No bio provided.</span>}</p>
-                {p.content.collaborations.length > 0 && (
-                  <p className="mb-3 text-xs text-charcoal-muted">Collaboration statement: {p.content.collaborations[0].project}</p>
-                )}
-                {socials.length > 0 ? (
-                  <ul className="space-y-1 text-sm">
-                    {socials.map(([k, v]) => (
-                      <li key={k}><a href={v as string} target="_blank" rel="noreferrer" className="text-magenta-600 hover:underline">{k}</a></li>
-                    ))}
-                  </ul>
-                ) : <p className="text-sm text-charcoal-muted">No social links.</p>}
-              </Panel>
-              <Panel title="Public Catalogue Status">
-                <div className={cn('mb-3 rounded-lg border px-3 py-2 text-sm font-medium', visibility === 'visible' ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-amber-100 bg-amber-50 text-amber-800')}>
-                  {visibility === 'visible' ? 'Visible in Catalogue' : `Not Visible in Catalogue — ${catalogueReason}`}
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="card p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Badge tone={notStarted ? 'neutral' : portfolioStatusLabel === 'Published' ? 'green' : portfolioStatusLabel === 'Hidden' ? 'amber' : 'blue'}>{portfolioStatusLabel}</Badge>
+                    <Badge tone={publicVisible ? 'green' : 'neutral'}>{publicVisible ? 'Visible' : 'Hidden'}</Badge>
+                    <Badge tone={publicVisible ? 'green' : 'amber'}>{publicVisible ? 'Visible in Catalogue' : 'Not Visible in Catalogue'}</Badge>
+                    <span className="text-xs text-charcoal-muted">Last updated {formatDate(p.lastUpdatedAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="h-2 w-40 overflow-hidden rounded-full bg-cream-100">
+                      <span className="block h-full rounded-full bg-magenta-500" style={{ width: `${completion}%` }} />
+                    </span>
+                    <span className="text-sm font-medium text-charcoal">{done} of {sections.length} required sections completed · {completion}%</span>
+                  </div>
                 </div>
-                <Row label="Catalogue eligibility">{visibility === 'visible' ? 'Eligible' : 'Not eligible'}</Row>
-                <Row label="Public visibility">{VISIBILITY_LABEL[visibility]}</Row>
+                <Button size="sm" variant="secondary" icon={<FolderOpen className="h-4 w-4" />} onClick={() => navigate(`/admin/portfolios/${p.id}`, { state: { from: `/admin/users/${user.id}?tab=portfolio` } })}>View Portfolio</Button>
+              </div>
+              {notStarted && <p className="mt-3 rounded-lg border border-cream-200 bg-cream-100/50 px-3 py-2 text-sm text-charcoal-muted">The creator has not started their Portfolio yet.</p>}
+              <p className="mt-2 text-xs text-charcoal-muted">Read-only. Publishing, editing and visibility are creator-controlled.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Completion checklist */}
+              <Panel title="Completion Breakdown">
+                <ul className="space-y-1.5">
+                  {sections.map(([name, ok]) => (
+                    <li key={name} className="flex items-center gap-2 text-sm">
+                      <span className={cn('flex h-4 w-4 items-center justify-center rounded-full', ok ? 'bg-emerald-500 text-white' : 'border border-cream-200 bg-white text-charcoal-muted')}>
+                        {ok ? <Check className="h-3 w-3" /> : <Circle className="h-2 w-2" />}
+                      </span>
+                      <span className={ok ? 'text-charcoal' : 'text-charcoal-muted'}>{name}</span>
+                      <span className="ml-auto text-xs text-charcoal-muted">{ok ? 'Complete' : 'Incomplete'}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+
+              {/* Public catalogue status */}
+              <Panel title="Public Catalogue Status">
+                <div className={cn('mb-3 rounded-lg border px-3 py-2 text-sm font-medium', publicVisible ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-amber-100 bg-amber-50 text-amber-800')}>
+                  {publicVisible ? 'Visible in Catalogue' : `Not Visible in Catalogue — ${reason}`}
+                </div>
+                <Row label="Catalogue eligibility">{publicVisible ? 'Eligible' : 'Not eligible'}</Row>
+                <Row label="Public visibility">{publicVisible ? 'Visible' : 'Hidden'}</Row>
                 <Row label="Published portfolio">{p.status === 'published' ? 'Yes' : 'No'}</Row>
                 <Row label="Public profile views">{formatNumber(p.profileViews)}</Row>
+                <Row label="Activity count">{p.activityScore}</Row>
                 <Row label="Last public update">{formatDate(p.lastUpdatedAt)}</Row>
+                {reason && <Row label="Reason">{reason}</Row>}
                 <p className="mt-2 text-xs text-charcoal-muted">Catalogue visibility is calculated automatically and cannot be changed here.</p>
               </Panel>
+
+              {/* Creator profile */}
+              <Panel title="Creator Profile">
+                <Row label="Creator name">{user.name}</Row>
+                <Row label="IICA ID">{p.iicaId ?? '—'}</Row>
+                <Row label="Membership category">{p.category}</Row>
+                <Row label="Domain / Genre">{p.domainGenre}</Row>
+                <Row label="Location">{loc.city}, {loc.country}</Row>
+                <Row label="Skills">{c.skills.length ? c.skills.join(', ') : '—'}</Row>
+                <div className="border-b border-cream-200 py-2.5">
+                  <p className="text-sm text-charcoal-muted">Bio</p>
+                  <p className="mt-1 text-sm text-charcoal">{c.about || '—'}</p>
+                </div>
+                <Row label="Experience">{c.highlights.length + c.awards.length > 0 ? `${c.highlights.length} highlights · ${c.awards.length} awards` : '—'}</Row>
+              </Panel>
+
+              {/* Collaboration + socials */}
+              <div className="space-y-6">
+                <Panel title="Collaboration">
+                  {c.collaborations.length > 0 ? (
+                    <p className="text-sm text-charcoal">{c.collaborations[0].project} — with {c.collaborations[0].collaborator}</p>
+                  ) : <p className="text-sm text-charcoal-muted">No collaboration statement.</p>}
+                </Panel>
+                <Panel title="Social Profiles">
+                  {socials.length > 0 ? (
+                    <ul className="space-y-1 text-sm">
+                      {socials.map(([k, v]) => (
+                        <li key={k} className="flex items-center justify-between gap-3">
+                          <span className="capitalize text-charcoal">{k}</span>
+                          <a href={v as string} target="_blank" rel="noreferrer" className="max-w-[220px] truncate text-magenta-600 hover:underline">{(v as string).replace('https://', '')}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-sm text-charcoal-muted">No social links.</p>}
+                </Panel>
+              </div>
+
+              {/* Portfolio work */}
+              <div className="lg:col-span-2">
+                <Panel title="Portfolio Work">
+                  {work.length === 0 ? (
+                    <p className="text-sm text-charcoal-muted">No portfolio media yet.</p>
+                  ) : (
+                    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {work.map((w) => (
+                        <li key={w.id} className="flex items-center gap-3 rounded-lg border border-cream-200 p-2.5">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-cream-100 text-charcoal-muted"><FolderOpen className="h-4 w-4" /></span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-charcoal">{w.title}</span>
+                            <span className="block text-xs text-charcoal-muted">{w.type}{w.date ? ` · ${formatDate(w.date)}` : ''}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+              </div>
             </div>
           </div>
         );
