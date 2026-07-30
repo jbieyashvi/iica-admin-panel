@@ -38,9 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'People & Profiles',
     items: [
-      { label: 'Users', to: '/admin/users', icon: Users, permission: 'manage_users' },
-      { label: 'Catalogue', to: '/admin/catalogue', icon: LayoutGrid, permission: 'manage_catalogue' },
-      { label: 'Portfolios', to: '/admin/portfolios', icon: FolderOpen, permission: 'moderate_portfolios' },
+      { label: 'Users & Profiles', to: '/admin/users-profiles', icon: Users, permission: 'manage_users' },
       { label: 'Collaborations', to: '/admin/collaborations', icon: Handshake, permission: 'manage_collaborations' },
     ],
   },
@@ -74,6 +72,14 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Admin Users', to: '/admin/admin-users', icon: ShieldCheck, permission: 'manage_admins' },
     ],
   },
+];
+
+// Module-search aliases so searching "Users", "Catalogue" or "Portfolios"
+// opens the matching tab inside the merged Users & Profiles module.
+export const SEARCH_ALIASES: NavItem[] = [
+  { label: 'Users', to: '/admin/users-profiles?tab=users', icon: Users, permission: 'manage_users' },
+  { label: 'Creator Catalogue', to: '/admin/users-profiles?tab=catalogue', icon: LayoutGrid, permission: 'manage_catalogue' },
+  { label: 'Portfolios', to: '/admin/users-profiles?tab=portfolios', icon: FolderOpen, permission: 'moderate_portfolios' },
 ];
 
 // Flat lookup for breadcrumbs.

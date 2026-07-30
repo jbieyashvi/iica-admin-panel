@@ -84,14 +84,13 @@ export function UserDetailPage() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteBody, setNoteBody] = useState('');
 
-  const backSearch = (location.state as { from?: string } | null)?.from ?? '';
-  const backTo = `/admin/users${backSearch}`;
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/admin/users-profiles?tab=users';
 
   if (!user) {
     return (
       <div>
-        <Link to="/admin/users" className="mb-4 inline-flex items-center gap-1.5 text-sm text-charcoal-muted hover:text-charcoal">
-          <ArrowLeft className="h-4 w-4" /> Back to Users
+        <Link to="/admin/users-profiles?tab=users" className="mb-4 inline-flex items-center gap-1.5 text-sm text-charcoal-muted hover:text-charcoal">
+          <ArrowLeft className="h-4 w-4" /> Back to Users & Profiles
         </Link>
         <div className="card">
           <EmptyState title="User not found" description="This record may have been removed." />
@@ -141,7 +140,7 @@ export function UserDetailPage() {
         onClick={() => navigate(backTo)}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-charcoal-muted hover:text-charcoal"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to Users
+        <ArrowLeft className="h-4 w-4" /> Back to Users & Profiles
       </button>
 
       {/* Header */}

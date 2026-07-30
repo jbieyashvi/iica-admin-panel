@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Bell, ChevronRight, LogOut, Menu, Search, UserCircle } from 'lucide-react';
-import { NAV_GROUPS, NAV_LOOKUP } from '../../config/navigation';
+import { NAV_GROUPS, NAV_LOOKUP, SEARCH_ALIASES } from '../../config/navigation';
 import { NOTIFICATIONS } from '../../mock/notifications';
 import { ROLES } from '../../config/roles';
 import { useAuth } from '../../context/AuthContext';
@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Tooltip } from '../ui/Tooltip';
 import { cn } from '../../lib/cn';
 
-const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
+const ALL_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ...SEARCH_ALIASES];
 
 function initials(name: string) {
   return name

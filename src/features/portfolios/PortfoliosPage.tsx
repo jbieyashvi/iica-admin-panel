@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMemo } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  BookOpen,
   CheckCircle2,
   Eye,
   Search,
@@ -16,7 +15,6 @@ import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PortfolioStatusBadge, VisibilityBadge } from '../../components/ui/PortfolioBadges';
 import { MembershipStatusBadge } from '../../components/ui/StatusBadge';
-import { PortfolioGuidelinesDrawer } from './PortfolioModals';
 import { useData } from '../../data/store';
 import { formatDate, timeAgo } from '../../lib/format';
 import {
@@ -50,12 +48,11 @@ interface Row {
   eligible: boolean;
 }
 
-export function PortfoliosPage() {
+export function PortfoliosPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { portfolios, users, memberships } = useData();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
-
-  const [guidelinesOpen, setGuidelinesOpen] = useState(false);
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
@@ -141,20 +138,25 @@ export function PortfoliosPage() {
   if (vis !== 'all') chips.push({ key: 'vis', label: vis });
   if (completion !== 'any') chips.push({ key: 'completion', label: COMPLETION.find((c) => c.key === completion)!.label });
 
-  const clearAll = () => setParams(new URLSearchParams(), { replace: true });
-  const view = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: `/admin/portfolios?${params.toString()}` } });
+  const clearAll = () => {
+    const next = new URLSearchParams();
+    const t = params.get('tab');
+    if (t) next.set('tab', t);
+    setParams(next, { replace: true });
+  };
+  const view = (id: string) => navigate(`/admin/users-profiles/portfolio/${id}`, { state: { from: `/admin/users-profiles${location.search || '?tab=portfolios'}` } });
 
   const selectCls = 'text-sm';
 
   return (
     <div>
-      <PageHeader
-        title="Portfolios"
-        description="View creator portfolios, completion and visibility."
-        actions={
-          <Button variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => setGuidelinesOpen(true)}>Portfolio Guidelines</Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Portfolios"
+          description="View creator portfolios, completion and visibility."
+        />
+      )}
+      {embedded && <p className="mb-4 text-sm text-charcoal-muted">View creator portfolios, completion and visibility.</p>}
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -275,8 +277,6 @@ export function PortfoliosPage() {
           <Pagination page={page} pageSize={size} total={total} onPage={(p) => update({ page: String(p) }, false)} onPageSize={(n) => update({ size: String(n) })} />
         )}
       </div>
-
-      <PortfolioGuidelinesDrawer open={guidelinesOpen} onClose={() => setGuidelinesOpen(false)} />
     </div>
   );
 }

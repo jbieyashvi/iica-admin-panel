@@ -42,7 +42,7 @@ const SORTS = [
   { key: 'name_za', label: 'Name Z–A' },
 ];
 
-export function UsersPage() {
+export function UsersPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { users } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
@@ -122,10 +122,15 @@ export function UsersPage() {
   if (status !== 'all') chips.push({ key: 'status', label: MEMBERSHIP_STATUS_LABEL[status as never] });
   if (loc !== 'all') chips.push({ key: 'loc', label: loc });
 
-  const clearAll = () => setParams(new URLSearchParams(), { replace: true });
+  const clearAll = () => {
+    const next = new URLSearchParams();
+    const t = params.get('tab');
+    if (t) next.set('tab', t);
+    setParams(next, { replace: true });
+  };
 
   const openDetail = (id: string, tab?: string) => {
-    navigate(`/admin/users/${id}${tab ? `?tab=${tab}` : ''}`, { state: { from: location.search } });
+    navigate(`/admin/users-profiles/user/${id}${tab ? `?tab=${tab}` : ''}`, { state: { from: `/admin/users-profiles${location.search}` } });
   };
 
   const doReactivate = () => {
@@ -139,19 +144,20 @@ export function UsersPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Users"
-        description="Manage guests, registered users and creator accounts."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Users"
+          description="Manage guests, registered users and creator accounts."
+        />
+      )}
 
       {/* Summary cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
           { label: 'Total Users', value: summary.total },
-          { label: 'Guests', value: summary.guests },
+          { label: 'Guest Users', value: summary.guests },
           { label: 'Registered Users', value: summary.registered },
           { label: 'Active Creators', value: summary.creators },
-          { label: 'Suspended Accounts', value: summary.suspended },
         ].map((c) => (
           <div key={c.label} className="card p-4">
             <p className="text-sm text-charcoal-muted">{c.label}</p>

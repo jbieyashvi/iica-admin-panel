@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity as ActivityIcon,
   Eye,
@@ -8,7 +8,6 @@ import {
   Info,
   MapPin,
   Search,
-  Settings,
   X,
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -24,7 +23,6 @@ import { ActivityScoreDrawer } from './CatalogueDrawers';
 import { useData } from '../../data/store';
 import { timeAgo, formatNumber } from '../../lib/format';
 import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
-import { PORTFOLIO_STATUSES, PORTFOLIO_STATUS_LABEL, VISIBILITIES, VISIBILITY_LABEL } from '../../config/portfolioLabels';
 import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
 import type { PortfolioRecord } from '../../types/portfolio';
 import type { MembershipRecord, UserRecord } from '../../types/users';
@@ -55,12 +53,12 @@ interface Row {
   visibility: ReturnType<typeof catalogueVisibility>;
 }
 
-export function CataloguePage() {
+export function CataloguePage({ embedded = false }: { embedded?: boolean } = {}) {
   const { portfolios, users, memberships } = useData();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
 
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [activityTarget, setActivityTarget] = useState<Row | null>(null);
   const [unavailable, setUnavailable] = useState<Row | null>(null);
 
@@ -70,8 +68,6 @@ export function CataloguePage() {
   const domain = get('domain', 'all');
   const country = get('country', 'all');
   const city = get('city', 'all');
-  const status = get('status', 'all');
-  const vis = get('vis', 'all');
   const level = get('level', 'any');
   const updated = get('updated', 'any');
   const sort = get('sort', 'updated');
@@ -104,6 +100,9 @@ export function CataloguePage() {
 
   const filtered = useMemo(() => {
     let list = rows.filter(({ p, u, visibility }) => {
+      // Catalogue = only creators eligible for public discovery (Active paid
+      // Creator Member + Published + Visible). Everything else is excluded.
+      if (visibility !== 'visible') return false;
       const loc = effectiveLocation(p, u);
       if (q) {
         const hay = `${u?.name ?? ''} ${p.iicaId ?? ''} ${p.domainGenre} ${p.content.skills.join(' ')} ${loc.city} ${loc.country}`.toLowerCase();
@@ -113,8 +112,6 @@ export function CataloguePage() {
       if (domain !== 'all' && p.domainGenre !== domain) return false;
       if (country !== 'all' && loc.country !== country) return false;
       if (city !== 'all' && loc.city !== city) return false;
-      if (status !== 'all' && p.status !== status) return false;
-      if (vis !== 'all' && visibility !== vis) return false;
       if (level !== 'any') {
         const s = p.activityScore;
         if (level === 'high' && s < 70) return false;
@@ -139,7 +136,7 @@ export function CataloguePage() {
       }
     });
     return list;
-  }, [rows, q, cat, domain, country, city, status, vis, level, updated, sort]);
+  }, [rows, q, cat, domain, country, city, level, updated, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
@@ -150,13 +147,16 @@ export function CataloguePage() {
   if (domain !== 'all') chips.push({ key: 'domain', label: domain });
   if (country !== 'all') chips.push({ key: 'country', label: country });
   if (city !== 'all') chips.push({ key: 'city', label: city });
-  if (status !== 'all') chips.push({ key: 'status', label: PORTFOLIO_STATUS_LABEL[status as never] });
-  if (vis !== 'all') chips.push({ key: 'vis', label: VISIBILITY_LABEL[vis as never] });
   if (level !== 'any') chips.push({ key: 'level', label: ACTIVITY_LEVELS.find((l) => l.key === level)!.label });
   if (updated !== 'any') chips.push({ key: 'updated', label: UPDATED.find((u) => u.key === updated)!.label });
 
-  const clearAll = () => setParams(new URLSearchParams(), { replace: true });
-  const openReview = (id: string) => navigate(`/admin/portfolios/${id}`, { state: { from: '/admin/catalogue' } });
+  const clearAll = () => {
+    const next = new URLSearchParams();
+    const t = params.get('tab');
+    if (t) next.set('tab', t);
+    setParams(next, { replace: true });
+  };
+  const openReview = (id: string) => navigate(`/admin/users-profiles/portfolio/${id}`, { state: { from: `/admin/users-profiles${location.search || '?tab=catalogue'}` } });
 
   // Open the connected portfolio; a not-started profile has no portfolio to open.
   const openPortfolio = (row: Row) => {
@@ -171,17 +171,13 @@ export function CataloguePage() {
 
   return (
     <div>
-      <PageHeader
-        title="Profile Catalogue"
-        description="Browse creator catalogue profiles, portfolios and activity."
-        actions={
-          <>
-            <Button variant="secondary" icon={<Settings className="h-4 w-4" />} onClick={() => setSettingsOpen(true)}>
-              Catalogue Settings
-            </Button>
-          </>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Creator Catalogue"
+          description="Browse creator profiles currently eligible for public discovery."
+        />
+      )}
+      {embedded && <p className="mb-4 text-sm text-charcoal-muted">Browse creator profiles currently eligible for public discovery.</p>}
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -196,7 +192,7 @@ export function CataloguePage() {
           </Select>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <Select className={selectCls} value={cat} onChange={(e) => update({ cat: e.target.value })}>
             <option value="all">All categories</option>
             {MEMBERSHIP_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -212,14 +208,6 @@ export function CataloguePage() {
           <Select className={selectCls} value={city} onChange={(e) => update({ city: e.target.value })}>
             <option value="all">All cities</option>
             {cities.map((c) => <option key={c}>{c}</option>)}
-          </Select>
-          <Select className={selectCls} value={status} onChange={(e) => update({ status: e.target.value })}>
-            <option value="all">All statuses</option>
-            {PORTFOLIO_STATUSES.map((s) => <option key={s} value={s}>{PORTFOLIO_STATUS_LABEL[s]}</option>)}
-          </Select>
-          <Select className={selectCls} value={vis} onChange={(e) => update({ vis: e.target.value })}>
-            <option value="all">All visibility</option>
-            {VISIBILITIES.map((v) => <option key={v} value={v}>{VISIBILITY_LABEL[v]}</option>)}
           </Select>
           <Select className={selectCls} value={level} onChange={(e) => update({ level: e.target.value })}>
             {ACTIVITY_LEVELS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
@@ -331,24 +319,6 @@ export function CataloguePage() {
         <div className="flex items-start gap-2.5 rounded-lg border border-cream-200 bg-cream-100/50 px-3.5 py-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-charcoal-muted" />
           <p className="text-charcoal-muted">There is no portfolio to open for this profile yet. It becomes available once the creator starts and submits one.</p>
-        </div>
-      </Modal>
-
-      <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Catalogue Settings" description="How discovery & catalogue visibility work.">
-        <div className="space-y-3 text-sm text-charcoal">
-          <div className="flex items-start gap-2.5 rounded-lg border border-cream-200 bg-cream-100/50 px-3.5 py-3">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-charcoal-muted" />
-            <p className="text-charcoal-muted">
-              Catalogue visibility is computed automatically. A profile is <span className="font-medium text-charcoal">Ineligible</span> when
-              membership is inactive, the portfolio is not published, or the account is suspended. Eligible profiles are
-              <span className="font-medium text-charcoal"> Visible</span> unless an admin hides them.
-            </p>
-          </div>
-          <ul className="list-inside list-disc space-y-1 text-charcoal-muted">
-            <li>Featured placement is earned automatically through activity — there is no manual "featured" override.</li>
-            <li>Discovery ranking uses activity signals, never follower count.</li>
-            <li>This page is view-only — catalogue visibility, location and discovery data are managed elsewhere.</li>
-          </ul>
         </div>
       </Modal>
     </div>

@@ -4,11 +4,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { LoginPage } from './features/auth/LoginPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
-import { UsersPage } from './features/users/UsersPage';
 import { UserDetailPage } from './features/users/UserDetailPage';
-import { CataloguePage } from './features/catalogue/CataloguePage';
 import { CategoriesPage } from './features/categories/CategoriesPage';
-import { PortfoliosPage } from './features/portfolios/PortfoliosPage';
 import { PortfolioReviewPage } from './features/portfolios/PortfolioReviewPage';
 import { ArchivePage } from './features/archive/ArchivePage';
 import { EventsPage } from './features/events/EventsPage';
@@ -29,12 +26,21 @@ import { BannersPage } from './features/appcontent/BannersPage';
 import { AdminUsersPage } from './features/adminusers/AdminUsersPage';
 import { AdminUserDetailPage } from './features/adminusers/AdminUserDetailPage';
 import { NotFound } from './features/common/NotFound';
+import { UsersProfilesPage } from './features/usersprofiles/UsersProfilesPage';
 import { useAuth } from './context/AuthContext';
+import { useParams, useLocation } from 'react-router-dom';
 
 // Old Settings route: Super Admin → Admin Users, everyone else → Dashboard.
 function SettingsRedirect() {
   const { user } = useAuth();
   return <Navigate to={user?.role === 'super_admin' ? '/admin/admin-users' : '/admin/dashboard'} replace />;
+}
+
+// Redirect an old detail route to the merged Users & Profiles detail route.
+function DetailRedirect({ kind, param }: { kind: 'user' | 'portfolio'; param: 'userId' | 'portfolioId' }) {
+  const p = useParams();
+  const { search } = useLocation();
+  return <Navigate to={`/admin/users-profiles/${kind}/${p[param]}${search}`} replace />;
 }
 
 export default function App() {
@@ -57,12 +63,19 @@ export default function App() {
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="users/:userId" element={<UserDetailPage />} />
-          <Route path="catalogue" element={<CataloguePage />} />
+          {/* Unified Users & Profiles module */}
+          <Route path="users-profiles" element={<UsersProfilesPage />} />
+          <Route path="users-profiles/user/:userId" element={<UserDetailPage />} />
+          <Route path="users-profiles/portfolio/:portfolioId" element={<PortfolioReviewPage />} />
+          <Route path="users-profiles/catalogue/:portfolioId" element={<PortfolioReviewPage />} />
+
+          {/* Old routes → merged module */}
+          <Route path="users" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
+          <Route path="users/:userId" element={<DetailRedirect kind="user" param="userId" />} />
+          <Route path="catalogue" element={<Navigate to="/admin/users-profiles?tab=catalogue" replace />} />
+          <Route path="portfolios" element={<Navigate to="/admin/users-profiles?tab=portfolios" replace />} />
+          <Route path="portfolios/:portfolioId" element={<DetailRedirect kind="portfolio" param="portfolioId" />} />
           <Route path="categories" element={<CategoriesPage />} />
-          <Route path="portfolios" element={<PortfoliosPage />} />
-          <Route path="portfolios/:portfolioId" element={<PortfolioReviewPage />} />
           <Route path="archive" element={<ArchivePage />} />
           <Route path="archive/:archiveId" element={<Navigate to="/admin/archive" replace />} />
           <Route path="events" element={<EventsPage />} />
@@ -89,11 +102,11 @@ export default function App() {
           <Route path="admin-users/:adminId" element={<AdminUserDetailPage />} />
           <Route path="settings" element={<SettingsRedirect />} />
 
-          {/* Retired modules — safely redirect old URLs to Users */}
-          <Route path="memberships" element={<Navigate to="/admin/users" replace />} />
-          <Route path="memberships/:membershipId" element={<Navigate to="/admin/users" replace />} />
-          <Route path="support" element={<Navigate to="/admin/users" replace />} />
-          <Route path="audit-log" element={<Navigate to="/admin/users" replace />} />
+          {/* Retired modules — safely redirect old URLs */}
+          <Route path="memberships" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
+          <Route path="memberships/:membershipId" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
+          <Route path="support" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
+          <Route path="audit-log" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
         </Route>
 
         {/* Root + fallback */}
