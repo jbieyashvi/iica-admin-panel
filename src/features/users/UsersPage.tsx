@@ -1,13 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  Ban,
   Eye,
-  FolderOpen,
-  Activity as ActivityIcon,
-  RotateCcw,
   Search,
-  ShoppingCart,
   Users as UsersIcon,
   X,
 } from 'lucide-react';
@@ -19,11 +14,7 @@ import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { AccountTypeBadge, MembershipStatusBadge } from '../../components/ui/StatusBadge';
-import { SuspendModal } from './SuspendModal';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { useData, reactivateUser } from '../../data/store';
-import { useActor } from '../../lib/useActor';
-import { toast } from '../../components/ui/toast';
+import { useData } from '../../data/store';
 import { formatDate } from '../../lib/format';
 import {
   ACCOUNT_TYPES,
@@ -32,8 +23,6 @@ import {
   MEMBERSHIP_STATUS_LABEL,
 } from '../../config/userLabels';
 import { MEMBERSHIP_CATEGORIES } from '../../mock/dashboard';
-import { RESTRICTED_HINT } from '../../lib/abilities';
-import type { UserRecord } from '../../types/users';
 
 const SORTS = [
   { key: 'newest', label: 'Newest' },
@@ -44,17 +33,14 @@ const SORTS = [
 
 export function UsersPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { users } = useData();
-  const { abilities, actor } = useActor();
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
 
-  const [suspendTarget, setSuspendTarget] = useState<UserRecord | null>(null);
-  const [reactivateTarget, setReactivateTarget] = useState<UserRecord | null>(null);
-
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
-  const type = get('type', 'all');
+  // Accept `accountType` as an alias for `type` (old catalogue/portfolio redirects).
+  const type = params.get('type') ?? params.get('accountType') ?? 'all';
   const cat = get('cat', 'all');
   const status = get('status', 'all');
   const loc = get('loc', 'all');
@@ -129,15 +115,8 @@ export function UsersPage({ embedded = false }: { embedded?: boolean } = {}) {
     setParams(next, { replace: true });
   };
 
-  const openDetail = (id: string, tab?: string) => {
-    navigate(`/admin/users-profiles/user/${id}${tab ? `?tab=${tab}` : ''}`, { state: { from: `/admin/users-profiles${location.search}` } });
-  };
-
-  const doReactivate = () => {
-    if (!reactivateTarget) return;
-    reactivateUser(reactivateTarget.id, actor);
-    toast(`${reactivateTarget.name}'s account reactivated.`);
-    setReactivateTarget(null);
+  const openDetail = (id: string) => {
+    navigate(`/admin/users/${id}`, { state: { from: `/admin/users${location.search}` } });
   };
 
   const selectCls = 'text-sm';
@@ -147,7 +126,7 @@ export function UsersPage({ embedded = false }: { embedded?: boolean } = {}) {
       {!embedded && (
         <PageHeader
           title="Users"
-          description="Manage guests, registered users and creator accounts."
+          description="Manage guests, registered users and creator memberships."
         />
       )}
 
@@ -288,27 +267,7 @@ export function UsersPage({ embedded = false }: { embedded?: boolean } = {}) {
                     <div className="flex justify-end">
                       <DropdownMenu
                         items={[
-                          { label: 'View Details', icon: <Eye className="h-4 w-4" />, onClick: () => openDetail(u.id) },
-                          { label: 'View Portfolio', icon: <FolderOpen className="h-4 w-4" />, onClick: () => openDetail(u.id, 'portfolio') },
-                          { label: 'View Orders', icon: <ShoppingCart className="h-4 w-4" />, onClick: () => openDetail(u.id, 'purchases') },
-                          { label: 'View Activity', icon: <ActivityIcon className="h-4 w-4" />, onClick: () => openDetail(u.id, 'activity') },
-                          { divider: true, label: 'd' },
-                          u.membershipStatus === 'suspended'
-                            ? {
-                                label: 'Reactivate Account',
-                                icon: <RotateCcw className="h-4 w-4" />,
-                                onClick: () => setReactivateTarget(u),
-                                disabled: !abilities.suspendUsers,
-                                disabledHint: RESTRICTED_HINT,
-                              }
-                            : {
-                                label: 'Suspend Account',
-                                icon: <Ban className="h-4 w-4" />,
-                                danger: true,
-                                onClick: () => setSuspendTarget(u),
-                                disabled: !abilities.suspendUsers,
-                                disabledHint: RESTRICTED_HINT,
-                              },
+                          { label: 'View User', icon: <Eye className="h-4 w-4" />, onClick: () => openDetail(u.id) },
                         ]}
                       />
                     </div>
@@ -342,16 +301,6 @@ export function UsersPage({ embedded = false }: { embedded?: boolean } = {}) {
           />
         )}
       </div>
-
-      <SuspendModal user={suspendTarget} open={!!suspendTarget} onClose={() => setSuspendTarget(null)} />
-      <ConfirmDialog
-        open={!!reactivateTarget}
-        title={`Reactivate ${reactivateTarget?.name ?? 'account'}?`}
-        description="This restores the account and, where applicable, its active membership."
-        confirmLabel="Reactivate"
-        onConfirm={doReactivate}
-        onCancel={() => setReactivateTarget(null)}
-      />
     </div>
   );
 }

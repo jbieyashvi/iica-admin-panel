@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { LoginPage } from './features/auth/LoginPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
+import { UsersPage } from './features/users/UsersPage';
 import { UserDetailPage } from './features/users/UserDetailPage';
 import { CategoriesPage } from './features/categories/CategoriesPage';
 import { PortfolioReviewPage } from './features/portfolios/PortfolioReviewPage';
@@ -26,9 +27,8 @@ import { BannersPage } from './features/appcontent/BannersPage';
 import { AdminUsersPage } from './features/adminusers/AdminUsersPage';
 import { AdminUserDetailPage } from './features/adminusers/AdminUserDetailPage';
 import { NotFound } from './features/common/NotFound';
-import { UsersProfilesPage } from './features/usersprofiles/UsersProfilesPage';
 import { useAuth } from './context/AuthContext';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useSearchParams } from 'react-router-dom';
 
 // Old Settings route: Super Admin → Admin Users, everyone else → Dashboard.
 function SettingsRedirect() {
@@ -36,11 +36,20 @@ function SettingsRedirect() {
   return <Navigate to={user?.role === 'super_admin' ? '/admin/admin-users' : '/admin/dashboard'} replace />;
 }
 
-// Redirect an old detail route to the merged Users & Profiles detail route.
+// Old merged-module list route → Users (catalogue/portfolios tabs → creator filter).
+function UsersProfilesRedirect() {
+  const [sp] = useSearchParams();
+  const tab = sp.get('tab');
+  const to = tab === 'catalogue' || tab === 'portfolios' ? '/admin/users?accountType=creator' : '/admin/users';
+  return <Navigate to={to} replace />;
+}
+
+// Old detail routes → the connected Users detail / read-only portfolio.
 function DetailRedirect({ kind, param }: { kind: 'user' | 'portfolio'; param: 'userId' | 'portfolioId' }) {
   const p = useParams();
   const { search } = useLocation();
-  return <Navigate to={`/admin/users-profiles/${kind}/${p[param]}${search}`} replace />;
+  const base = kind === 'user' ? '/admin/users' : '/admin/portfolios';
+  return <Navigate to={`${base}/${p[param]}${search}`} replace />;
 }
 
 export default function App() {
@@ -63,18 +72,19 @@ export default function App() {
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          {/* Unified Users & Profiles module */}
-          <Route path="users-profiles" element={<UsersProfilesPage />} />
-          <Route path="users-profiles/user/:userId" element={<UserDetailPage />} />
-          <Route path="users-profiles/portfolio/:portfolioId" element={<PortfolioReviewPage />} />
-          <Route path="users-profiles/catalogue/:portfolioId" element={<PortfolioReviewPage />} />
+          {/* Users is the single user / profile module */}
+          <Route path="users" element={<UsersPage />} />
+          <Route path="users/:userId" element={<UserDetailPage />} />
+          {/* Read-only creator portfolio, opened from a User's Portfolio tab */}
+          <Route path="portfolios/:portfolioId" element={<PortfolioReviewPage />} />
 
-          {/* Old routes → merged module */}
-          <Route path="users" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
-          <Route path="users/:userId" element={<DetailRedirect kind="user" param="userId" />} />
-          <Route path="catalogue" element={<Navigate to="/admin/users-profiles?tab=catalogue" replace />} />
-          <Route path="portfolios" element={<Navigate to="/admin/users-profiles?tab=portfolios" replace />} />
-          <Route path="portfolios/:portfolioId" element={<DetailRedirect kind="portfolio" param="portfolioId" />} />
+          {/* Old merged / separate routes → Users */}
+          <Route path="users-profiles" element={<UsersProfilesRedirect />} />
+          <Route path="users-profiles/user/:userId" element={<DetailRedirect kind="user" param="userId" />} />
+          <Route path="users-profiles/portfolio/:portfolioId" element={<DetailRedirect kind="portfolio" param="portfolioId" />} />
+          <Route path="users-profiles/catalogue/:portfolioId" element={<DetailRedirect kind="portfolio" param="portfolioId" />} />
+          <Route path="catalogue" element={<Navigate to="/admin/users?accountType=creator" replace />} />
+          <Route path="portfolios" element={<Navigate to="/admin/users?accountType=creator" replace />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="archive" element={<ArchivePage />} />
           <Route path="archive/:archiveId" element={<Navigate to="/admin/archive" replace />} />
@@ -103,10 +113,10 @@ export default function App() {
           <Route path="settings" element={<SettingsRedirect />} />
 
           {/* Retired modules — safely redirect old URLs */}
-          <Route path="memberships" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
-          <Route path="memberships/:membershipId" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
-          <Route path="support" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
-          <Route path="audit-log" element={<Navigate to="/admin/users-profiles?tab=users" replace />} />
+          <Route path="memberships" element={<Navigate to="/admin/users" replace />} />
+          <Route path="memberships/:membershipId" element={<Navigate to="/admin/users" replace />} />
+          <Route path="support" element={<Navigate to="/admin/users" replace />} />
+          <Route path="audit-log" element={<Navigate to="/admin/users" replace />} />
         </Route>
 
         {/* Root + fallback */}

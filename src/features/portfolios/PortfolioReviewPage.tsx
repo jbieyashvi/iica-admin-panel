@@ -41,7 +41,7 @@ export function PortfolioReviewPage() {
   const [device, setDevice] = useState<'mobile' | 'desktop'>('desktop');
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
 
-  const backSearch = (location.state as { from?: string } | null)?.from ?? '/admin/users-profiles?tab=portfolios';
+  const backSearch = (location.state as { from?: string } | null)?.from ?? '/admin/users';
 
   const checklist = useMemo(
     () => (portfolio ? completionChecklist(portfolio.content, true, true) : []),
@@ -51,7 +51,7 @@ export function PortfolioReviewPage() {
   if (!portfolio) {
     return (
       <div>
-        <Link to="/admin/users-profiles?tab=portfolios" className="mb-4 inline-flex items-center gap-1.5 text-sm text-charcoal-muted hover:text-charcoal">
+        <Link to="/admin/users" className="mb-4 inline-flex items-center gap-1.5 text-sm text-charcoal-muted hover:text-charcoal">
           <ArrowLeft className="h-4 w-4" /> Back to Users & Profiles
         </Link>
         <div className="card"><EmptyState title="Portfolio not found" description="This record may have been removed." /></div>

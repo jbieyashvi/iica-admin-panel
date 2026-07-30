@@ -38,7 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'People & Profiles',
     items: [
-      { label: 'Users & Profiles', to: '/admin/users-profiles', icon: Users, permission: 'manage_users' },
+      { label: 'Users', to: '/admin/users', icon: Users, permission: 'manage_users' },
       { label: 'Collaborations', to: '/admin/collaborations', icon: Handshake, permission: 'manage_collaborations' },
     ],
   },
@@ -74,12 +74,11 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// Module-search aliases so searching "Users", "Catalogue" or "Portfolios"
-// opens the matching tab inside the merged Users & Profiles module.
+// Module-search aliases: searching "Catalogue" or "Portfolio" opens the
+// Creator Members view in Users (creator profile info lives in User Details).
 export const SEARCH_ALIASES: NavItem[] = [
-  { label: 'Users', to: '/admin/users-profiles?tab=users', icon: Users, permission: 'manage_users' },
-  { label: 'Creator Catalogue', to: '/admin/users-profiles?tab=catalogue', icon: LayoutGrid, permission: 'manage_catalogue' },
-  { label: 'Portfolios', to: '/admin/users-profiles?tab=portfolios', icon: FolderOpen, permission: 'moderate_portfolios' },
+  { label: 'Creator Catalogue — in User Details', to: '/admin/users?accountType=creator', icon: LayoutGrid, permission: 'manage_users' },
+  { label: 'Portfolios — in User Details', to: '/admin/users?accountType=creator', icon: FolderOpen, permission: 'manage_users' },
 ];
 
 // Flat lookup for breadcrumbs.
