@@ -1369,23 +1369,43 @@ export type { AdminUserRecord };
 // Membership regional pricing
 // ===========================================================================
 
+type MembershipPriceRecord = import('../types/pricing').MembershipPriceRecord;
+type PriceStatus = import('../types/pricing').PriceStatus;
+
+// An active price already exists for the same Category + Plan + Country/Region.
+export function duplicateActivePrice(input: { category: string; plan: string; country: string }, exceptId?: string): boolean {
+  return state.membershipPricing.some((x) =>
+    x.id !== exceptId && x.status === 'active' &&
+    x.category === input.category && x.plan === input.plan && x.country === input.country);
+}
+
+export function addMembershipPrice(input: Omit<MembershipPriceRecord, 'id' | 'updatedAt'>, _actor: AdminActor): boolean {
+  if (input.price <= 0) return false;
+  if (input.status === 'active' && duplicateActivePrice(input)) return false;
+  const rec: MembershipPriceRecord = { ...input, id: uid('mpr'), updatedAt: now() };
+  commit({ ...state, membershipPricing: [rec, ...state.membershipPricing] });
+  return true;
+}
+
 export interface PriceEditInput {
   price?: number;
-  method?: import('../types/pricing').PricingMethod;
-  status?: import('../types/pricing').PriceStatus;
+  status?: PriceStatus;
 }
 
 export function updateMembershipPrice(id: string, patch: PriceEditInput, _actor: AdminActor): boolean {
   const p = state.membershipPricing.find((x) => x.id === id);
   if (!p) return false;
-  if (patch.price != null && patch.price < 0) return false;
-  const next = { ...p, price: patch.price ?? p.price, method: patch.method ?? p.method, status: patch.status ?? p.status, updatedAt: now() };
+  if (patch.price != null && patch.price <= 0) return false;
+  // Re-activating must not create a duplicate active price for the same key.
+  if (patch.status === 'active' && p.status !== 'active' && duplicateActivePrice(p, id)) return false;
+  const next = { ...p, price: patch.price ?? p.price, status: patch.status ?? p.status, updatedAt: now() };
   commit({ ...state, membershipPricing: state.membershipPricing.map((x) => (x.id === id ? next : x)) });
   return true;
 }
 
-export function setMembershipPriceStatus(id: string, status: import('../types/pricing').PriceStatus, _actor: AdminActor) {
+export function setMembershipPriceStatus(id: string, status: PriceStatus, _actor: AdminActor) {
   const p = state.membershipPricing.find((x) => x.id === id);
   if (!p) return;
+  if (status === 'active' && p.status !== 'active' && duplicateActivePrice(p, id)) return;
   commit({ ...state, membershipPricing: state.membershipPricing.map((x) => (x.id === id ? { ...x, status, updatedAt: now() } : x)) });
 }

@@ -1,24 +1,14 @@
 import type { MembershipPriceRecord, MembershipPlan } from '../types/pricing';
 import type { CurrencyCode } from '../config/currency';
-import { fromBase } from '../config/currency';
 
-// Base (INR) prices per plan.
-const BASE_PRICE: Record<MembershipPlan, number> = { Monthly: 499, Annual: 3999, Lifetime: 24999 };
-
-// Region → currency.
-const REGIONS: { country: string; currency: CurrencyCode }[] = [
-  { country: 'India', currency: 'INR' },
-  { country: 'United States', currency: 'USD' },
-  { country: 'United Kingdom', currency: 'GBP' },
-  { country: 'United Arab Emirates', currency: 'AED' },
-  { country: 'European Union', currency: 'EUR' },
+// Final local Membership prices per region (entered directly — no conversion).
+const REGIONS: { country: string; currency: CurrencyCode; prices: Record<MembershipPlan, number> }[] = [
+  { country: 'India', currency: 'INR', prices: { Monthly: 499, Annual: 3999, Lifetime: 24999 } },
+  { country: 'United States', currency: 'USD', prices: { Monthly: 6, Annual: 99, Lifetime: 299 } },
+  { country: 'United Kingdom', currency: 'GBP', prices: { Monthly: 5, Annual: 79, Lifetime: 279 } },
+  { country: 'United Arab Emirates', currency: 'AED', prices: { Monthly: 15, Annual: 175, Lifetime: 999 } },
+  { country: 'European Union', currency: 'EUR', prices: { Monthly: 6, Annual: 89, Lifetime: 269 } },
 ];
-
-// Fixed local prices (Admin-entered) for some regions; the rest use base conversion.
-const FIXED: Partial<Record<string, Record<MembershipPlan, number>>> = {
-  USD: { Monthly: 6, Annual: 49, Lifetime: 299 },
-  GBP: { Monthly: 5, Annual: 45, Lifetime: 279 },
-};
 
 export function buildMembershipPricing(now: number): MembershipPriceRecord[] {
   const categories = ['Artist', 'Model'];
@@ -27,25 +17,16 @@ export function buildMembershipPricing(now: number): MembershipPriceRecord[] {
   const at = new Date(now - 20 * 86400000).toISOString();
   categories.forEach((category) => {
     plans.forEach((plan) => {
+      // Keep Lifetime for Artist only (fewer rows, still believable).
+      if (plan === 'Lifetime' && category !== 'Artist') return;
       REGIONS.forEach((r) => {
-        const basePrice = BASE_PRICE[plan];
-        let method: MembershipPriceRecord['method'] = 'conversion';
-        let price: number;
-        if (r.currency === 'INR') { method = 'fixed'; price = basePrice; }
-        else if (FIXED[r.currency]) { method = 'fixed'; price = FIXED[r.currency]![plan]; }
-        else { method = 'conversion'; price = fromBase(basePrice, r.currency); }
-        // Keep Lifetime for Artist only (fewer rows, still believable).
-        if (plan === 'Lifetime' && category !== 'Artist') return;
         out.push({
           id: `mpr_${category}_${plan}_${r.currency}`.toLowerCase(),
           category,
           plan,
           country: r.country,
           currency: r.currency,
-          price,
-          baseCurrency: 'INR',
-          basePrice,
-          method,
+          price: r.prices[plan],
           status: 'active',
           updatedAt: at,
         });
