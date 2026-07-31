@@ -159,6 +159,7 @@ export interface DataState {
   payoutSettings: import('./payouts').CreatorPayoutSettings[];
   payouts: import('./payouts').PayoutRecord[];
   adminUsers: import('./admins').AdminUserRecord[];
+  membershipPricing: import('./pricing').MembershipPriceRecord[];
   version: number;
 }
 

@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, ExternalLink, Lock, Receipt, Search, User as UserIcon, X } from 'lucide-react';
+import { Eye, ExternalLink, Lock, Receipt, Search, User as UserIcon, Wallet, X } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Select } from '../../components/ui/Field';
+import { Modal } from '../../components/ui/Modal';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { Pagination } from '../../components/ui/Pagination';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -12,10 +13,18 @@ import { PaymentStatusBadge } from '../../components/ui/OrderBadges';
 import { useData } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { buildTransactions } from '../../data/transactions';
-import { formatINR, formatDate } from '../../lib/format';
+import { formatDate } from '../../lib/format';
 import { PAYMENT_STATUSES, PAYMENT_STATUS_LABEL } from '../../config/orderLabels';
-import { SOURCE_LABEL, SOURCE_TONE, SOURCES, PAYMENT_METHODS, SORTS, DATE_RANGES } from '../../config/transactionLabels';
+import {
+  SOURCE_LABEL, SOURCE_TONE, SOURCES, SORTS, DATE_RANGES,
+  SETTLEMENT_STATUS_LABEL, SETTLEMENT_STATUS_TONE, SETTLEMENT_STATUSES,
+} from '../../config/transactionLabels';
+import {
+  CURRENCIES, CURRENCY_COUNTRY, PAYMENT_PROVIDERS, PROTOTYPE_BALANCE_NOTE, formatCurrency,
+} from '../../config/currency';
+import type { CurrencyCode } from '../../config/currency';
 import type { Transaction } from '../../types/transactions';
+import type { SettlementStatus } from '../../types/paymentProvider';
 
 const daysSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 86400000;
 
@@ -25,20 +34,29 @@ function relatedRoute(t: Transaction): string {
   if (t.source === 'event' && t.event) return `/admin/events/${t.event.eventId}`;
   return '/admin/transactions';
 }
+function SettlementBadge({ status }: { status: SettlementStatus }) {
+  return <Badge tone={SETTLEMENT_STATUS_TONE[status]}>{SETTLEMENT_STATUS_LABEL[status]}</Badge>;
+}
 
 export function TransactionsPage() {
   const data = useData();
   const { abilities } = useActor();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const [balanceOpen, setBalanceOpen] = useState(false);
 
   const all = useMemo(() => buildTransactions(data), [data]);
+  const showFinancials = abilities.txnFinancials;
 
   const get = (k: string, d = '') => params.get(k) ?? d;
   const q = get('q');
   const source = get('source', 'all');
   const status = get('status', 'all');
-  const method = get('method', 'all');
+  const settle = get('settle', 'all');
+  const ccy = get('ccy', 'all');
+  const scy = get('scy', 'all');
+  const country = get('country', 'all');
+  const provider = get('provider', 'all');
   const date = get('date', 'any');
   const sort = get('sort', 'newest');
   const page = Number(get('page', '1'));
@@ -62,21 +80,25 @@ export function TransactionsPage() {
       }
       if (source !== 'all' && t.source !== source) return false;
       if (status !== 'all' && t.status !== status) return false;
-      if (method !== 'all' && t.paymentMethod !== method) return false;
+      if (settle !== 'all' && t.settlementStatus !== settle) return false;
+      if (ccy !== 'all' && t.customerCurrency !== ccy) return false;
+      if (scy !== 'all' && t.settlementCurrency !== scy) return false;
+      if (country !== 'all' && t.customerCountry !== country) return false;
+      if (provider !== 'all' && t.provider !== provider) return false;
       if (date !== 'any' && daysSince(t.date) > Number(date)) return false;
       return true;
     });
     list = [...list].sort((a, b) => {
       switch (sort) {
         case 'oldest': return +new Date(a.date) - +new Date(b.date);
-        case 'high': return b.gross - a.gross;
-        case 'low': return a.gross - b.gross;
+        case 'high': return b.baseAmount - a.baseAmount;
+        case 'low': return a.baseAmount - b.baseAmount;
         case 'updated': return +new Date(b.lastUpdatedAt) - +new Date(a.lastUpdatedAt);
         default: return +new Date(b.date) - +new Date(a.date);
       }
     });
     return list;
-  }, [all, q, source, status, method, date, sort]);
+  }, [all, q, source, status, settle, ccy, scy, country, provider, date, sort]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * size, page * size);
@@ -85,13 +107,31 @@ export function TransactionsPage() {
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
   if (source !== 'all') chips.push({ key: 'source', label: SOURCE_LABEL[source as never] });
   if (status !== 'all') chips.push({ key: 'status', label: PAYMENT_STATUS_LABEL[status as never] });
-  if (method !== 'all') chips.push({ key: 'method', label: method });
+  if (settle !== 'all') chips.push({ key: 'settle', label: SETTLEMENT_STATUS_LABEL[settle as SettlementStatus] });
+  if (ccy !== 'all') chips.push({ key: 'ccy', label: `Customer: ${ccy}` });
+  if (scy !== 'all') chips.push({ key: 'scy', label: `Settle: ${scy}` });
+  if (country !== 'all') chips.push({ key: 'country', label: country });
+  if (provider !== 'all') chips.push({ key: 'provider', label: provider });
   if (date !== 'any') chips.push({ key: 'date', label: DATE_RANGES.find((d) => d.key === date)!.label });
 
   const clearAll = () => setParams(new URLSearchParams(), { replace: true });
   const detail = (id: string) => navigate(`/admin/transactions/${id}`, { state: { from: `/admin/transactions?${params.toString()}` } });
   const selectCls = 'text-sm';
-  const showFinancials = abilities.txnFinancials;
+
+  // Per-currency balance overview (prototype). Sums presentment amounts by state.
+  const balances = useMemo(() => {
+    const m = new Map<CurrencyCode, { pending: number; available: number; onHold: number; updatedAt: number }>();
+    all.forEach((t) => {
+      const cur = t.customerCurrency;
+      const row = m.get(cur) ?? { pending: 0, available: 0, onHold: 0, updatedAt: 0 };
+      if (t.settlementStatus === 'pending') row.pending += t.originalAmount;
+      if (t.settlementStatus === 'available') row.available += t.originalAmount;
+      if (t.refundedAmount > 0 && t.settlementStatus !== 'settled') row.onHold += t.originalAmount;
+      row.updatedAt = Math.max(row.updatedAt, +new Date(t.lastUpdatedAt));
+      m.set(cur, row);
+    });
+    return CURRENCIES.filter((c) => m.has(c)).map((c) => ({ cur: c, ...m.get(c)! }));
+  }, [all]);
 
   if (!abilities.txnView) {
     return (
@@ -104,7 +144,11 @@ export function TransactionsPage() {
 
   return (
     <div>
-      <PageHeader title="Transactions" description="View membership, product and event payment transactions." />
+      <PageHeader
+        title="Transactions"
+        description="View membership, product and event payments across currencies and settlement states."
+        actions={showFinancials ? <Button variant="secondary" icon={<Wallet className="h-4 w-4" />} onClick={() => setBalanceOpen(true)}>Balance Overview</Button> : undefined}
+      />
 
       <div className="card mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -122,12 +166,28 @@ export function TransactionsPage() {
             {SOURCES.map((s) => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
           </Select>
           <Select className={selectCls} value={status} onChange={(e) => update({ status: e.target.value })}>
-            <option value="all">All statuses</option>
+            <option value="all">All payment status</option>
             {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{PAYMENT_STATUS_LABEL[s]}</option>)}
           </Select>
-          <Select className={selectCls} value={method} onChange={(e) => update({ method: e.target.value })}>
-            <option value="all">All payment methods</option>
-            {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+          <Select className={selectCls} value={settle} onChange={(e) => update({ settle: e.target.value })}>
+            <option value="all">All settlement status</option>
+            {SETTLEMENT_STATUSES.map((s) => <option key={s} value={s}>{SETTLEMENT_STATUS_LABEL[s]}</option>)}
+          </Select>
+          <Select className={selectCls} value={ccy} onChange={(e) => update({ ccy: e.target.value })}>
+            <option value="all">All customer currencies</option>
+            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </Select>
+          <Select className={selectCls} value={scy} onChange={(e) => update({ scy: e.target.value })}>
+            <option value="all">All settlement currencies</option>
+            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </Select>
+          <Select className={selectCls} value={country} onChange={(e) => update({ country: e.target.value })}>
+            <option value="all">All customer countries</option>
+            {CURRENCIES.map((c) => <option key={c} value={CURRENCY_COUNTRY[c]}>{CURRENCY_COUNTRY[c]}</option>)}
+          </Select>
+          <Select className={selectCls} value={provider} onChange={(e) => update({ provider: e.target.value })}>
+            <option value="all">All providers</option>
+            {PAYMENT_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
           </Select>
           <Select className={selectCls} value={date} onChange={(e) => update({ date: e.target.value })}>
             {DATE_RANGES.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
@@ -145,18 +205,17 @@ export function TransactionsPage() {
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1120px] text-sm">
+          <table className="w-full min-w-[1100px] text-sm">
             <thead>
               <tr className="border-b border-cream-200 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-muted">
                 <th className="px-4 py-3">Transaction</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">User / Buyer</th>
                 <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Reference</th>
-                <th className="px-4 py-3">Payment Method</th>
-                <th className="px-4 py-3 text-right">Gross</th>
-                <th className="px-4 py-3 text-right">Platform Revenue</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Original Amount</th>
+                <th className="px-4 py-3 text-right">Settlement Amount</th>
+                <th className="px-4 py-3">Payment Status</th>
+                <th className="px-4 py-3">Settlement Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -165,20 +224,17 @@ export function TransactionsPage() {
                 <tr key={t.id} className="group hover:bg-cream-100/50">
                   <td className="px-4 py-3">
                     <button onClick={() => detail(t.id)} className="font-medium text-charcoal group-hover:text-magenta-700">{t.id}</button>
+                    {t.isInternational && <Badge tone="blue" className="ml-2">Intl</Badge>}
                   </td>
                   <td className="px-4 py-3 text-charcoal-muted">{formatDate(t.date)}</td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-1.5 text-charcoal">{t.buyerName}{t.buyerType === 'guest' && <Badge tone="neutral">Guest</Badge>}</span>
                   </td>
                   <td className="px-4 py-3"><Badge tone={SOURCE_TONE[t.source]}>{SOURCE_LABEL[t.source]}</Badge></td>
-                  <td className="px-4 py-3">
-                    <span className="block max-w-[180px] truncate text-charcoal">{t.refTitle}</span>
-                    <span className="block text-xs text-charcoal-muted">{t.refSub}</span>
-                  </td>
-                  <td className="px-4 py-3 text-charcoal">{t.paymentMethod}</td>
-                  <td className="px-4 py-3 text-right font-medium text-charcoal">{formatINR(t.gross)}</td>
-                  <td className="px-4 py-3 text-right text-charcoal-muted">{showFinancials ? (t.source === 'membership' ? formatINR(t.netCollected) : formatINR(t.commission)) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-medium text-charcoal">{formatCurrency(t.originalAmount, t.customerCurrency)}</td>
+                  <td className="px-4 py-3 text-right text-charcoal-muted">{showFinancials ? formatCurrency(t.netSettlement, t.settlementCurrency) : '—'}</td>
                   <td className="px-4 py-3"><PaymentStatusBadge status={t.status} /></td>
+                  <td className="px-4 py-3">{showFinancials ? <SettlementBadge status={t.settlementStatus} /> : <span className="text-charcoal-muted">—</span>}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
                       <DropdownMenu
@@ -202,6 +258,47 @@ export function TransactionsPage() {
           <Pagination page={page} pageSize={size} total={total} onPage={(p) => update({ page: String(p) }, false)} onPageSize={(n) => update({ size: String(n) })} />
         )}
       </div>
+
+      {showFinancials && <p className="mt-3 text-xs text-charcoal-muted">{PROTOTYPE_BALANCE_NOTE}</p>}
+
+      {/* Balance Overview (prototype) */}
+      <Modal
+        open={balanceOpen}
+        onClose={() => setBalanceOpen(false)}
+        title="Balance Overview"
+        description="Prototype per-currency balances. Not a live provider balance."
+        size="lg"
+        footer={<>
+          <Button variant="secondary" disabled title="Available after Stripe connection">Open Stripe Dashboard</Button>
+          <Button onClick={() => setBalanceOpen(false)}>Close</Button>
+        </>}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead>
+              <tr className="border-b border-cream-200 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-muted">
+                <th className="px-3 py-2.5">Currency</th>
+                <th className="px-3 py-2.5 text-right">Pending Balance</th>
+                <th className="px-3 py-2.5 text-right">Available Balance</th>
+                <th className="px-3 py-2.5 text-right">Funds on Hold</th>
+                <th className="px-3 py-2.5">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-cream-200">
+              {balances.map((b) => (
+                <tr key={b.cur}>
+                  <td className="px-3 py-2.5 font-medium text-charcoal">{b.cur}</td>
+                  <td className="px-3 py-2.5 text-right text-charcoal">{formatCurrency(b.pending, b.cur)}</td>
+                  <td className="px-3 py-2.5 text-right text-charcoal">{formatCurrency(b.available, b.cur)}</td>
+                  <td className="px-3 py-2.5 text-right text-charcoal-muted">{formatCurrency(b.onHold, b.cur)}</td>
+                  <td className="px-3 py-2.5 text-charcoal-muted">{b.updatedAt ? formatDate(new Date(b.updatedAt).toISOString()) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-charcoal-muted">{PROTOTYPE_BALANCE_NOTE} “Open Stripe Dashboard” becomes available after the Stripe connection is configured.</p>
+      </Modal>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowDown,
   ArrowUp,
@@ -27,13 +27,18 @@ import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import { formatDate } from '../../lib/format';
 import { RESTRICTED_HINT } from '../../lib/abilities';
+import { Tabs } from '../../components/ui/Tabs';
 import { AddCategoryModal, EditDescriptionModal, DeactivateCategoryModal, CategoryDrawer } from './CategoryModals';
+import { PricingCurrencyTab } from './PricingCurrencyTab';
 import type { CategoryRecord } from '../../types/portfolio';
 
 export function CategoriesPage() {
   const { categories, users, memberships } = useData();
   const { abilities, actor } = useActor();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'pricing' ? 'pricing' : 'categories';
+  const setTab = (t: string) => { const n = new URLSearchParams(params); if (t === 'categories') n.delete('tab'); else n.set('tab', t); setParams(n, { replace: true }); };
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategoryRecord | null>(null);
@@ -60,14 +65,20 @@ export function CategoriesPage() {
         title="Membership Categories"
         description="Centrally controlled profile categories shared with the IICA app."
         actions={
-          <Tooltip label={abilities.manageCategories ? '' : RESTRICTED_HINT} side="bottom">
-            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.manageCategories}>
-              Add Category
-            </Button>
-          </Tooltip>
+          tab === 'categories' ? (
+            <Tooltip label={abilities.manageCategories ? '' : RESTRICTED_HINT} side="bottom">
+              <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddOpen(true)} disabled={!abilities.manageCategories}>
+                Add Category
+              </Button>
+            </Tooltip>
+          ) : undefined
         }
       />
 
+      <div className="mb-5"><Tabs tabs={[{ key: 'categories', label: 'Categories' }, { key: 'pricing', label: 'Pricing & Currency' }]} active={tab} onChange={setTab} /></div>
+
+      {tab === 'pricing' ? <PricingCurrencyTab /> : (
+      <>
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
@@ -178,6 +189,8 @@ export function CategoriesPage() {
       <EditDescriptionModal category={editTarget} onClose={() => setEditTarget(null)} />
       <DeactivateCategoryModal category={deactivateTarget} usage={deactivateTarget ? categoryUsage(deactivateTarget.name) : 0} onClose={() => setDeactivateTarget(null)} />
       <CategoryDrawer category={detailTarget} counts={counts} onClose={() => setDetailTarget(null)} />
+      </>
+      )}
     </div>
   );
 }

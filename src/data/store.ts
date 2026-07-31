@@ -114,7 +114,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers);
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers) && Array.isArray(stored.membershipPricing);
   if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1364,3 +1364,28 @@ export function recordAdminLogin(id: string) {
 }
 
 export type { AdminUserRecord };
+
+// ===========================================================================
+// Membership regional pricing
+// ===========================================================================
+
+export interface PriceEditInput {
+  price?: number;
+  method?: import('../types/pricing').PricingMethod;
+  status?: import('../types/pricing').PriceStatus;
+}
+
+export function updateMembershipPrice(id: string, patch: PriceEditInput, _actor: AdminActor): boolean {
+  const p = state.membershipPricing.find((x) => x.id === id);
+  if (!p) return false;
+  if (patch.price != null && patch.price < 0) return false;
+  const next = { ...p, price: patch.price ?? p.price, method: patch.method ?? p.method, status: patch.status ?? p.status, updatedAt: now() };
+  commit({ ...state, membershipPricing: state.membershipPricing.map((x) => (x.id === id ? next : x)) });
+  return true;
+}
+
+export function setMembershipPriceStatus(id: string, status: import('../types/pricing').PriceStatus, _actor: AdminActor) {
+  const p = state.membershipPricing.find((x) => x.id === id);
+  if (!p) return;
+  commit({ ...state, membershipPricing: state.membershipPricing.map((x) => (x.id === id ? { ...x, status, updatedAt: now() } : x)) });
+}

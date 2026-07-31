@@ -1,5 +1,7 @@
 import type { OrderPaymentStatus } from './orders';
 import type { ProductType } from './products';
+import type { CurrencyCode } from '../config/currency';
+import type { SettlementStatus } from './paymentProvider';
 
 // ---------------------------------------------------------------------------
 // Transactions are a VIEW-MODEL derived from existing Memberships, Product
@@ -60,6 +62,25 @@ export interface Transaction {
 
   refundRef?: string | null;
   refundCompletedAt?: string | null;
+
+  // ---- Multi-currency + settlement (prototype, illustrative) ----
+  customerCurrency: CurrencyCode;   // presentment currency the buyer paid in
+  customerCountry: string;
+  originalAmount: number;           // gross in the customer's currency
+  baseCurrency: CurrencyCode;       // platform base = INR
+  baseAmount: number;               // gross converted to base (INR)
+  exchangeRate: number;             // customer → base (INR per 1 unit)
+  exchangeRateAt: string;
+  provider: string;                 // payment provider (prototype)
+  providerFee: number;              // base currency
+  fxFee: number;                    // base currency
+  grossSettlement: number;          // retained base amount before provider fees
+  netSettlement: number;            // grossSettlement - provider fees
+  settlementCurrency: CurrencyCode; // = base (INR)
+  settlementStatus: SettlementStatus;
+  availableOn?: string | null;
+  settlementDate?: string | null;
+  isInternational: boolean;         // customerCurrency !== settlementCurrency
 
   membership?: { userId: string; iicaId?: string; category?: string; plan: string; platform: string; startDate?: string | null; renewalDate?: string | null };
   product?: { orderId: string; productId: string; productTitle: string; productType: ProductType; quantity: number; sellerName: string; sellerUserId: string };

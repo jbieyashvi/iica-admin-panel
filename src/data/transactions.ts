@@ -1,7 +1,26 @@
 import type { DataState } from '../types/users';
 import type { Transaction, TxnStatus, PaymentMethod, BuyerKind } from '../types/transactions';
+import type { SettlementStatus } from '../types/paymentProvider';
 import { COMMISSION_RATE } from '../config/productLabels';
 import { EVENT_COMMISSION_RATE } from '../config/transactionLabels';
+import {
+  BASE_CURRENCY, CURRENCIES, CURRENCY_COUNTRY, FX_RATE_TO_INR, FX_RATE_TIMESTAMP,
+  PROCESSING_FEE_RATE, FX_FEE_RATE, fromBase,
+} from '../config/currency';
+import type { CurrencyCode } from '../config/currency';
+
+const asCurrency = (c: string): CurrencyCode => (CURRENCIES as string[]).includes(c) ? (c as CurrencyCode) : 'INR';
+// Deterministic presentment currency for product/event transactions (memberships
+// use their real region currency). Prototype spread so international examples exist.
+const POOL: CurrencyCode[] = ['INR', 'INR', 'INR', 'INR', 'USD', 'GBP', 'AED', 'EUR'];
+// Stable overrides that guarantee specific prototype example rows.
+const CUR_OVERRIDE: Record<string, CurrencyCode> = {
+  ord_pr1: 'GBP', // partially-refunded international (product)
+  ord_p3: 'USD',
+  ord_r1: 'EUR',  // EUR with FX fee
+  ord_p7: 'AED',  // failed international
+};
+const daysSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 86400000;
 
 const hash = (s: string) => {
   let h = 2166136261;
@@ -49,7 +68,65 @@ function membershipStatus(s: string): TxnStatus | null {
   }
 }
 
-interface Raw extends Omit<Transaction, 'id'> {}
+// Raw = the core (pre-currency-enrichment) transaction fields.
+type SettlementKeys =
+  | 'customerCurrency' | 'customerCountry' | 'originalAmount' | 'baseCurrency' | 'baseAmount'
+  | 'exchangeRate' | 'exchangeRateAt' | 'provider' | 'providerFee' | 'fxFee' | 'grossSettlement'
+  | 'netSettlement' | 'settlementCurrency' | 'settlementStatus' | 'availableOn' | 'settlementDate' | 'isInternational';
+interface Raw extends Omit<Transaction, 'id' | SettlementKeys> {}
+
+// Compute the illustrative currency + settlement layer for a transaction.
+function enrich(r: Raw): Pick<Transaction, SettlementKeys> {
+  const cur: CurrencyCode = r.source === 'membership'
+    ? asCurrency(r.currency)
+    : (CUR_OVERRIDE[r.refSub] ?? POOL[hash(r.refSub) % POOL.length]);
+  const rate = FX_RATE_TO_INR[cur];
+  // Membership amounts are stored in the local currency; product/event amounts are INR.
+  const factor = r.source === 'membership' ? rate : 1;
+  const baseAmount = Math.round(r.gross * factor);
+  const grossSettlement = Math.round(r.netCollected * factor);
+  const originalAmount = r.source === 'membership' ? r.gross : fromBase(r.gross, cur);
+  const intl = cur !== BASE_CURRENCY;
+  const collectible = r.status === 'paid' || r.status === 'partially_refunded' || r.status === 'refunded';
+  const providerFee = collectible ? Math.round(baseAmount * PROCESSING_FEE_RATE) : 0;
+  const fxFee = collectible && intl ? Math.round(baseAmount * FX_FEE_RATE) : 0;
+  const netSettlement = Math.max(0, grossSettlement - providerFee - fxFee);
+
+  let settlementStatus: SettlementStatus;
+  let availableOn: string | null = null;
+  let settlementDate: string | null = null;
+  const age = daysSince(r.date);
+  if (r.status === 'failed') settlementStatus = 'failed';
+  else if (r.status === 'cancelled' || r.status === 'initiated' || r.status === 'pending') settlementStatus = 'na';
+  else if (r.status === 'refunded') { settlementStatus = 'settled'; settlementDate = r.refundCompletedAt ?? r.date; }
+  else if (age > 21) { settlementStatus = 'settled'; settlementDate = new Date(new Date(r.date).getTime() + 3 * 86400000).toISOString(); }
+  else if (age > 7) settlementStatus = 'available';
+  else { settlementStatus = 'pending'; availableOn = new Date(new Date(r.date).getTime() + 7 * 86400000).toISOString(); }
+
+  const provider = r.paymentMethod === 'Apple App Store' ? 'Apple App Store'
+    : r.paymentMethod === 'Google Play' ? 'Google Play'
+    : intl ? 'Stripe (Prototype)' : 'Razorpay (Prototype)';
+
+  return {
+    customerCurrency: cur,
+    customerCountry: CURRENCY_COUNTRY[cur],
+    originalAmount,
+    baseCurrency: BASE_CURRENCY,
+    baseAmount,
+    exchangeRate: rate,
+    exchangeRateAt: FX_RATE_TIMESTAMP,
+    provider,
+    providerFee,
+    fxFee,
+    grossSettlement,
+    netSettlement,
+    settlementCurrency: BASE_CURRENCY,
+    settlementStatus,
+    availableOn,
+    settlementDate,
+    isInternational: intl,
+  };
+}
 
 export function buildTransactions(state: DataState): Transaction[] {
   const { users, memberships, productOrders, orders, events } = state;
@@ -166,12 +243,12 @@ export function buildTransactions(state: DataState): Transaction[] {
     const t = +new Date(a.date) - +new Date(b.date);
     return t !== 0 ? t : (a.refSub < b.refSub ? -1 : 1);
   });
-  return raws.map((r, i) => ({ ...r, id: `TXN-IICA-${1001 + i}` }));
+  return raws.map((r, i) => ({ ...r, id: `TXN-IICA-${1001 + i}`, ...enrich(r) }));
 }
 
-// Eligible net platform revenue (paid + partially-refunded retained, minus
-// completed refunds). Matches the dashboard revenue rule.
+// Eligible net platform revenue in BASE currency (paid + partially-refunded
+// retained, minus completed refunds). Matches the dashboard revenue rule.
 export function transactionRevenue(t: Transaction): number {
-  if (t.status === 'paid' || t.status === 'partially_refunded') return Math.max(0, t.netCollected);
+  if (t.status === 'paid' || t.status === 'partially_refunded') return Math.max(0, t.grossSettlement);
   return 0;
 }

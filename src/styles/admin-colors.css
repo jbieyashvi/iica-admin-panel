@@ -1,0 +1,98 @@
+/* ---------------------------------------------------------------------------
+ * IICA Admin Panel — colour tokens (reference only).
+ *
+ * Exact values audited from the current codebase:
+ *   tailwind.config.js, src/index.css, Badge/StatusBadge/Button,
+ *   DashboardCharts.tsx, bannerLabels.ts, TicketOrderDrawer.tsx.
+ *
+ * NOT imported into the app. Do not replace existing styles. Reference/hand-off
+ * only. Tailwind tokens (magenta/charcoal/cream) remain the live source.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* Brand */
+  --color-primary: #C2186B;          /* magenta.500 — primary accent */
+  --color-primary-hover: #a8145d;    /* magenta.600 — button hover/active */
+  --color-primary-active: #8a1049;   /* magenta.700 — pressed / badge text */
+  --color-primary-soft: #fdf2f8;     /* magenta.50 — tint / active nav bg */
+  --color-primary-100: #fce7f1;      /* magenta.100 */
+  --color-primary-200: #fbcfe3;      /* magenta.200 */
+  --color-primary-300: #f9a8cd;      /* magenta.300 — disabled primary btn */
+  --color-primary-400: #f472ad;      /* magenta.400 */
+  --color-primary-800: #6f0e3c;      /* magenta.800 */
+  --color-primary-900: #5c0d33;      /* magenta.900 */
+  --color-primary-tint: #E9A5C6;     /* chart secondary (MAGENTA_LIGHT) */
+
+  /* Backgrounds and surfaces */
+  --color-page-background: #FAF8F5;  /* cream.DEFAULT — app shell */
+  --color-surface: #ffffff;          /* cards, modals, inputs */
+  --color-surface-muted: #F4F1EC;    /* cream.100 — sub-surface / row hover */
+
+  /* Text */
+  --color-text-primary: #211E1D;     /* charcoal.DEFAULT */
+  --color-text-strong: #3a3634;      /* charcoal.light */
+  --color-text-secondary: #6b6560;   /* charcoal.muted */
+  --color-text-on-primary: #ffffff;  /* text/icon on magenta button */
+
+  /* Borders and dividers */
+  --color-border: #ECE7DF;           /* cream.200 — global divider/border */
+
+  /* Status */
+  --color-success: #047857;          /* emerald-700 */
+  --color-success-bg: #ecfdf5;       /* emerald-50 */
+  --color-success-border: #d1fae5;   /* emerald-100 */
+  --color-success-solid: #10b981;    /* emerald-500 — checklist tick */
+
+  --color-info: #0369a1;             /* sky-700 */
+  --color-info-bg: #f0f9ff;          /* sky-50 */
+  --color-info-border: #e0f2fe;      /* sky-100 */
+
+  --color-warning: #b45309;          /* amber-700 */
+  --color-warning-bg: #fffbeb;       /* amber-50 */
+  --color-warning-border: #fef3c7;   /* amber-100 */
+  --color-warning-strong: #92400e;   /* amber-800 — notice text */
+
+  --color-error: #b91c1c;            /* red-700 */
+  --color-error-bg: #fef2f2;         /* red-50 */
+  --color-error-border: #fee2e2;     /* red-100 */
+  --color-error-solid: #dc2626;      /* red-600 — danger button */
+
+  --color-neutral: #6b6560;          /* charcoal.muted — neutral badge fg */
+  --color-neutral-bg: #F4F1EC;       /* cream.100 — neutral badge bg */
+  --color-neutral-border: #ECE7DF;   /* cream.200 */
+
+  /* Overlays and shadows */
+  --color-overlay: rgba(33, 30, 29, 0.40);   /* modal/drawer backdrop */
+  --shadow-rgb: 33, 30, 29;                   /* charcoal.DEFAULT for shadows */
+  --shadow-soft: 0 1px 2px rgba(33, 30, 29, 0.04), 0 1px 3px rgba(33, 30, 29, 0.06);
+  --shadow-card: 0 1px 3px rgba(33, 30, 29, 0.05), 0 4px 12px rgba(33, 30, 29, 0.04);
+  --shadow-drawer: 0 10px 40px rgba(33, 30, 29, 0.12);
+  --color-scrollbar-thumb: #d9d3ca;
+  --color-scrollbar-thumb-hover: #c4bdb2;
+
+  /* Charts — categorical palette (DashboardCharts PALETTE[]) */
+  --chart-1: #C2186B;   /* = --color-primary */
+  --chart-2: #E9A5C6;   /* = --color-primary-tint */
+  --chart-blue: #3a6ea5;
+  --chart-gold: #c9a227;
+  --chart-green: #3c7a52;
+  --chart-violet: #6a3fa0;
+  --chart-rose: #b8577f;
+  --chart-sky: #7ec8e3;
+  --chart-tan: #e0a96d;
+  --chart-mint: #9fd8a0;
+  --chart-lilac: #c7a6e8;
+  --chart-grey: #9aa0a6;
+  /* Chart chrome (currently hardcoded; equal to tokens above) */
+  --chart-grid: #ECE7DF;        /* = --color-border */
+  --chart-tick: #6b6560;        /* = --color-text-secondary */
+  --chart-cursor: #F4F1EC;      /* = --color-surface-muted */
+
+  /* Gradients — banner presets (bannerLabels.ts) */
+  --gradient-sunset: linear-gradient(135deg, #f6a5c0, #a64d79);
+  --gradient-ocean: linear-gradient(135deg, #7ec8e3, #3a6ea5);
+  --gradient-gold: linear-gradient(135deg, #f5d76e, #c9a227);
+  --gradient-forest: linear-gradient(135deg, #9fd8a0, #3c7a52);
+  --gradient-violet: linear-gradient(135deg, #c7a6e8, #6a3fa0);
+  --gradient-charcoal: linear-gradient(135deg, #6b7280, #1f2937);
+}

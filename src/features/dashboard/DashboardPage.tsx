@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { useData } from '../../data/store';
 import { formatNumber, formatINR } from '../../lib/format';
+import { toBase, CURRENCIES, REVENUE_TOOLTIP } from '../../config/currency';
+import type { CurrencyCode } from '../../config/currency';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { catalogueVisibility, effectiveLocation } from '../../data/portfolioLogic';
 import {
@@ -58,8 +60,12 @@ export function DashboardPage() {
     (o.paymentStatus === 'paid' || o.paymentStatus === 'partially_refunded') ? Math.max(0, o.total - completed(o.refundHistory)) : 0;
   const eventRev = (o: (typeof orders)[number]) =>
     (o.paymentStatus === 'paid' || o.paymentStatus === 'partially_refunded') ? Math.max(0, o.total - completed(o.refundHistory)) : 0;
-  const membershipRev = (m: (typeof memberships)[number]) =>
-    m.payment.purchaseStatus === 'completed' && !m.payment.refundStatus ? m.payment.amount : 0;
+  // Membership amounts are stored in the member's local currency → convert to base (INR).
+  const membershipRev = (m: (typeof memberships)[number]) => {
+    if (m.payment.purchaseStatus !== 'completed' || m.payment.refundStatus) return 0;
+    const cur = (CURRENCIES as string[]).includes(m.payment.currency) ? (m.payment.currency as CurrencyCode) : 'INR';
+    return toBase(m.payment.amount, cur);
+  };
 
   // ---- Summary cards ----
   const cards = useMemo(() => {
@@ -216,8 +222,8 @@ export function DashboardPage() {
         {/* Four summary cards */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {cards.map((c) => (
-            <div key={c.label} className="rounded-lg border border-cream-200 bg-white p-4">
-              <p className="text-sm text-charcoal-muted">{c.label}</p>
+            <div key={c.label} className="rounded-lg border border-cream-200 bg-white p-4" title={c.label === 'Total Revenue' ? REVENUE_TOOLTIP : undefined}>
+              <p className="text-sm text-charcoal-muted">{c.label}{c.label === 'Total Revenue' && <span className="ml-1 text-charcoal-muted/60">(INR)</span>}</p>
               <p className="mt-1 font-serif text-2xl font-medium text-charcoal">{c.value}</p>
             </div>
           ))}

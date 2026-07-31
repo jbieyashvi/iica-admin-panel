@@ -21,6 +21,7 @@ import { buildReviews } from './seedReviews';
 import { buildBanners } from './seedBanners';
 import { buildCommissionSettings, buildCommissionOverrides, buildPayoutSettings, buildPayouts } from './seedPayouts';
 import { buildAdminUsers } from './seedAdmins';
+import { buildMembershipPricing } from './seedPricing';
 
 // Region → currency mapping for payment records.
 const CURRENCY: Record<string, { region: string; code: string; symbol: string; amount: number }> = {
@@ -266,7 +267,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 21;
+export const SEED_VERSION = 22;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);
@@ -300,6 +301,7 @@ export function buildSeedState(): DataState {
     payoutSettings,
     payouts: buildPayouts(payoutSettings, now),
     adminUsers: buildAdminUsers(now),
+    membershipPricing: buildMembershipPricing(now),
     version: SEED_VERSION,
   };
 }
