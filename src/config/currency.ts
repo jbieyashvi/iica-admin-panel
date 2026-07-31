@@ -10,7 +10,7 @@ export type CurrencyCode = 'INR' | 'USD' | 'GBP' | 'AED' | 'EUR';
 export const BASE_CURRENCY: CurrencyCode = 'INR';
 export const BASE_CURRENCY_NOTE = 'Prototype default — confirm final legal entity and settlement configuration.';
 export const PROTOTYPE_BALANCE_NOTE = 'Balance and settlement data shown here is illustrative until the payment-gateway integration is finalized.';
-export const REVENUE_TOOLTIP = 'Revenue converted to INR using the exchange rate captured for each transaction.';
+export const REVENUE_TOOLTIP = 'Revenue is reported in INR, the platform base currency.';
 
 export const CURRENCIES: CurrencyCode[] = ['INR', 'USD', 'GBP', 'AED', 'EUR'];
 

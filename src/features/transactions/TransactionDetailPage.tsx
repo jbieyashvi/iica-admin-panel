@@ -13,7 +13,7 @@ import { buildTransactions } from '../../data/transactions';
 import { formatINR, formatDate, formatDateTime } from '../../lib/format';
 import { PRODUCT_TYPE_LABEL } from '../../config/productLabels';
 import { SOURCE_LABEL, SOURCE_TONE, SETTLEMENT_STATUS_LABEL, SETTLEMENT_STATUS_TONE } from '../../config/transactionLabels';
-import { formatCurrency, FX_RATE_SOURCE } from '../../config/currency';
+import { formatCurrency } from '../../config/currency';
 import type { Transaction } from '../../types/transactions';
 
 const TABS = [
@@ -60,6 +60,8 @@ export function TransactionDetailPage() {
   }
 
   const refunded = txn.refundedAmount > 0;
+  // Settlement amounts only exist once the provider has collected funds.
+  const settled = txn.status === 'paid' || txn.status === 'partially_refunded' || txn.status === 'refunded';
 
   return (
     <div>
@@ -144,37 +146,36 @@ export function TransactionDetailPage() {
             <Row label="Payment status">{<PaymentStatusBadge status={txn.status} />}</Row>
           </Card>
 
-          <Card title="Currency Conversion">
-            <Row label="Base currency">{txn.baseCurrency}</Row>
+          <Card title="Settlement Summary">
+            <Row label="Original amount">{formatCurrency(txn.originalAmount, txn.customerCurrency)}</Row>
+            <Row label="Original currency">{txn.customerCurrency}</Row>
+            <Row label="Settlement amount">{settled ? formatCurrency(txn.netSettlement, txn.settlementCurrency) : '—'}</Row>
             <Row label="Settlement currency">{txn.settlementCurrency}</Row>
-            <Row label="Exchange rate applied">{txn.isInternational ? `1 ${txn.customerCurrency} = ₹${txn.exchangeRate} INR` : 'No conversion (same currency)'}</Row>
-            <Row label="Exchange-rate source">{FX_RATE_SOURCE}</Row>
-            <Row label="Exchange-rate timestamp">{formatDate(txn.exchangeRateAt)}</Row>
-            <Row label="Converted amount (base)">{formatCurrency(txn.baseAmount, txn.baseCurrency)}</Row>
-            <p className="mt-2 text-xs text-charcoal-muted">Prototype rate. The final settled amount may be confirmed by the payment provider at checkout.</p>
+            <Row label="Payment provider">{txn.provider}</Row>
+            <Row label="Payment status">{<PaymentStatusBadge status={txn.status} />}</Row>
+            <Row label="Settlement status">{<Badge tone={SETTLEMENT_STATUS_TONE[txn.settlementStatus]}>{SETTLEMENT_STATUS_LABEL[txn.settlementStatus]}</Badge>}</Row>
           </Card>
 
           {fin ? (
             <>
               <Card title="Fees">
-                <Row label="Payment processing fee">{formatCurrency(txn.providerFee, txn.settlementCurrency)}</Row>
+                <Row label="Payment processing fee">{txn.providerFee ? formatCurrency(txn.providerFee, txn.settlementCurrency) : '—'}</Row>
                 <Row label="FX / conversion fee">{txn.fxFee ? formatCurrency(txn.fxFee, txn.settlementCurrency) : '—'}</Row>
-                {txn.source !== 'membership' && <Row label="Platform commission">{formatCurrency(txn.commission, txn.baseCurrency)}</Row>}
-                <Row label="Tax / fees">{txn.tax ? formatCurrency(txn.tax, txn.baseCurrency) : '—'}</Row>
+                {txn.source !== 'membership' && <Row label="Platform commission">{txn.commission ? formatCurrency(txn.commission, txn.settlementCurrency) : '—'}</Row>}
+                <Row label="Tax / fees">{txn.tax ? formatCurrency(txn.tax, txn.settlementCurrency) : '—'}</Row>
                 {txn.source !== 'membership' && (
                   <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">{Math.round(txn.commissionRate * 100)}% — {txn.commissionLabel}</div>
                 )}
-                <p className="mt-2 text-xs text-charcoal-muted">Provider fees are illustrative until the gateway integration is finalized.</p>
               </Card>
 
               <Card title="Settlement">
-                <Row label="Gross settlement amount">{formatCurrency(txn.grossSettlement, txn.settlementCurrency)}</Row>
-                <Row label="Total provider fees">{formatCurrency(txn.providerFee + txn.fxFee, txn.settlementCurrency)}</Row>
-                <Row label="Net settlement amount">{formatCurrency(txn.netSettlement, txn.settlementCurrency)}</Row>
+                <Row label="Gross settlement amount">{settled ? formatCurrency(txn.grossSettlement, txn.settlementCurrency) : '—'}</Row>
+                <Row label="Total provider fees">{settled ? formatCurrency(txn.providerFee + txn.fxFee, txn.settlementCurrency) : '—'}</Row>
+                <Row label="Net settlement amount">{settled ? formatCurrency(txn.netSettlement, txn.settlementCurrency) : '—'}</Row>
                 <Row label="Settlement status">{<Badge tone={SETTLEMENT_STATUS_TONE[txn.settlementStatus]}>{SETTLEMENT_STATUS_LABEL[txn.settlementStatus]}</Badge>}</Row>
                 <Row label="Estimated availability">{formatDate(txn.availableOn)}</Row>
                 <Row label="Settlement date">{formatDate(txn.settlementDate)}</Row>
-                <p className="mt-2 text-xs text-charcoal-muted">Payment success, funds availability and bank settlement are separate states. A Paid payment can still be Pending settlement.</p>
+                <p className="mt-2 text-xs text-charcoal-muted">Payment success and settlement are separate states. A Paid payment can still be Pending settlement.</p>
               </Card>
             </>
           ) : (
@@ -186,8 +187,8 @@ export function TransactionDetailPage() {
           {refunded && (
             <Card title="Refund">
               <Row label="Original paid amount">{formatCurrency(txn.originalAmount, txn.customerCurrency)}</Row>
-              <Row label="Refunded amount (base)">{formatCurrency(txn.refundedAmount, txn.baseCurrency)}</Row>
-              <Row label="Remaining amount (base)">{formatCurrency(txn.netCollected, txn.baseCurrency)}</Row>
+              <Row label="Refunded amount">{formatCurrency(txn.refundedAmount, txn.settlementCurrency)}</Row>
+              <Row label="Remaining amount">{formatCurrency(txn.netCollected, txn.settlementCurrency)}</Row>
               {fin && <Row label="Refund reference">{txn.refundRef ?? '—'}</Row>}
               <Row label="Refund completed">{formatDate(txn.refundCompletedAt)}</Row>
               <p className="mt-2 text-xs text-charcoal-muted">Refunds are view-only here. Only explicitly completed refunds are shown.</p>

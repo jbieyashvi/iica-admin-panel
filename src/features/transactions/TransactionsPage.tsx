@@ -232,7 +232,7 @@ export function TransactionsPage() {
                   </td>
                   <td className="px-4 py-3"><Badge tone={SOURCE_TONE[t.source]}>{SOURCE_LABEL[t.source]}</Badge></td>
                   <td className="px-4 py-3 text-right font-medium text-charcoal">{formatCurrency(t.originalAmount, t.customerCurrency)}</td>
-                  <td className="px-4 py-3 text-right text-charcoal-muted">{showFinancials ? formatCurrency(t.netSettlement, t.settlementCurrency) : '—'}</td>
+                  <td className="px-4 py-3 text-right text-charcoal-muted">{showFinancials && (t.status === 'paid' || t.status === 'partially_refunded' || t.status === 'refunded') ? formatCurrency(t.netSettlement, t.settlementCurrency) : '—'}</td>
                   <td className="px-4 py-3"><PaymentStatusBadge status={t.status} /></td>
                   <td className="px-4 py-3">{showFinancials ? <SettlementBadge status={t.settlementStatus} /> : <span className="text-charcoal-muted">—</span>}</td>
                   <td className="px-4 py-3">

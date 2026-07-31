@@ -134,12 +134,11 @@ export function PayoutDetailPage() {
               <Row label="Earning currency">{payout.currency}</Row>
               <Row label="Settlement currency">{payout.currency}</Row>
               <Row label="Payout currency">{payout.currency}</Row>
-              <Row label="Exchange rate">No conversion (same currency)</Row>
-              <Row label="Conversion fee">{formatINR(0)}</Row>
+              <Row label="Conversion fee">—</Row>
               <Row label="Final payout amount">{formatINR(payout.payoutAmount)}</Row>
               <Row label="Payout provider">{payout.payoutMethodUsed ?? 'Stripe (Prototype)'}</Row>
               <Row label="Payout reference">{payout.payoutReference ?? '—'}</Row>
-              <p className="mt-2 text-xs text-charcoal-muted">Historical commission uses the rate captured on the original transaction and is never recalculated with a new exchange rate. Payout is marked Paid only with an explicit provider reference.</p>
+              <p className="mt-2 text-xs text-charcoal-muted">Historical commission uses the rate captured on the original transaction and is never recalculated. Payout is marked Paid only with an explicit provider reference.</p>
             </Card>
             {payout.refundedAmount > 0 && (
               <Card title="Partial refund">
