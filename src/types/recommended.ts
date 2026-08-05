@@ -4,7 +4,13 @@
 // store only the selected listing IDs + display order, never duplicated data.
 // ---------------------------------------------------------------------------
 
-export type ListingType = 'physical_product' | 'digital_product' | 'masterclass' | 'event' | 'donation';
+export type ListingType =
+  | 'physical_product'
+  | 'digital_product'
+  | 'masterclass'
+  | 'event'
+  | 'second_hand_instrument'
+  | 'donation';
 
 export interface SelectedListing {
   listingId: string;

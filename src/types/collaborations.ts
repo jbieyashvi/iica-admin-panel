@@ -43,6 +43,12 @@ export type CollabIntent =
 
 export type CollabFormat = 'in_person' | 'online' | 'hybrid';
 
+// How the sender reached the selected creator. Natural Language Match = the
+// Mobile natural-language-to-swipe discovery flow; Direct Profile Request = the
+// sender opened a specific creator profile and requested directly. Private
+// discovery behaviour (swipes, skips, saves) is never exposed to Admin.
+export type MatchSource = 'natural_language' | 'direct_profile';
+
 export type MeetingMode = 'online' | 'in_person';
 
 export type MeetingPlatform = 'zoom' | 'google_meet' | 'ms_teams' | 'other';
@@ -113,6 +119,9 @@ export interface CollaborationRecord {
   matchScore: number; // overall 0-100
   dimensions: MatchDimension[];
   intent: CollabIntent;
+  matchSource: MatchSource;
+  naturalLanguageRequirement?: string; // original NL requirement typed by the sender
+  extractedRequirement?: string;       // AI-extracted requirement summary
   proposalTitle: string;
   proposalMessage: string;
   expectedOutcome: string;

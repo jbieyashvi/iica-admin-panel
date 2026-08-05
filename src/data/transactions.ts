@@ -77,7 +77,7 @@ interface Raw extends Omit<Transaction, 'id' | SettlementKeys> {}
 
 // Compute the illustrative currency + settlement layer for a transaction.
 function enrich(r: Raw): Pick<Transaction, SettlementKeys> {
-  const cur: CurrencyCode = r.source === 'membership'
+  const cur: CurrencyCode = r.source === 'membership' || r.source === 'donation'
     ? asCurrency(r.currency)
     : (CUR_OVERRIDE[r.refSub] ?? POOL[hash(r.refSub) % POOL.length]);
   const rate = FX_RATE_TO_INR[cur];
@@ -129,7 +129,7 @@ function enrich(r: Raw): Pick<Transaction, SettlementKeys> {
 }
 
 export function buildTransactions(state: DataState): Transaction[] {
-  const { users, memberships, productOrders, orders, events } = state;
+  const { users, memberships, productOrders, orders, events, donationOrders } = state;
   const userById = new Map(users.map((u) => [u.id, u]));
   const eventById = new Map(events.map((e) => [e.id, e]));
 
@@ -235,6 +235,35 @@ export function buildTransactions(state: DataState): Transaction[] {
       refundRef: refunded ? (o.refundHistory[0]?.id ?? `REF-${o.id.toUpperCase()}`) : null,
       refundCompletedAt: refunded ? (o.refundHistory.find((r) => r.status.toLowerCase() === 'completed')?.at ?? o.bookingDate) : null,
       event: { bookingId: o.id, eventId: o.eventId, eventTitle: ev?.title ?? 'Event', tier: o.tierName, quantity: o.quantity, hostName: ev?.hostName ?? 'Host', hostUserId: ev?.hostUserId },
+    });
+  });
+
+  // ---- Donations ----
+  (donationOrders ?? []).forEach((d) => {
+    if (d.amount <= 0) return;
+    // No transaction row until an attempt actually leaves "initiated".
+    raws.push({
+      source: 'donation',
+      date: d.date,
+      lastUpdatedAt: d.date,
+      status: d.status,
+      buyerName: d.donorName,
+      buyerType: d.donorType,
+      buyerUserId: d.donorUserId,
+      email: undefined,
+      phone: undefined,
+      currency: d.currency,
+      base: d.amount, discount: 0, tax: 0, shipping: 0, gross: d.amount,
+      refundedAmount: 0, netCollected: d.status === 'paid' ? d.amount : 0,
+      commissionRate: 0, commission: 0, earnings: d.amount, commissionLabel: 'Creator support',
+      paymentMethod: (d.paymentMethod as PaymentMethod) ?? 'Prototype Demo',
+      paymentMasked: d.paymentMasked,
+      paymentRef: d.paymentRef,
+      refTitle: d.listingTitle,
+      refSub: d.id,
+      refundRef: null,
+      refundCompletedAt: null,
+      donation: { orderId: d.id, listingId: d.listingId, listingTitle: d.listingTitle, creatorName: d.creatorName, creatorUserId: d.creatorUserId },
     });
   });
 

@@ -11,6 +11,9 @@ import { Modal } from '../../components/ui/Modal';
 import { BannerFormModal } from './BannerFormModal';
 import { BannerPreview } from './BannerPreview';
 import { RecommendedListingsPage } from './RecommendedListingsPage';
+import { NewMusicPage } from './NewMusicPage';
+import { TalkShowPage } from './TalkShowPage';
+import { WhatsNewPage } from './WhatsNewPage';
 import { useData, toggleBanner, deleteBanner, moveBanner } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -22,25 +25,32 @@ import {
 } from '../../config/bannerLabels';
 import type { BannerRecord } from '../../types/banners';
 
+const APPCONTENT_TABS = [
+  { key: 'banners', label: 'Banners' },
+  { key: 'music', label: 'New Music' },
+  { key: 'talkshow', label: 'Talk Show' },
+  { key: 'recommended', label: 'Recommended Listings' },
+  { key: 'whatsnew', label: "What's New Preview" },
+];
+
 export function BannersPage() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'recommended' ? 'recommended' : 'banners';
+  const raw = params.get('tab') ?? 'banners';
+  const tab = APPCONTENT_TABS.some((t) => t.key === raw) ? raw : 'banners';
   const setTab = (t: string) => { const n = new URLSearchParams(params); if (t === 'banners') n.delete('tab'); else n.set('tab', t); setParams(n, { replace: true }); };
 
   return (
     <div>
       <PageHeader
         title="Home & App Content"
-        description="Manage the mobile Home banner carousel and the promotional Recommended Listings section."
+        description="Manage every Mobile App Home section: banners, New Music, Talk Show, Recommended Listings and the What's New preview."
       />
-      <div className="mb-5">
-        <Tabs
-          tabs={[{ key: 'banners', label: 'Banners' }, { key: 'recommended', label: 'Recommended Listings' }]}
-          active={tab}
-          onChange={setTab}
-        />
-      </div>
-      {tab === 'banners' ? <BannersTab /> : <RecommendedListingsPage />}
+      <div className="mb-5"><Tabs tabs={APPCONTENT_TABS} active={tab} onChange={setTab} /></div>
+      {tab === 'banners' && <BannersTab />}
+      {tab === 'music' && <NewMusicPage />}
+      {tab === 'talkshow' && <TalkShowPage />}
+      {tab === 'recommended' && <RecommendedListingsPage />}
+      {tab === 'whatsnew' && <WhatsNewPage />}
     </div>
   );
 }

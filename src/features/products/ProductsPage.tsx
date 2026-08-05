@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ProductStatusBadge, ProductTypeBadge } from '../../components/ui/ProductBadges';
 import { ProductHideModal, ProductArchiveModal } from './ProductModals';
 import { ProductCategoriesPanel } from './ProductCategoriesPanel';
+import { DonationsPanel } from './DonationsPanel';
 import { useData, publishProduct, restoreProduct } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -78,7 +79,8 @@ export function ProductsPage() {
     setParams(next, { replace: true });
   };
 
-  const tab = get('tab') === 'categories' ? 'categories' : 'products';
+  const rawTab = get('tab');
+  const tab = rawTab === 'categories' ? 'categories' : rawTab === 'donations' ? 'donations' : 'products';
   const setTab = (t: string) => update({ tab: t === 'products' ? '' : t }, false);
 
   const categories = useMemo(() => [...new Set(products.map((p) => p.category))].sort(), [products]);
@@ -149,9 +151,10 @@ export function ProductsPage() {
       />
 
       <div className="mb-5">
-        <Tabs tabs={[{ key: 'products', label: 'Products' }, { key: 'categories', label: 'Categories' }]} active={tab} onChange={setTab} />
+        <Tabs tabs={[{ key: 'products', label: 'Products' }, { key: 'donations', label: 'Donations' }, { key: 'categories', label: 'Categories' }]} active={tab} onChange={setTab} />
       </div>
 
+      {tab === 'donations' && <DonationsPanel />}
       {tab === 'categories' && <ProductCategoriesPanel formTarget={catForm} setFormTarget={setCatForm} />}
 
       {tab === 'products' && (

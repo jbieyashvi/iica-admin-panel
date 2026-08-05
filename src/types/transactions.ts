@@ -10,7 +10,7 @@ import type { SettlementStatus } from './paymentProvider';
 // transaction. Statuses reuse the order payment-status vocabulary.
 // ---------------------------------------------------------------------------
 
-export type TxnSource = 'membership' | 'product' | 'event';
+export type TxnSource = 'membership' | 'product' | 'event' | 'donation';
 export type TxnStatus = OrderPaymentStatus; // initiated|pending|paid|failed|cancelled|partially_refunded|refunded
 export type BuyerKind = 'guest' | 'registered' | 'creator';
 
@@ -85,4 +85,5 @@ export interface Transaction {
   membership?: { userId: string; iicaId?: string; category?: string; plan: string; platform: string; startDate?: string | null; renewalDate?: string | null };
   product?: { orderId: string; productId: string; productTitle: string; productType: ProductType; quantity: number; sellerName: string; sellerUserId: string };
   event?: { bookingId: string; eventId: string; eventTitle: string; tier: string; quantity: number; hostName: string; hostUserId?: string | null };
+  donation?: { orderId: string; listingId: string; listingTitle: string; creatorName: string; creatorUserId: string };
 }

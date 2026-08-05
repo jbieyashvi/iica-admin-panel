@@ -43,6 +43,7 @@ import type { AdminAccountStatus, AdminUserRecord } from '../types/admins';
 import type { AdminRole } from '../types';
 import { readStorage, writeStorage } from '../lib/storage';
 import { makeIicaId, uid, initialsOf } from '../lib/id';
+import { parseYouTubeId, youtubeThumbnail } from '../lib/youtube';
 import { buildSeedState, SEED_VERSION } from './seed';
 import { buildArchiveSeed, buildEventSeed, buildOrderSeed } from './seedEvents';
 import { computeActivityScore } from './portfolioLogic';
@@ -114,7 +115,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers) && Array.isArray(stored.membershipPricing) && !!stored.recommendedSection;
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers) && Array.isArray(stored.membershipPricing) && !!stored.recommendedSection && !!stored.membershipPurchaseConfig && Array.isArray(stored.musicSubmissions) && Array.isArray(stored.talkShowEpisodes) && Array.isArray(stored.guestResumes) && Array.isArray(stored.donationListings) && Array.isArray(stored.donationOrders);
   if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1446,4 +1447,161 @@ export function hideRecommendedSection(actor: AdminActor) {
       published: s.published ? { ...s.published, isVisible: false } : s.published,
     },
   });
+}
+
+// ===========================================================================
+// Membership Purchase toggle (platform config; lives in Membership Categories)
+// ===========================================================================
+
+export function setMembershipPurchaseEnabled(enabled: boolean, actor: AdminActor) {
+  commit({ ...state, membershipPurchaseConfig: { membershipPurchaseEnabled: enabled, updatedAt: now(), updatedBy: actor.name } });
+}
+
+// ===========================================================================
+// New Music (Home & App Content → New Music)
+// ===========================================================================
+
+type MusicSubmission = import('../types/newmusic').MusicSubmission;
+
+const nextFeaturedOrder = () => {
+  const orders = state.musicSubmissions.filter((m) => m.featured).map((m) => m.displayOrder);
+  return orders.length ? Math.max(...orders) + 1 : 0;
+};
+
+export function featureMusic(id: string, actor: AdminActor) {
+  void actor;
+  commit({ ...state, musicSubmissions: state.musicSubmissions.map((m) => (m.id === id && !m.featured ? { ...m, featured: true, featuredAt: now(), displayOrder: nextFeaturedOrder() } : m)) });
+}
+
+export function unfeatureMusic(id: string, actor: AdminActor) {
+  void actor;
+  commit({ ...state, musicSubmissions: state.musicSubmissions.map((m) => (m.id === id ? { ...m, featured: false, featuredAt: null } : m)) });
+}
+
+export function removeMusicSubmission(id: string, actor: AdminActor) {
+  void actor;
+  commit({ ...state, musicSubmissions: state.musicSubmissions.filter((m) => m.id !== id) });
+}
+
+// Add a YouTube link directly as a featured item. Returns an error string or null.
+export function addFeaturedMusic(input: { url: string; name: string; city: string; country: string }, _actor: AdminActor): string | null {
+  const videoId = parseYouTubeId(input.url);
+  if (!videoId) return 'Enter a valid YouTube URL.';
+  if (state.musicSubmissions.some((m) => m.youtubeVideoId === videoId && m.featured)) return 'This video is already featured.';
+  const item: MusicSubmission = {
+    id: uid('music'),
+    youtubeUrl: input.url.trim(),
+    youtubeVideoId: videoId,
+    thumbnailUrl: youtubeThumbnail(videoId),
+    connectedUserId: null,
+    submittedByName: input.name.trim() || 'Admin',
+    city: input.city.trim(),
+    country: input.country.trim(),
+    submittedAt: now(),
+    featured: true,
+    featuredAt: now(),
+    displayOrder: nextFeaturedOrder(),
+    source: 'admin',
+  };
+  commit({ ...state, musicSubmissions: [...state.musicSubmissions, item] });
+  return null;
+}
+
+export function reorderMusic(id: string, dir: 'up' | 'down', _actor: AdminActor) {
+  const featured = state.musicSubmissions.filter((m) => m.featured).sort((a, b) => a.displayOrder - b.displayOrder);
+  const i = featured.findIndex((m) => m.id === id);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= featured.length) return;
+  [featured[i], featured[j]] = [featured[j], featured[i]];
+  const order = new Map(featured.map((m, idx) => [m.id, idx]));
+  commit({ ...state, musicSubmissions: state.musicSubmissions.map((m) => (order.has(m.id) ? { ...m, displayOrder: order.get(m.id)! } : m)) });
+}
+
+// ===========================================================================
+// Talk Show (Home & App Content → Talk Show)
+// ===========================================================================
+
+type TalkShowEpisode = import('../types/talkshow').TalkShowEpisode;
+
+export interface EpisodeInput {
+  title: string;
+  description: string;
+  host: string;
+  featuredGuest: string;
+  youtubeUrl: string;
+  releaseDate: string;
+}
+
+export function addEpisode(input: EpisodeInput, _actor: AdminActor): string | null {
+  const videoId = parseYouTubeId(input.youtubeUrl);
+  if (!videoId) return 'Enter a valid YouTube URL.';
+  if (!input.title.trim()) return 'Episode title is required.';
+  const maxOrder = state.talkShowEpisodes.reduce((mx, e) => Math.max(mx, e.displayOrder), -1);
+  const ep: TalkShowEpisode = {
+    id: uid('ep'),
+    title: input.title.trim(),
+    description: input.description.trim(),
+    host: input.host.trim(),
+    featuredGuest: input.featuredGuest.trim(),
+    youtubeUrl: input.youtubeUrl.trim(),
+    youtubeVideoId: videoId,
+    thumbnailUrl: youtubeThumbnail(videoId),
+    releaseDate: input.releaseDate || now(),
+    featuredThisWeek: false,
+    displayOrder: maxOrder + 1,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  commit({ ...state, talkShowEpisodes: [...state.talkShowEpisodes, ep] });
+  return null;
+}
+
+export function updateEpisode(id: string, input: EpisodeInput, _actor: AdminActor): string | null {
+  const videoId = parseYouTubeId(input.youtubeUrl);
+  if (!videoId) return 'Enter a valid YouTube URL.';
+  if (!input.title.trim()) return 'Episode title is required.';
+  commit({
+    ...state,
+    talkShowEpisodes: state.talkShowEpisodes.map((e) => (e.id === id ? {
+      ...e, title: input.title.trim(), description: input.description.trim(), host: input.host.trim(),
+      featuredGuest: input.featuredGuest.trim(), youtubeUrl: input.youtubeUrl.trim(), youtubeVideoId: videoId,
+      thumbnailUrl: youtubeThumbnail(videoId), releaseDate: input.releaseDate || e.releaseDate, updatedAt: now(),
+    } : e)),
+  });
+  return null;
+}
+
+// Feature one episode This Week — replaces any previous weekly feature.
+export function featureEpisodeThisWeek(id: string, _actor: AdminActor) {
+  commit({ ...state, talkShowEpisodes: state.talkShowEpisodes.map((e) => ({ ...e, featuredThisWeek: e.id === id, updatedAt: e.id === id ? now() : e.updatedAt })) });
+}
+
+export function removeEpisode(id: string, _actor: AdminActor) {
+  commit({ ...state, talkShowEpisodes: state.talkShowEpisodes.filter((e) => e.id !== id) });
+}
+
+export function reorderEpisode(id: string, dir: 'up' | 'down', _actor: AdminActor) {
+  const list = [...state.talkShowEpisodes].sort((a, b) => a.displayOrder - b.displayOrder);
+  const i = list.findIndex((e) => e.id === id);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  const order = new Map(list.map((e, idx) => [e.id, idx]));
+  commit({ ...state, talkShowEpisodes: state.talkShowEpisodes.map((e) => ({ ...e, displayOrder: order.get(e.id)! })) });
+}
+
+export function removeResume(id: string, _actor: AdminActor) {
+  commit({ ...state, guestResumes: state.guestResumes.filter((r) => r.id !== id) });
+}
+
+// ===========================================================================
+// Donation listings (Products module)
+// ===========================================================================
+
+export function hideDonationListing(id: string, _actor: AdminActor) {
+  commit({ ...state, donationListings: state.donationListings.map((d) => (d.id === id ? { ...d, active: false, updatedAt: now() } : d)) });
+}
+
+export function restoreDonationListing(id: string, _actor: AdminActor) {
+  commit({ ...state, donationListings: state.donationListings.map((d) => (d.id === id ? { ...d, active: true, updatedAt: now() } : d)) });
 }

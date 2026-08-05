@@ -17,11 +17,13 @@ import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { CategoryStatusBadge } from '../../components/ui/PortfolioBadges';
 import { CategoryIcon } from '../../lib/iconMap';
 import { Tooltip } from '../../components/ui/Tooltip';
+import { Modal } from '../../components/ui/Modal';
 import {
   useData,
   setCategoryStatus,
   reorderCategory,
   categoryUsage,
+  setMembershipPurchaseEnabled,
 } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -79,6 +81,7 @@ export function CategoriesPage() {
 
       {tab === 'pricing' ? <PricingCurrencyTab /> : (
       <>
+      <MembershipPurchaseCard />
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
@@ -191,6 +194,51 @@ export function CategoriesPage() {
       <CategoryDrawer category={detailTarget} counts={counts} onClose={() => setDetailTarget(null)} />
       </>
       )}
+    </div>
+  );
+}
+
+function MembershipPurchaseCard() {
+  const { membershipPurchaseConfig } = useData();
+  const { abilities, actor } = useActor();
+  const [confirm, setConfirm] = useState(false);
+  const enabled = membershipPurchaseConfig.membershipPurchaseEnabled;
+  const target = !enabled;
+  const apply = () => { setMembershipPurchaseEnabled(target, actor); setConfirm(false); toast(target ? 'New membership purchases enabled.' : 'New membership purchases disabled.'); };
+
+  return (
+    <div className="card mb-4 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-charcoal">New Membership Purchases</h3>
+            <Badge tone={enabled ? 'green' : 'neutral'}>{enabled ? 'Enabled' : 'Disabled'}</Badge>
+          </div>
+          <p className="mt-1 max-w-2xl text-xs text-charcoal-muted">
+            {enabled
+              ? 'The Mobile App shows “Apply for Membership”, and users with an unpaid IICA ID can complete purchase.'
+              : 'New application/purchase entry points are hidden in the Mobile App. Existing IICA IDs and active members are unaffected; normal product, event and donation purchases stay available.'}
+          </p>
+          <p className="mt-1 text-[11px] text-charcoal-muted">Last updated {formatDate(membershipPurchaseConfig.updatedAt)} · {membershipPurchaseConfig.updatedBy}</p>
+        </div>
+        <Button
+          variant={enabled ? 'danger' : 'primary'}
+          onClick={() => setConfirm(true)}
+          disabled={!abilities.manageCategories}
+          title={abilities.manageCategories ? '' : RESTRICTED_HINT}
+        >
+          {enabled ? 'Disable Purchases' : 'Enable Purchases'}
+        </Button>
+      </div>
+
+      <Modal open={confirm} onClose={() => setConfirm(false)} title={target ? 'Enable new membership purchases' : 'Disable new membership purchases'}
+        footer={<><Button variant="secondary" onClick={() => setConfirm(false)}>Cancel</Button><Button variant={target ? 'primary' : 'danger'} onClick={apply}>{target ? 'Enable' : 'Disable'}</Button></>}>
+        <p className="text-sm text-charcoal">
+          {target
+            ? 'Re-enable “Apply for Membership” in the Mobile App and allow unpaid IICA IDs to complete purchase?'
+            : 'Hide new application and purchase entry points in the Mobile App? Existing IICA IDs, active members and normal product/event/donation purchases are not affected.'}
+        </p>
+      </Modal>
     </div>
   );
 }

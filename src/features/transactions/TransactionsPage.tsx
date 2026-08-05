@@ -16,7 +16,7 @@ import { buildTransactions } from '../../data/transactions';
 import { formatDate } from '../../lib/format';
 import { PAYMENT_STATUSES, PAYMENT_STATUS_LABEL } from '../../config/orderLabels';
 import {
-  SOURCE_LABEL, SOURCE_TONE, SOURCES, SORTS, DATE_RANGES,
+  SOURCE_LABEL, SOURCE_TONE, SORTS, DATE_RANGES,
   SETTLEMENT_STATUS_LABEL, SETTLEMENT_STATUS_TONE, SETTLEMENT_STATUSES,
 } from '../../config/transactionLabels';
 import {
@@ -78,7 +78,8 @@ export function TransactionsPage() {
         const hay = `${t.id} ${t.buyerName} ${t.email ?? ''} ${t.refTitle} ${t.refSub} ${t.membership?.iicaId ?? ''}`.toLowerCase();
         if (!hay.includes(q.toLowerCase())) return false;
       }
-      if (source !== 'all' && t.source !== source) return false;
+      if (source === 'masterclass') { if (!(t.source === 'product' && t.product?.productType === 'masterclass')) return false; }
+      else if (source !== 'all' && t.source !== source) return false;
       if (status !== 'all' && t.status !== status) return false;
       if (settle !== 'all' && t.settlementStatus !== settle) return false;
       if (ccy !== 'all' && t.customerCurrency !== ccy) return false;
@@ -105,7 +106,7 @@ export function TransactionsPage() {
 
   const chips: { key: string; label: string }[] = [];
   if (q) chips.push({ key: 'q', label: `Search: ${q}` });
-  if (source !== 'all') chips.push({ key: 'source', label: SOURCE_LABEL[source as never] });
+  if (source !== 'all') chips.push({ key: 'source', label: source === 'masterclass' ? 'Masterclass' : SOURCE_LABEL[source as never] });
   if (status !== 'all') chips.push({ key: 'status', label: PAYMENT_STATUS_LABEL[status as never] });
   if (settle !== 'all') chips.push({ key: 'settle', label: SETTLEMENT_STATUS_LABEL[settle as SettlementStatus] });
   if (ccy !== 'all') chips.push({ key: 'ccy', label: `Customer: ${ccy}` });
@@ -163,7 +164,11 @@ export function TransactionsPage() {
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Select className={selectCls} value={source} onChange={(e) => update({ source: e.target.value })}>
             <option value="all">All sources</option>
-            {SOURCES.map((s) => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
+            <option value="membership">Membership Purchase</option>
+            <option value="product">Product Order</option>
+            <option value="event">Event Ticket</option>
+            <option value="masterclass">Masterclass</option>
+            <option value="donation">Donation</option>
           </Select>
           <Select className={selectCls} value={status} onChange={(e) => update({ status: e.target.value })}>
             <option value="all">All payment status</option>

@@ -129,6 +129,14 @@ export function TransactionDetailPage() {
                 <Row label="Booking / order ID">{txn.event.bookingId}</Row>
               </>
             )}
+            {txn.source === 'donation' && txn.donation && (
+              <>
+                <Row label="Support option">{txn.donation.listingTitle}</Row>
+                <Row label="Creator">{txn.donation.creatorName}</Row>
+                <Row label="Listing ID">{txn.donation.listingId}</Row>
+                <Row label="Support / order ID">{txn.donation.orderId}</Row>
+              </>
+            )}
           </Card>
         </div>
       )}
@@ -221,6 +229,15 @@ export function TransactionDetailPage() {
                 <Button variant="secondary" icon={<ExternalLink className="h-4 w-4" />} onClick={() => navigate(`/admin/events/${txn.event!.eventId}?tab=orders`)}>Open Booking</Button>
                 {txn.buyerType !== 'guest' && txn.buyerUserId && (
                   <Button variant="secondary" icon={<UserIcon className="h-4 w-4" />} onClick={() => navigate(`/admin/users/${txn.buyerUserId}`)}>Open Buyer</Button>
+                )}
+              </>
+            )}
+            {txn.source === 'donation' && txn.donation && (
+              <>
+                <Button variant="secondary" icon={<FolderOpen className="h-4 w-4" />} onClick={() => navigate('/admin/products?tab=donations')}>Open Donation Listings</Button>
+                <Button variant="secondary" icon={<Store className="h-4 w-4" />} onClick={() => navigate(`/admin/users/${txn.donation!.creatorUserId}`)}>Open Creator Profile</Button>
+                {txn.buyerType !== 'guest' && txn.buyerUserId && (
+                  <Button variant="secondary" icon={<UserIcon className="h-4 w-4" />} onClick={() => navigate(`/admin/users/${txn.buyerUserId}`)}>Open Donor</Button>
                 )}
               </>
             )}

@@ -23,6 +23,7 @@ export const LISTING_TYPE_LABEL: Record<ListingType, string> = {
   digital_product: 'Digital Product',
   masterclass: 'Masterclass',
   event: 'Event',
+  second_hand_instrument: 'Second-hand Instrument',
   donation: 'Donation',
 };
 
@@ -68,11 +69,24 @@ function eventCard(state: DataState, e: EventRecord, now: number): ListingCard {
   };
 }
 
-/** All listings (products + events) with resolved availability. */
+function donationCard(state: DataState, d: import('../types/donations').DonationListing): ListingCard {
+  let available = true;
+  let reason: string | undefined;
+  if (sellerSuspended(state, d.creatorUserId)) { available = false; reason = 'Creator suspended'; }
+  else if (!d.active) { available = false; reason = 'Inactive'; }
+  else if (!d.portfolioVisible) { available = false; reason = 'Hidden from portfolio'; }
+  return {
+    id: d.id, type: 'donation', typeLabel: LISTING_TYPE_LABEL.donation, title: d.title, creator: d.creatorName, creatorUserId: d.creatorUserId,
+    category: 'Donation', price: d.amount, free: false, available, reason, route: `/admin/products?tab=donations`,
+  };
+}
+
+/** All listings (products + events + donations) with resolved availability. */
 export function buildListingCatalog(state: DataState, now = Date.now()): ListingCard[] {
   return [
     ...state.products.map((p) => productCard(state, p, now)),
     ...state.events.map((e) => eventCard(state, e, now)),
+    ...(state.donationListings ?? []).map((d) => donationCard(state, d)),
   ];
 }
 
@@ -81,6 +95,10 @@ export function resolveListing(state: DataState, listingId: string, type: Listin
   if (type === 'event') {
     const e = state.events.find((x) => x.id === listingId);
     return e ? eventCard(state, e, now) : null;
+  }
+  if (type === 'donation') {
+    const d = (state.donationListings ?? []).find((x) => x.id === listingId);
+    return d ? donationCard(state, d) : null;
   }
   const p = state.products.find((x) => x.id === listingId);
   return p ? productCard(state, p, now) : null;

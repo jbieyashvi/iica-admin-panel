@@ -23,6 +23,9 @@ import { buildCommissionSettings, buildCommissionOverrides, buildPayoutSettings,
 import { buildAdminUsers } from './seedAdmins';
 import { buildMembershipPricing } from './seedPricing';
 import { buildRecommendedSection } from './seedRecommended';
+import { buildMusicSubmissions } from './seedNewMusic';
+import { buildTalkShowEpisodes, buildGuestResumes } from './seedTalkShow';
+import { buildDonationListings, buildDonationOrders } from './seedDonations';
 
 // Region → currency mapping for payment records.
 const CURRENCY: Record<string, { region: string; code: string; symbol: string; amount: number }> = {
@@ -268,7 +271,7 @@ const PRICING: PricingRow[] = [
 
 // Single source of truth for the persisted-schema version. Bump on any change
 // to DataState shape / seed structure so localStorage safely reseeds.
-export const SEED_VERSION = 24;
+export const SEED_VERSION = 26;
 
 export function buildSeedState(): DataState {
   const users = ROWS.map(buildUser);
@@ -278,6 +281,7 @@ export function buildSeedState(): DataState {
   const { events, proposals } = buildEventSeed(users, now);
   const products = buildProducts(users, now);
   const payoutSettings = buildPayoutSettings();
+  const donationListings = buildDonationListings(users, now);
   return {
     users,
     memberships,
@@ -304,6 +308,16 @@ export function buildSeedState(): DataState {
     adminUsers: buildAdminUsers(now),
     membershipPricing: buildMembershipPricing(now),
     recommendedSection: buildRecommendedSection(now),
+    membershipPurchaseConfig: {
+      membershipPurchaseEnabled: true,
+      updatedAt: new Date(now - 30 * 86400000).toISOString(),
+      updatedBy: 'Aparna Menon',
+    },
+    musicSubmissions: buildMusicSubmissions(now),
+    talkShowEpisodes: buildTalkShowEpisodes(now),
+    guestResumes: buildGuestResumes(now),
+    donationListings,
+    donationOrders: buildDonationOrders(donationListings, now),
     version: SEED_VERSION,
   };
 }

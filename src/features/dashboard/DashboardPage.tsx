@@ -14,6 +14,7 @@ import {
   RevenueOverviewChart,
 } from './sections/DashboardCharts';
 import type { CollabProgressRow } from './sections/DashboardCharts';
+import { collabStatus } from '../../config/collabStatus';
 import { cn } from '../../lib/cn';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -48,7 +49,7 @@ const PRODUCT_TYPES = [
 ] as const;
 
 export function DashboardPage() {
-  const { users, memberships, portfolios, products, productOrders, orders, collaborations, categories } = useData();
+  const { users, memberships, portfolios, products, productOrders, orders, collaborations, categories, donationOrders } = useData();
   const [range, setRange] = useState<RangeKey>('6m');
 
   const now = Date.now();
@@ -76,6 +77,7 @@ export function DashboardPage() {
     productOrders.forEach((o) => { if (inPeriod(o.orderedAt)) revenue += productRev(o); });
     orders.forEach((o) => { if (inPeriod(o.bookingDate)) revenue += eventRev(o); });
     memberships.forEach((m) => { if (inPeriod(m.payment.purchaseDate)) revenue += membershipRev(m); });
+    donationOrders.forEach((d) => { if (d.status === 'paid' && inPeriod(d.date)) revenue += d.amount; });
     return [
       { label: 'Total Users', value: formatNumber(totalUsers) },
       { label: 'Active Creators', value: formatNumber(activeCreators) },
@@ -83,7 +85,7 @@ export function DashboardPage() {
       { label: 'Total Revenue', value: formatINR(revenue) },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, memberships, productOrders, orders, range]);
+  }, [users, memberships, productOrders, orders, donationOrders, range]);
 
   // ---- Commerce Snapshot ----
   const commerce = useMemo(() => {
@@ -100,24 +102,22 @@ export function DashboardPage() {
     return { rows, footnote };
   }, [products, productOrders]);
 
-  // ---- Collaboration Progress (each collab counted once, pipeline total) ----
+  // ---- Collaboration Snapshot (actual sent requests only; 5 statuses) ----
   const collab = useMemo(() => {
-    const b = { suggested: 0, pending: 0, meeting: 0, active: 0, completed: 0 };
+    const b = { sent: 0, accepted: 0, completed: 0, closed: 0 };
     collaborations.forEach((c) => {
-      const ms = c.meeting?.status;
-      if (c.progress === 'completed') b.completed++;
-      else if (ms === 'scheduled') b.meeting++;
-      else if (['discussion_scheduled', 'in_discussion', 'confirmed'].includes(c.progress)) b.active++;
-      else if (c.requestStatus === 'accepted') b.active++;
-      else if (c.requestStatus === 'request_sent' || c.requestStatus === 'pending_response') b.pending++;
-      else if (c.requestStatus === 'suggested') b.suggested++;
+      if (c.requestStatus === 'suggested') return; // private discovery — never counted
+      const k = collabStatus(c).key;
+      if (k === 'sent') b.sent++;
+      else if (k === 'accepted') b.accepted++;
+      else if (k === 'completed') b.completed++;
+      else b.closed++; // declined + cancelled
     });
     const rows: CollabProgressRow[] = [
-      { key: 'suggested', icon: 'suggested', label: 'Suggested Matches', count: b.suggested, filter: 'req=suggested' },
-      { key: 'pending', icon: 'pending', label: 'Pending Requests', count: b.pending, filter: 'req=pending_response' },
-      { key: 'meeting', icon: 'meeting', label: 'Meetings Scheduled', count: b.meeting, filter: 'meet=scheduled' },
-      { key: 'active', icon: 'active', label: 'Active', count: b.active, filter: 'prog=in_discussion' },
-      { key: 'completed', icon: 'completed', label: 'Completed', count: b.completed, filter: 'prog=completed' },
+      { key: 'sent', icon: 'pending', label: 'Sent', count: b.sent, filter: 'status=sent' },
+      { key: 'accepted', icon: 'active', label: 'Accepted', count: b.accepted, filter: 'status=accepted' },
+      { key: 'completed', icon: 'completed', label: 'Completed', count: b.completed, filter: 'status=completed' },
+      { key: 'closed', icon: 'suggested', label: 'Declined / Cancelled', count: b.closed, filter: 'status=declined' },
     ];
     return { rows, total: rows.reduce((s, r) => s + r.count, 0) };
   }, [collaborations]);

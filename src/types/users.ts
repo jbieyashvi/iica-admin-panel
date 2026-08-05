@@ -161,6 +161,12 @@ export interface DataState {
   adminUsers: import('./admins').AdminUserRecord[];
   membershipPricing: import('./pricing').MembershipPriceRecord[];
   recommendedSection: import('./recommended').RecommendedSection;
+  membershipPurchaseConfig: import('./platform').MembershipPurchaseConfig;
+  musicSubmissions: import('./newmusic').MusicSubmission[];
+  talkShowEpisodes: import('./talkshow').TalkShowEpisode[];
+  guestResumes: import('./talkshow').GuestResume[];
+  donationListings: import('./donations').DonationListing[];
+  donationOrders: import('./donations').DonationOrder[];
   version: number;
 }
 

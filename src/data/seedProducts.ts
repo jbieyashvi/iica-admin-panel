@@ -73,10 +73,19 @@ function buildTimeline(id: string, status: ProductStatus, base: number): Timelin
   return t;
 }
 
+// A few published listings are launched within the last 15 days so the Mobile
+// "What's New" preview (products + classes) has eligible records.
+const RECENT_DAYS: Record<string, number> = {
+  prod_photobook: 3,      // New Product (physical)
+  prod_nutrition: 6,      // New Product (digital)
+  prod_courtyard: 9,      // New Class (masterclass)
+  prod_bharatanatyam: 12, // New Class (masterclass)
+};
+
 export function buildProducts(users: UserRecord[], now: number): ProductRecord[] {
   return SPECS.map((s, idx) => {
     const seller = users.find((u) => u.id === s.sellerId);
-    const base = now - (90 - idx * 3) * DAY;
+    const base = RECENT_DAYS[s.id] != null ? now - RECENT_DAYS[s.id] * DAY : now - (90 - idx * 3) * DAY;
     const p: ProductRecord = {
       id: s.id,
       sellerUserId: s.sellerId,

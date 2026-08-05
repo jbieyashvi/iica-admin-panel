@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, FolderOpen, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ArrowLeft, CalendarClock, FolderOpen, Sparkles } from 'lucide-react';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { RequestStatusBadge, ProgressBadge, MeetingStatusBadge, MatchScore } from '../../components/ui/CollaborationBadges';
+import { RequestStatusBadge, MeetingStatusBadge, MatchScore } from '../../components/ui/CollaborationBadges';
 import { useData } from '../../data/store';
 import { formatDate, formatDateTime } from '../../lib/format';
+import { collabStatus, MATCH_SOURCE_LABEL } from '../../config/collabStatus';
 import {
   INTENT_LABEL,
   FORMAT_LABEL,
@@ -152,9 +153,8 @@ export function CollaborationDetailPage() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-serif text-2xl font-medium text-charcoal">{collab.proposalTitle}</h1>
-              <RequestStatusBadge status={collab.requestStatus} />
-              <ProgressBadge status={collab.progress} />
-              <MeetingStatusBadge status={collab.meeting?.status ?? 'not_scheduled'} />
+              <Badge tone={collabStatus(collab).tone}>{collabStatus(collab).label}</Badge>
+              <Badge tone={collab.matchSource === 'natural_language' ? 'magenta' : 'blue'}>{MATCH_SOURCE_LABEL[collab.matchSource]}</Badge>
             </div>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-charcoal-muted">
               <span>{collab.id}</span>
@@ -162,9 +162,6 @@ export function CollaborationDetailPage() {
               <span>{formatDate(collab.createdAt)}</span>
               <span className="inline-flex items-center gap-1">Match <MatchScore score={collab.matchScore} size="sm" /></span>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" icon={<SlidersHorizontal className="h-4 w-4" />} onClick={() => navigate('/admin/collaboration-settings')}>Matching Settings</Button>
           </div>
         </div>
       </div>
@@ -184,18 +181,32 @@ export function CollaborationDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
               <div>
                 <Row label="Collaboration ID">{collab.id}</Row>
-                <Row label="Initiated by">{collab.initiator.name}</Row>
+                <Row label="Sender">{collab.initiator.name}</Row>
+                <Row label="Selected creator">{collab.invited.name}</Row>
+                <Row label="Genre / skill">{collab.invited.primaryCategory}</Row>
                 <Row label="Collaboration intent">{INTENT_LABEL[collab.intent]}</Row>
-                <Row label="Proposed title">{collab.proposalTitle}</Row>
-                <Row label="Preferred format">{FORMAT_LABEL[collab.preferredFormat]}</Row>
+                <Row label="Match source">{MATCH_SOURCE_LABEL[collab.matchSource]}</Row>
               </div>
               <div>
+                <Row label="Preferred format">{FORMAT_LABEL[collab.preferredFormat]}</Row>
                 <Row label="Preferred location">{collab.preferredLocation}</Row>
                 <Row label="Created date">{formatDate(collab.createdAt)}</Row>
                 <Row label="Current action owner">{owner.owner}</Row>
                 <Row label="Next expected action">{owner.next}</Row>
               </div>
             </div>
+            {collab.naturalLanguageRequirement && (
+              <div className="mt-3 border-t border-cream-200 pt-3">
+                <p className="text-sm text-charcoal-muted">Original natural-language requirement</p>
+                <p className="mt-1 rounded-lg bg-cream-100/60 px-3 py-2 text-sm italic text-charcoal">“{collab.naturalLanguageRequirement}”</p>
+                {collab.extractedRequirement && (
+                  <>
+                    <p className="mt-3 text-sm text-charcoal-muted">Extracted requirement summary</p>
+                    <p className="mt-1 text-sm text-charcoal">{collab.extractedRequirement}</p>
+                  </>
+                )}
+              </div>
+            )}
             <div className="mt-3 border-t border-cream-200 pt-3">
               <p className="text-sm text-charcoal-muted">Short proposal</p>
               <p className="mt-1 text-sm text-charcoal">{collab.proposalMessage}</p>

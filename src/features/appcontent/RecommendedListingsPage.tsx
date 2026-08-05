@@ -16,7 +16,7 @@ import { HOME_PREVIEW_COUNT } from '../../types/recommended';
 import type { ListingType, SelectedListing } from '../../types/recommended';
 import type { ListingCard } from '../../data/recommendedListings';
 
-const TYPES: ListingType[] = ['physical_product', 'digital_product', 'masterclass', 'event', 'donation'];
+const TYPES: ListingType[] = ['physical_product', 'digital_product', 'masterclass', 'event', 'second_hand_instrument', 'donation'];
 const PRICE_RANGES = [
   { key: 'any', label: 'Any price', test: () => true },
   { key: 'u250', label: 'Under ₹250', test: (p: number) => p > 0 && p < 250 },

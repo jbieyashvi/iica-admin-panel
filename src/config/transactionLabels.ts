@@ -5,14 +5,16 @@ export const SOURCE_LABEL: Record<TxnSource, string> = {
   membership: 'Membership',
   product: 'Product Order',
   event: 'Event Ticket',
+  donation: 'Donation',
 };
-export const SOURCE_TONE: Record<TxnSource, 'magenta' | 'blue' | 'amber'> = {
+export const SOURCE_TONE: Record<TxnSource, 'magenta' | 'blue' | 'amber' | 'green'> = {
   membership: 'magenta',
   product: 'blue',
   event: 'amber',
+  donation: 'green',
 };
 
-export const SOURCES: TxnSource[] = ['membership', 'product', 'event'];
+export const SOURCES: TxnSource[] = ['membership', 'product', 'event', 'donation'];
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
   'UPI', 'Credit Card', 'Debit Card', 'Net Banking', 'Apple App Store', 'Google Play', 'Stripe', 'Skydo', 'Prototype Demo',
