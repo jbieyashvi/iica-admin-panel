@@ -160,6 +160,7 @@ export interface DataState {
   payouts: import('./payouts').PayoutRecord[];
   adminUsers: import('./admins').AdminUserRecord[];
   membershipPricing: import('./pricing').MembershipPriceRecord[];
+  recommendedSection: import('./recommended').RecommendedSection;
   version: number;
 }
 

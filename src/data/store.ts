@@ -114,7 +114,7 @@ function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
-  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers) && Array.isArray(stored.membershipPricing);
+  const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers) && Array.isArray(stored.membershipPricing) && !!stored.recommendedSection;
   if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
@@ -1408,4 +1408,42 @@ export function setMembershipPriceStatus(id: string, status: PriceStatus, _actor
   if (!p) return;
   if (status === 'active' && p.status !== 'active' && duplicateActivePrice(p, id)) return;
   commit({ ...state, membershipPricing: state.membershipPricing.map((x) => (x.id === id ? { ...x, status, updatedAt: now() } : x)) });
+}
+
+// ===========================================================================
+// Recommended Listings (Home & App Content)
+// ===========================================================================
+
+type RecommendedConfig = import('../types/recommended').RecommendedConfig;
+
+// Save the working config as a Draft — never touches the last-published snapshot
+// (so the Mobile App keeps showing the previously published content).
+export function saveRecommendedDraft(config: RecommendedConfig, actor: AdminActor) {
+  const s = state.recommendedSection;
+  commit({ ...state, recommendedSection: { ...s, ...config, state: 'draft', updatedAt: now(), updatedBy: actor.name } });
+}
+
+// Publish the working config: it replaces the previous published snapshot.
+export function publishRecommendedSection(config: RecommendedConfig, actor: AdminActor) {
+  const s = state.recommendedSection;
+  const at = now();
+  commit({
+    ...state,
+    recommendedSection: {
+      ...s, ...config, state: 'published', updatedAt: at, publishedAt: at, updatedBy: actor.name,
+      published: { ...config, publishedAt: at, updatedBy: actor.name },
+    },
+  });
+}
+
+// Hide the section from Mobile Home; configuration + selected listings preserved.
+export function hideRecommendedSection(actor: AdminActor) {
+  const s = state.recommendedSection;
+  commit({
+    ...state,
+    recommendedSection: {
+      ...s, isVisible: false, updatedAt: now(), updatedBy: actor.name,
+      published: s.published ? { ...s.published, isVisible: false } : s.published,
+    },
+  });
 }

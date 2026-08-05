@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Eye, Pencil, Plus, Power, Smartphone, Trash2 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { Tabs } from '../../components/ui/Tabs';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
@@ -8,6 +10,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { BannerFormModal } from './BannerFormModal';
 import { BannerPreview } from './BannerPreview';
+import { RecommendedListingsPage } from './RecommendedListingsPage';
 import { useData, toggleBanner, deleteBanner, moveBanner } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -20,6 +23,29 @@ import {
 import type { BannerRecord } from '../../types/banners';
 
 export function BannersPage() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'recommended' ? 'recommended' : 'banners';
+  const setTab = (t: string) => { const n = new URLSearchParams(params); if (t === 'banners') n.delete('tab'); else n.set('tab', t); setParams(n, { replace: true }); };
+
+  return (
+    <div>
+      <PageHeader
+        title="Home & App Content"
+        description="Manage the mobile Home banner carousel and the promotional Recommended Listings section."
+      />
+      <div className="mb-5">
+        <Tabs
+          tabs={[{ key: 'banners', label: 'Banners' }, { key: 'recommended', label: 'Recommended Listings' }]}
+          active={tab}
+          onChange={setTab}
+        />
+      </div>
+      {tab === 'banners' ? <BannersTab /> : <RecommendedListingsPage />}
+    </div>
+  );
+}
+
+function BannersTab() {
   const { banners } = useData();
   const { abilities, actor } = useActor();
   const canManage = abilities.manageBanners;
@@ -52,19 +78,14 @@ export function BannersPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Home & App Content"
-        description="Manage promotional banners displayed on the mobile Home screen."
-        actions={
-          <div className="flex gap-2">
-            <Button variant="secondary" icon={<Smartphone className="h-4 w-4" />} onClick={() => openPreview()}>Preview Carousel</Button>
-            <Button icon={<Plus className="h-4 w-4" />} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT} onClick={openAdd}>Add Banner</Button>
-          </div>
-        }
-      />
-
-      <div className="mb-4 rounded-lg border border-cream-200 bg-cream-100/50 px-4 py-2.5 text-sm text-charcoal-muted">
-        Admin controls only this top banner carousel. All other mobile Home sections use their existing connected data and fixed design.
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-lg border border-cream-200 bg-cream-100/50 px-4 py-2.5 text-sm text-charcoal-muted">
+          Admin controls only this top banner carousel. All other mobile Home sections use their existing connected data and fixed design.
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="secondary" icon={<Smartphone className="h-4 w-4" />} onClick={() => openPreview()}>Preview Carousel</Button>
+          <Button icon={<Plus className="h-4 w-4" />} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT} onClick={openAdd}>Add Banner</Button>
+        </div>
       </div>
 
       <div className="card overflow-hidden">
