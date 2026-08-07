@@ -30,8 +30,6 @@ export interface GuestResume {
   applicantName: string;
   fileName: string;
   fileSizeKb: number;
-  sourceEpisodeId?: string | null;
-  sourceEpisodeTitle?: string | null;
   submittedAt: string;
   fileAvailable: boolean; // false = prototype-only metadata, PDF unavailable
 }

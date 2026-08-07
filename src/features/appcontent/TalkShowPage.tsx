@@ -95,7 +95,7 @@ export function TalkShowPage() {
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-cream-200 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-muted">
                   <th className="px-4 py-3">Submission ID</th>
@@ -103,7 +103,6 @@ export function TalkShowPage() {
                   <th className="px-4 py-3">Connected User</th>
                   <th className="px-4 py-3">Résumé</th>
                   <th className="px-4 py-3">Size</th>
-                  <th className="px-4 py-3">Source Episode</th>
                   <th className="px-4 py-3">Submitted</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -114,10 +113,9 @@ export function TalkShowPage() {
                     <td className="px-4 py-2.5 font-mono text-xs text-charcoal-muted">{r.id}</td>
                     <td className="px-4 py-2.5"><Badge tone={r.applicantType === 'creator' ? 'magenta' : r.applicantType === 'registered' ? 'blue' : 'neutral'}>{APPLICANT_LABEL[r.applicantType]}</Badge></td>
                     <td className="px-4 py-2.5 text-charcoal">{r.connectedUserId ? r.applicantName : <span className="text-charcoal-muted">Guest — {r.applicantName}</span>}</td>
-                    <td className="px-4 py-2.5"><span className="flex items-center gap-1.5 text-charcoal"><FileText className="h-3.5 w-3.5 text-charcoal-muted" /><span className="max-w-[180px] truncate">{r.fileName}</span></span></td>
-                    <td className="px-4 py-2.5 text-charcoal-muted">{r.fileSizeKb >= 1024 ? `${(r.fileSizeKb / 1024).toFixed(1)} MB` : `${r.fileSizeKb} KB`}</td>
-                    <td className="px-4 py-2.5 text-charcoal-muted"><span className="block max-w-[160px] truncate">{r.sourceEpisodeTitle ?? '—'}</span></td>
-                    <td className="px-4 py-2.5 text-charcoal-muted">{formatDate(r.submittedAt)}</td>
+                    <td className="px-4 py-2.5"><span className="flex items-center gap-1.5 text-charcoal"><FileText className="h-3.5 w-3.5 shrink-0 text-charcoal-muted" /><span className="max-w-[260px] truncate">{r.fileName}</span></span></td>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-charcoal-muted">{r.fileSizeKb >= 1024 ? `${(r.fileSizeKb / 1024).toFixed(1)} MB` : `${r.fileSizeKb} KB`}</td>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-charcoal-muted">{formatDate(r.submittedAt)}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => setResumeInfo(r)} className="rounded p-1 text-charcoal-muted hover:text-magenta-700" aria-label="View / download PDF"><Download className="h-4 w-4" /></button>

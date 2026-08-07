@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Smartphone, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Field, Input, Select, Textarea } from '../../components/ui/Field';
+import { Field, Input, Select } from '../../components/ui/Field';
 import { Modal } from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { useData, saveRecommendedDraft, publishRecommendedSection, hideRecommendedSection } from '../../data/store';
+import { useData, saveRecommendedDraft, publishRecommendedSection } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
-import { formatDate, formatMoney } from '../../lib/format';
+import { formatMoney } from '../../lib/format';
 import { buildListingCatalog, resolveListing, LISTING_TYPE_LABEL } from '../../data/recommendedListings';
 import type { ListingType, SelectedListing } from '../../types/recommended';
 import type { ListingCard } from '../../data/recommendedListings';
@@ -35,10 +35,6 @@ export function RecommendedListingsPage() {
   // Working (draft) state, initialised from the stored section.
   const [heading, setHeading] = useState(section.heading);
   const [description, setDescription] = useState(section.description ?? '');
-  const [isVisible, setIsVisible] = useState(section.isVisible);
-  const [infiniteLoop, setInfiniteLoop] = useState(section.infiniteLoop ?? true);
-  const [startAt, setStartAt] = useState(section.startAt ?? '');
-  const [endAt, setEndAt] = useState(section.endAt ?? '');
   const [selected, setSelected] = useState<SelectedListing[]>(
     [...section.selectedListings].sort((a, b) => a.displayOrder - b.displayOrder),
   );
@@ -49,7 +45,6 @@ export function RecommendedListingsPage() {
   const [paid, setPaid] = useState('all');
   const [priceRange, setPriceRange] = useState('any');
   const [publishOpen, setPublishOpen] = useState(false);
-  const [hideOpen, setHideOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -88,17 +83,16 @@ export function RecommendedListingsPage() {
   });
   const clearAll = () => { setSelected([]); setClearOpen(false); toast('Selection cleared. Save Draft or Publish to apply.'); };
 
-  const config = () => ({ heading: heading.trim(), description: description.trim() || undefined, isVisible, infiniteLoop, startAt: startAt || null, endAt: endAt || null, selectedListings: selected });
+  const config = () => ({ heading: heading.trim(), description: description.trim() || undefined, selectedListings: selected });
 
   const unavailableCount = selectedCards.filter(({ card }) => !card || !card.available).length;
 
-  // Validation.
+  // Validation. Heading is always required; scheduling/visibility are gone.
   const validate = (forPublish: boolean): string | null => {
-    if (heading.length > 60) return 'Heading must be 60 characters or fewer.';
-    if (description.length > 160) return 'Description must be 160 characters or fewer.';
-    if (startAt && endAt && new Date(endAt) < new Date(startAt)) return 'End date cannot be earlier than start date.';
-    if (isVisible && !heading.trim()) return 'Heading is required when the section is shown.';
-    if (forPublish && isVisible && selected.length === 0) return 'Cannot publish an active section without selected listings.';
+    if (heading.trim().length > 60) return 'Heading must be 60 characters or fewer.';
+    if (description.trim().length > 160) return 'Description must be 160 characters or fewer.';
+    if (!heading.trim()) return 'Section heading is required.';
+    if (forPublish && selected.length === 0) return 'Add at least one listing before publishing.';
     return null;
   };
 
@@ -114,12 +108,6 @@ export function RecommendedListingsPage() {
     publishRecommendedSection(config(), actor);
     setPublishOpen(false);
     toast('Recommended section published to Mobile Home.');
-  };
-  const onHide = () => {
-    hideRecommendedSection(actor);
-    setIsVisible(false);
-    setHideOpen(false);
-    toast('Section hidden from Mobile Home. Configuration preserved.');
   };
 
   return (
@@ -137,40 +125,21 @@ export function RecommendedListingsPage() {
         </div>
       </div>
 
-      {/* Section configuration */}
+      {/* Section configuration — heading + description only. Visibility, scheduling
+          and infinite-loop are no longer configurable (carousel is always infinite;
+          Draft/Published is the only state). */}
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-charcoal">Section Configuration</h3>
-          <div className="flex items-center gap-2">
-            <Badge tone={section.state === 'published' ? 'green' : 'amber'}>{section.state === 'published' ? 'Published' : 'Draft'}</Badge>
-            <Button variant="secondary" size="sm" onClick={() => setHideOpen(true)} disabled={!canManage || !isVisible}>Hide Section</Button>
-          </div>
+          <Badge tone={section.state === 'published' ? 'green' : 'amber'}>{section.state === 'published' ? 'Published' : 'Draft'}</Badge>
         </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label="Section heading" required hint={`${heading.length}/60`}>
             <Input value={heading} maxLength={60} onChange={(e) => setHeading(e.target.value)} placeholder="e.g. Recommended Shopping" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Section visibility">
-              <Select value={isVisible ? 'shown' : 'hidden'} onChange={(e) => setIsVisible(e.target.value === 'shown')}>
-                <option value="shown">Shown</option>
-                <option value="hidden">Hidden</option>
-              </Select>
-            </Field>
-            <Field label="Infinite loop" hint="Loops the carousel at render time — no data is duplicated.">
-              <Select value={infiniteLoop ? 'on' : 'off'} onChange={(e) => setInfiniteLoop(e.target.value === 'on')}>
-                <option value="on">Enabled</option>
-                <option value="off">Disabled</option>
-              </Select>
-            </Field>
-          </div>
           <Field label="Short description (optional)" hint={`${description.length}/160`}>
-            <Textarea rows={2} value={description} maxLength={160} onChange={(e) => setDescription(e.target.value)} placeholder="Optional supporting text shown under the heading." />
+            <Input value={description} maxLength={160} onChange={(e) => setDescription(e.target.value)} placeholder="Optional supporting text shown under the heading." />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Start (optional)"><Input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} /></Field>
-            <Field label="End (optional)"><Input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} /></Field>
-          </div>
         </div>
       </div>
 
@@ -261,13 +230,6 @@ export function RecommendedListingsPage() {
         <p className="text-sm text-charcoal">Publish <span className="font-medium">{selected.length}</span> listing{selected.length === 1 ? '' : 's'} under “{heading || 'Untitled'}”. Source products, classes and events are not changed.</p>
       </Modal>
 
-      {/* Hide confirm */}
-      <Modal open={hideOpen} onClose={() => setHideOpen(false)} title="Hide section"
-        description="Removes the section from Mobile Home. Configuration and selected listings are preserved for later restoration."
-        footer={<><Button variant="secondary" onClick={() => setHideOpen(false)}>Cancel</Button><Button variant="danger" onClick={onHide}>Hide Section</Button></>}>
-        <p className="text-sm text-charcoal">Hide the Recommended Listings section from the Mobile App Home screen?</p>
-      </Modal>
-
       {/* Clear all confirm */}
       <Modal open={clearOpen} onClose={() => setClearOpen(false)} title="Clear all selected listings"
         description="Empties the working selection. Source products, classes, events, instruments and donations are not deleted."
@@ -277,27 +239,23 @@ export function RecommendedListingsPage() {
 
       {/* Mobile preview */}
       <MobilePreview open={previewOpen} onClose={() => setPreviewOpen(false)}
-        heading={heading} description={description} isVisible={isVisible} infiniteLoop={infiniteLoop}
-        state={section.state} startAt={startAt} endAt={endAt} unavailableCount={unavailableCount}
+        heading={heading} description={description} state={section.state} unavailableCount={unavailableCount}
         cards={selectedCards.map((x) => x.card).filter((c): c is ListingCard => !!c && c.available)} />
     </div>
   );
 }
 
-function MobilePreview({ open, onClose, heading, description, isVisible, infiniteLoop, state, startAt, endAt, unavailableCount, cards }: {
-  open: boolean; onClose: () => void; heading: string; description: string; isVisible: boolean; infiniteLoop: boolean;
-  state: 'draft' | 'published'; startAt: string; endAt: string; unavailableCount: number; cards: ListingCard[];
+function MobilePreview({ open, onClose, heading, description, state, unavailableCount, cards }: {
+  open: boolean; onClose: () => void; heading: string; description: string;
+  state: 'draft' | 'published'; unavailableCount: number; cards: ListingCard[];
 }) {
-  const scheduled = !!(startAt || endAt);
   return (
     <Modal open={open} onClose={onClose} title="Mobile Carousel Preview" description="Prototype preview of the final Mobile Home carousel — no product, class or event record is changed."
       footer={<Button onClick={onClose}>Close</Button>}>
-      {/* State + behaviour indicators */}
+      {/* State + fixed carousel behaviour */}
       <div className="mb-3 flex flex-wrap gap-2 text-xs">
-        <Badge tone={state === 'published' ? 'green' : 'amber'}>{state === 'published' ? 'Published' : 'Draft'}</Badge>
-        <Badge tone={isVisible ? 'green' : 'neutral'}>{isVisible ? 'Shown on Home' : 'Hidden'}</Badge>
-        <Badge tone={infiniteLoop ? 'magenta' : 'neutral'}>{infiniteLoop ? 'Infinite loop: On' : 'Infinite loop: Off'}</Badge>
-        {scheduled && <Badge tone="blue">Scheduled{startAt ? ` from ${formatDate(startAt)}` : ''}{endAt ? ` to ${formatDate(endAt)}` : ''}</Badge>}
+        <Badge tone={state === 'published' ? 'green' : 'amber'}>{state === 'published' ? 'Published — available to Mobile' : 'Draft — not on Mobile'}</Badge>
+        <Badge tone="magenta">Infinite carousel</Badge>
       </div>
 
       {/* Unavailable warning lives OUTSIDE the phone frame */}
@@ -330,8 +288,7 @@ function MobilePreview({ open, onClose, heading, description, isVisible, infinit
         </div>
         {cards.length > 0 && (
           <p className="mt-2 text-center text-[11px] text-charcoal-muted">
-            {cards.length} card{cards.length === 1 ? '' : 's'} · swipe horizontally
-            {infiniteLoop ? ' · loops end-to-end continuously' : ' · stops at the last card'}
+            {cards.length} card{cards.length === 1 ? '' : 's'} · swipe horizontally · loops end-to-end continuously
           </p>
         )}
       </div>

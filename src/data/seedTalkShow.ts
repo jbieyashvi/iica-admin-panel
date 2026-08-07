@@ -45,16 +45,14 @@ interface ResumeRow {
   name: string;
   fileName: string;
   sizeKb: number;
-  episodeId?: string;
-  episodeTitle?: string;
   daysAgo: number;
   available: boolean;
 }
 
 const RESUMES: ResumeRow[] = [
-  { id: 'res_1', type: 'creator', userId: 'usr_meera', name: 'Meera Kulkarni', fileName: 'meera-kulkarni-resume.pdf', sizeKb: 248, episodeId: 'ep_1', episodeTitle: 'The Craft of Indian Songwriting', daysAgo: 3, available: true },
-  { id: 'res_2', type: 'registered', userId: 'usr_nisha', name: 'Nisha Reddy', fileName: 'nisha-reddy-profile.pdf', sizeKb: 512, episodeId: 'ep_1', episodeTitle: 'The Craft of Indian Songwriting', daysAgo: 5, available: false },
-  { id: 'res_3', type: 'guest', name: 'Rahul Menon', fileName: 'rahul-menon-cv.pdf', sizeKb: 190, episodeId: 'ep_2', episodeTitle: 'Movement & Discipline', daysAgo: 9, available: true },
+  { id: 'res_1', type: 'creator', userId: 'usr_meera', name: 'Meera Kulkarni', fileName: 'meera-kulkarni-resume.pdf', sizeKb: 248, daysAgo: 3, available: true },
+  { id: 'res_2', type: 'registered', userId: 'usr_nisha', name: 'Nisha Reddy', fileName: 'nisha-reddy-profile.pdf', sizeKb: 512, daysAgo: 5, available: false },
+  { id: 'res_3', type: 'guest', name: 'Rahul Menon', fileName: 'rahul-menon-cv.pdf', sizeKb: 190, daysAgo: 9, available: true },
   { id: 'res_4', type: 'creator', userId: 'usr_ananya', name: 'Ananya Rao', fileName: 'ananya-rao-portfolio.pdf', sizeKb: 1340, daysAgo: 14, available: true },
 ];
 
@@ -67,8 +65,6 @@ export function buildGuestResumes(now: number): GuestResume[] {
     applicantName: r.name,
     fileName: r.fileName,
     fileSizeKb: r.sizeKb,
-    sourceEpisodeId: r.episodeId ?? null,
-    sourceEpisodeTitle: r.episodeTitle ?? null,
     submittedAt: new Date(now - r.daysAgo * day).toISOString(),
     fileAvailable: r.available,
   }));

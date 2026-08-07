@@ -111,11 +111,16 @@ function migrateStatuses(s: DataState): DataState {
   return next;
 }
 
-// Safe Home & App Content migration (idempotent). Backfills the Recommended
-// Listings `infiniteLoop` flag (default Enabled for legacy published records) and
-// drops obsolete Home-only config keys (What's New / Previous Episodes Home /
-// Upcoming Events Home) if a legacy blob ever carried them — WITHOUT touching the
-// underlying Products, Classes, Events or Talk Show episode records.
+// Safe Home & App Content migration (idempotent). Drops obsolete Home-only keys
+// without touching the underlying Products, Classes, Events, Talk Show episodes
+// or résumé records:
+//   - Obsolete Home config: What's New / Previous Episodes Home / Upcoming Events.
+//   - Recommended Listings: visibility, scheduling and infinite-loop are no longer
+//     Admin-configurable (carousel is permanently infinite, Draft/Published is the
+//     only state) → strip isVisible / infiniteLoop / startAt / endAt.
+//   - Guest Artist Résumés: Source Episode removed → strip sourceEpisode* keys.
+// Heading, description, selected-listing order/IDs and Draft/Published state are
+// all preserved; complete configs and résumé submissions are never deleted.
 function migrateHomeContent(s: DataState): DataState {
   let changed = false;
   const OBSOLETE = [
@@ -123,32 +128,42 @@ function migrateHomeContent(s: DataState): DataState {
     'previousEpisodesHomeEnabled', 'previousEpisodesDisplayOrder',
     'upcomingEventsHomeEnabled', 'upcomingEventsHomeLimit',
   ];
-  const stripObsolete = <T extends object>(o: T | null | undefined): T | null | undefined => {
+  const RECOMMENDED_LEGACY = ['isVisible', 'infiniteLoop', 'startAt', 'endAt'];
+  const RESUME_LEGACY = ['sourceEpisode', 'sourceEpisodeId', 'sourceEpisodeTitle'];
+
+  // Return a copy with the given keys removed, only if any were present.
+  const strip = <T extends object>(o: T | null | undefined, keys: string[]): T | null | undefined => {
     if (!o) return o;
     const rec = o as Record<string, unknown>;
-    if (OBSOLETE.some((k) => k in rec)) {
-      changed = true;
-      const next = { ...rec };
-      OBSOLETE.forEach((k) => delete next[k]);
-      return next as T;
-    }
-    return o;
+    if (!keys.some((k) => k in rec)) return o;
+    changed = true;
+    const next = { ...rec };
+    keys.forEach((k) => delete next[k]);
+    return next as T;
   };
 
-  const rootStripped = stripObsolete(s) as DataState;
+  const rootStripped = strip(s, OBSOLETE) as DataState;
+
+  // Recommended Listings section (+ its published snapshot).
   let rec = rootStripped.recommendedSection;
   if (rec) {
-    let next = stripObsolete(rec)!;
-    if (typeof next.infiniteLoop !== 'boolean') { changed = true; next = { ...next, infiniteLoop: true }; }
-    if (next.published && typeof next.published.infiniteLoop !== 'boolean') {
-      changed = true;
-      next = { ...next, published: { ...next.published, infiniteLoop: true } };
+    let next = strip(rec, [...OBSOLETE, ...RECOMMENDED_LEGACY])!;
+    if (next.published) {
+      const cleanedPub = strip(next.published, RECOMMENDED_LEGACY);
+      if (cleanedPub !== next.published) next = { ...next, published: cleanedPub };
     }
     rec = next;
   }
 
+  // Guest Artist Résumés — drop the removed Source Episode metadata.
+  let resumes = rootStripped.guestResumes;
+  if (Array.isArray(resumes)) {
+    const cleaned = resumes.map((r) => strip(r, RESUME_LEGACY)!);
+    if (cleaned.some((r, i) => r !== resumes[i])) resumes = cleaned;
+  }
+
   if (!changed) return s;
-  const migrated = { ...rootStripped, recommendedSection: rec };
+  const migrated = { ...rootStripped, recommendedSection: rec, guestResumes: resumes };
   writeStorage(STORAGE_KEY, migrated);
   return migrated;
 }
@@ -1475,18 +1490,6 @@ export function publishRecommendedSection(config: RecommendedConfig, actor: Admi
     recommendedSection: {
       ...s, ...config, state: 'published', updatedAt: at, publishedAt: at, updatedBy: actor.name,
       published: { ...config, publishedAt: at, updatedBy: actor.name },
-    },
-  });
-}
-
-// Hide the section from Mobile Home; configuration + selected listings preserved.
-export function hideRecommendedSection(actor: AdminActor) {
-  const s = state.recommendedSection;
-  commit({
-    ...state,
-    recommendedSection: {
-      ...s, isVisible: false, updatedAt: now(), updatedBy: actor.name,
-      published: s.published ? { ...s.published, isVisible: false } : s.published,
     },
   });
 }

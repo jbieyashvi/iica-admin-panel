@@ -20,13 +20,12 @@ export interface SelectedListing {
 
 // Editable working config + the last-published snapshot (so a Draft save never
 // changes what the Mobile App currently shows).
+// Visibility, scheduling and infinite-loop are no longer Admin-configurable:
+// the Mobile carousel is permanently infinite, and Draft/Published is the only
+// content state (a published config is available to Mobile, a draft is not).
 export interface RecommendedConfig {
   heading: string;
   description?: string;
-  isVisible: boolean;
-  infiniteLoop: boolean; // render-time carousel loop; never duplicates stored data
-  startAt?: string | null;
-  endAt?: string | null;
   selectedListings: SelectedListing[];
 }
 
