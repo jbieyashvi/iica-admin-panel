@@ -111,12 +111,54 @@ function migrateStatuses(s: DataState): DataState {
   return next;
 }
 
+// Safe Home & App Content migration (idempotent). Backfills the Recommended
+// Listings `infiniteLoop` flag (default Enabled for legacy published records) and
+// drops obsolete Home-only config keys (What's New / Previous Episodes Home /
+// Upcoming Events Home) if a legacy blob ever carried them — WITHOUT touching the
+// underlying Products, Classes, Events or Talk Show episode records.
+function migrateHomeContent(s: DataState): DataState {
+  let changed = false;
+  const OBSOLETE = [
+    'whatsNewEnabled', 'whatsNewPreview', 'whatsNewProductWindow', 'whatsNewEventWindow',
+    'previousEpisodesHomeEnabled', 'previousEpisodesDisplayOrder',
+    'upcomingEventsHomeEnabled', 'upcomingEventsHomeLimit',
+  ];
+  const stripObsolete = <T extends object>(o: T | null | undefined): T | null | undefined => {
+    if (!o) return o;
+    const rec = o as Record<string, unknown>;
+    if (OBSOLETE.some((k) => k in rec)) {
+      changed = true;
+      const next = { ...rec };
+      OBSOLETE.forEach((k) => delete next[k]);
+      return next as T;
+    }
+    return o;
+  };
+
+  const rootStripped = stripObsolete(s) as DataState;
+  let rec = rootStripped.recommendedSection;
+  if (rec) {
+    let next = stripObsolete(rec)!;
+    if (typeof next.infiniteLoop !== 'boolean') { changed = true; next = { ...next, infiniteLoop: true }; }
+    if (next.published && typeof next.published.infiniteLoop !== 'boolean') {
+      changed = true;
+      next = { ...next, published: { ...next.published, infiniteLoop: true } };
+    }
+    rec = next;
+  }
+
+  if (!changed) return s;
+  const migrated = { ...rootStripped, recommendedSection: rec };
+  writeStorage(STORAGE_KEY, migrated);
+  return migrated;
+}
+
 function load(): DataState {
   const stored = readStorage<DataState | null>(STORAGE_KEY, null);
   // Reseed on version change, or if a persisted state is missing a required
   // top-level slice (guards against a partially-written state after a schema bump).
   const intact = stored && Array.isArray(stored.collaborations) && Array.isArray(stored.productOrders) && !!stored.collaborationSettings && Array.isArray(stored.reviews) && Array.isArray(stored.banners) && Array.isArray(stored.payouts) && Array.isArray(stored.commissionSettings) && Array.isArray(stored.adminUsers) && Array.isArray(stored.membershipPricing) && !!stored.recommendedSection && !!stored.membershipPurchaseConfig && Array.isArray(stored.musicSubmissions) && Array.isArray(stored.talkShowEpisodes) && Array.isArray(stored.guestResumes) && Array.isArray(stored.donationListings) && Array.isArray(stored.donationOrders);
-  if (stored && stored.version === SEED_VERSION && intact) return migrateStatuses(stored);
+  if (stored && stored.version === SEED_VERSION && intact) return migrateHomeContent(migrateStatuses(stored));
   const seeded = buildSeedState();
   writeStorage(STORAGE_KEY, seeded);
   return seeded;

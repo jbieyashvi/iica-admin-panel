@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Eye, Pencil, Plus, Power, Smartphone, Trash2 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -13,7 +13,6 @@ import { BannerPreview } from './BannerPreview';
 import { RecommendedListingsPage } from './RecommendedListingsPage';
 import { NewMusicPage } from './NewMusicPage';
 import { TalkShowPage } from './TalkShowPage';
-import { WhatsNewPage } from './WhatsNewPage';
 import { useData, toggleBanner, deleteBanner, moveBanner } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
@@ -25,32 +24,41 @@ import {
 } from '../../config/bannerLabels';
 import type { BannerRecord } from '../../types/banners';
 
+// The four approved Home & App Content sections. Removed: What's New Preview,
+// standalone Upcoming Events Home controls, and Previous Episodes Home controls.
 const APPCONTENT_TABS = [
   { key: 'banners', label: 'Banners' },
   { key: 'music', label: 'New Music' },
   { key: 'talkshow', label: 'Talk Show' },
   { key: 'recommended', label: 'Recommended Listings' },
-  { key: 'whatsnew', label: "What's New Preview" },
 ];
 
 export function BannersPage() {
   const [params, setParams] = useSearchParams();
   const raw = params.get('tab') ?? 'banners';
-  const tab = APPCONTENT_TABS.some((t) => t.key === raw) ? raw : 'banners';
+  const valid = APPCONTENT_TABS.some((t) => t.key === raw);
+  const tab = valid ? raw : 'banners';
   const setTab = (t: string) => { const n = new URLSearchParams(params); if (t === 'banners') n.delete('tab'); else n.set('tab', t); setParams(n, { replace: true }); };
+
+  // Safely redirect obsolete/removed tabs (e.g. an old ?tab=whatsnew deep link)
+  // to the first valid section instead of leaving a stale query in the URL.
+  useEffect(() => {
+    if (!valid && params.get('tab')) {
+      const n = new URLSearchParams(params); n.delete('tab'); setParams(n, { replace: true });
+    }
+  }, [valid, params, setParams]);
 
   return (
     <div>
       <PageHeader
         title="Home & App Content"
-        description="Manage every Mobile App Home section: banners, New Music, Talk Show, Recommended Listings and the What's New preview."
+        description="Manage every Mobile App Home section: banners, New Music, Talk Show and the curated Recommended Listings carousel."
       />
       <div className="mb-5"><Tabs tabs={APPCONTENT_TABS} active={tab} onChange={setTab} /></div>
       {tab === 'banners' && <BannersTab />}
       {tab === 'music' && <NewMusicPage />}
       {tab === 'talkshow' && <TalkShowPage />}
       {tab === 'recommended' && <RecommendedListingsPage />}
-      {tab === 'whatsnew' && <WhatsNewPage />}
     </div>
   );
 }

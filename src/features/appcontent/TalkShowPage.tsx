@@ -43,7 +43,7 @@ export function TalkShowPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-serif text-xl font-medium text-charcoal">Talk Show</h2>
-          <p className="text-sm text-charcoal-muted">Curate Talk Show episodes and review guest artist résumé submissions.</p>
+          <p className="text-sm text-charcoal-muted">Only the <span className="font-medium text-charcoal">Featured This Week</span> episode shows on Mobile Home. All other episodes stay stored here for management and are not rendered on Home.</p>
         </div>
         {sub === 'episodes' && <Button icon={<Plus className="h-4 w-4" />} disabled={!canManage} title={canManage ? '' : RESTRICTED_HINT} onClick={() => setForm({ mode: 'add', ep: null })}>Add Episode</Button>}
       </div>
@@ -60,13 +60,13 @@ export function TalkShowPage() {
                   <th className="px-4 py-3">Host</th>
                   <th className="px-4 py-3">Guest</th>
                   <th className="px-4 py-3">Released</th>
-                  <th className="px-4 py-3">This Week</th>
+                  <th className="px-4 py-3">Mobile Home</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cream-200">
                 {episodes.map((e) => (
-                  <tr key={e.id} className="hover:bg-cream-100/50">
+                  <tr key={e.id} className={e.featuredThisWeek ? 'bg-magenta-50/60' : 'hover:bg-cream-100/50'}>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2.5">
                         <YtThumb videoId={e.youtubeVideoId} className="h-9 w-16 shrink-0" />
@@ -76,7 +76,7 @@ export function TalkShowPage() {
                     <td className="px-4 py-2.5 text-charcoal-muted">{e.host}</td>
                     <td className="px-4 py-2.5 text-charcoal">{e.featuredGuest}</td>
                     <td className="px-4 py-2.5 text-charcoal-muted">{formatDate(e.releaseDate)}</td>
-                    <td className="px-4 py-2.5">{e.featuredThisWeek ? <Badge tone="magenta">Featured</Badge> : <span className="text-charcoal-muted">—</span>}</td>
+                    <td className="px-4 py-2.5">{e.featuredThisWeek ? <Badge tone="magenta">Featured This Week</Badge> : <span className="text-xs text-charcoal-muted">Stored · not on Home</span>}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1">
                         <a href={youtubeWatchUrl(e.youtubeVideoId)} target="_blank" rel="noreferrer" className="rounded p-1 text-charcoal-muted hover:text-magenta-700" aria-label="Open YouTube"><ExternalLink className="h-4 w-4" /></a>

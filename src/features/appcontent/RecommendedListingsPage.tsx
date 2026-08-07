@@ -12,7 +12,6 @@ import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import { formatDate, formatMoney } from '../../lib/format';
 import { buildListingCatalog, resolveListing, LISTING_TYPE_LABEL } from '../../data/recommendedListings';
-import { HOME_PREVIEW_COUNT } from '../../types/recommended';
 import type { ListingType, SelectedListing } from '../../types/recommended';
 import type { ListingCard } from '../../data/recommendedListings';
 
@@ -37,6 +36,7 @@ export function RecommendedListingsPage() {
   const [heading, setHeading] = useState(section.heading);
   const [description, setDescription] = useState(section.description ?? '');
   const [isVisible, setIsVisible] = useState(section.isVisible);
+  const [infiniteLoop, setInfiniteLoop] = useState(section.infiniteLoop ?? true);
   const [startAt, setStartAt] = useState(section.startAt ?? '');
   const [endAt, setEndAt] = useState(section.endAt ?? '');
   const [selected, setSelected] = useState<SelectedListing[]>(
@@ -50,6 +50,7 @@ export function RecommendedListingsPage() {
   const [priceRange, setPriceRange] = useState('any');
   const [publishOpen, setPublishOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const catalog = useMemo(() => buildListingCatalog(data), [data]);
@@ -85,9 +86,11 @@ export function RecommendedListingsPage() {
     const j = i + dir; if (j < 0 || j >= prev.length) return prev;
     const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return reindex(next);
   });
-  const clearAll = () => setSelected([]);
+  const clearAll = () => { setSelected([]); setClearOpen(false); toast('Selection cleared. Save Draft or Publish to apply.'); };
 
-  const config = () => ({ heading: heading.trim(), description: description.trim() || undefined, isVisible, startAt: startAt || null, endAt: endAt || null, selectedListings: selected });
+  const config = () => ({ heading: heading.trim(), description: description.trim() || undefined, isVisible, infiniteLoop, startAt: startAt || null, endAt: endAt || null, selectedListings: selected });
+
+  const unavailableCount = selectedCards.filter(({ card }) => !card || !card.available).length;
 
   // Validation.
   const validate = (forPublish: boolean): string | null => {
@@ -119,15 +122,13 @@ export function RecommendedListingsPage() {
     toast('Section hidden from Mobile Home. Configuration preserved.');
   };
 
-  const homeCount = Math.min(HOME_PREVIEW_COUNT, selected.length);
-
   return (
     <div className="space-y-6">
       {/* Sub-header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-serif text-xl font-medium text-charcoal">Recommended Listings</h2>
-          <p className="text-sm text-charcoal-muted">Curate products, classes and events displayed in a promotional section on the Mobile App Home screen.</p>
+          <p className="text-sm text-charcoal-muted">The primary curated Mobile Home carousel. Mix products, classes, events, instruments and donations under an editable heading (e.g. Festival Specials, Weekend Workshops, Everything Under ₹250). Events appear on Home only when selected here.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={<Smartphone className="h-4 w-4" />} onClick={() => setPreviewOpen(true)}>Preview Mobile Section</Button>
@@ -149,12 +150,20 @@ export function RecommendedListingsPage() {
           <Field label="Section heading" required hint={`${heading.length}/60`}>
             <Input value={heading} maxLength={60} onChange={(e) => setHeading(e.target.value)} placeholder="e.g. Recommended Shopping" />
           </Field>
-          <Field label="Section visibility">
-            <Select value={isVisible ? 'shown' : 'hidden'} onChange={(e) => setIsVisible(e.target.value === 'shown')}>
-              <option value="shown">Shown</option>
-              <option value="hidden">Hidden</option>
-            </Select>
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Section visibility">
+              <Select value={isVisible ? 'shown' : 'hidden'} onChange={(e) => setIsVisible(e.target.value === 'shown')}>
+                <option value="shown">Shown</option>
+                <option value="hidden">Hidden</option>
+              </Select>
+            </Field>
+            <Field label="Infinite loop" hint="Loops the carousel at render time — no data is duplicated.">
+              <Select value={infiniteLoop ? 'on' : 'off'} onChange={(e) => setInfiniteLoop(e.target.value === 'on')}>
+                <option value="on">Enabled</option>
+                <option value="off">Disabled</option>
+              </Select>
+            </Field>
+          </div>
           <Field label="Short description (optional)" hint={`${description.length}/160`}>
             <Textarea rows={2} value={description} maxLength={160} onChange={(e) => setDescription(e.target.value)} placeholder="Optional supporting text shown under the heading." />
           </Field>
@@ -210,9 +219,14 @@ export function RecommendedListingsPage() {
         <div className="card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-charcoal">Selected Listings <span className="text-charcoal-muted">({selected.length})</span></h3>
-            {selected.length > 0 && canManage && <button onClick={clearAll} className="text-xs font-medium text-charcoal-muted hover:text-red-600">Clear all</button>}
+            {selected.length > 0 && canManage && <button onClick={() => setClearOpen(true)} className="text-xs font-medium text-charcoal-muted hover:text-red-600">Clear all</button>}
           </div>
-          <p className="mb-2 rounded-lg border border-cream-200 bg-cream-100/50 px-3 py-2 text-xs text-charcoal-muted">Keep the first 6–8 listings most relevant — they appear first on the Mobile App Home screen. Additional listings show under “View All”.</p>
+          <p className="mb-2 rounded-lg border border-cream-200 bg-cream-100/50 px-3 py-2 text-xs text-charcoal-muted">Listings render on Mobile Home in this exact order as one horizontal carousel. No fixed maximum — 10, 50 or more are supported. Store order here is independent of the source records.</p>
+          {unavailableCount > 0 && (
+            <p className="mb-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <span className="font-medium">{unavailableCount} selected {unavailableCount === 1 ? 'listing is' : 'listings are'} unavailable.</span> They stay listed here but are excluded from the Mobile carousel until their source becomes public again. Source records are unchanged.
+            </p>
+          )}
           {selected.length === 0 ? (
             <EmptyState title="No listings selected" description="Add eligible listings from the left." />
           ) : (
@@ -223,7 +237,7 @@ export function RecommendedListingsPage() {
                     <button onClick={() => move(i, -1)} disabled={!canManage || i === 0} className="rounded p-0.5 text-charcoal-muted hover:bg-cream-100 disabled:opacity-30" aria-label="Move up"><ArrowUp className="h-3.5 w-3.5" /></button>
                     <button onClick={() => move(i, 1)} disabled={!canManage || i === selected.length - 1} className="rounded p-0.5 text-charcoal-muted hover:bg-cream-100 disabled:opacity-30" aria-label="Move down"><ArrowDown className="h-3.5 w-3.5" /></button>
                   </span>
-                  <Badge tone={i < homeCount ? 'magenta' : 'neutral'}>{i < homeCount ? 'Home Preview' : 'View All'}</Badge>
+                  <Badge tone={card && card.available ? 'neutral' : 'red'}>{card && card.available ? `#${i + 1}` : 'Unavailable'}</Badge>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-charcoal">{card ? card.title : sel.listingId}</span>
                     <span className="block truncate text-xs text-charcoal-muted">
@@ -254,46 +268,72 @@ export function RecommendedListingsPage() {
         <p className="text-sm text-charcoal">Hide the Recommended Listings section from the Mobile App Home screen?</p>
       </Modal>
 
+      {/* Clear all confirm */}
+      <Modal open={clearOpen} onClose={() => setClearOpen(false)} title="Clear all selected listings"
+        description="Empties the working selection. Source products, classes, events, instruments and donations are not deleted."
+        footer={<><Button variant="secondary" onClick={() => setClearOpen(false)}>Cancel</Button><Button variant="danger" onClick={clearAll}>Clear Selection</Button></>}>
+        <p className="text-sm text-charcoal">Remove all <span className="font-medium">{selected.length}</span> listing{selected.length === 1 ? '' : 's'} from the selection? This affects only what the carousel shows once you Save.</p>
+      </Modal>
+
       {/* Mobile preview */}
       <MobilePreview open={previewOpen} onClose={() => setPreviewOpen(false)}
-        heading={heading} description={description} isVisible={isVisible} startAt={startAt} endAt={endAt}
-        cards={selectedCards.map((x) => x.card).filter((c): c is ListingCard => !!c && c.available)} homeCount={homeCount} />
+        heading={heading} description={description} isVisible={isVisible} infiniteLoop={infiniteLoop}
+        state={section.state} startAt={startAt} endAt={endAt} unavailableCount={unavailableCount}
+        cards={selectedCards.map((x) => x.card).filter((c): c is ListingCard => !!c && c.available)} />
     </div>
   );
 }
 
-function MobilePreview({ open, onClose, heading, description, isVisible, startAt, endAt, cards, homeCount }: {
-  open: boolean; onClose: () => void; heading: string; description: string; isVisible: boolean; startAt: string; endAt: string; cards: ListingCard[]; homeCount: number;
+function MobilePreview({ open, onClose, heading, description, isVisible, infiniteLoop, state, startAt, endAt, unavailableCount, cards }: {
+  open: boolean; onClose: () => void; heading: string; description: string; isVisible: boolean; infiniteLoop: boolean;
+  state: 'draft' | 'published'; startAt: string; endAt: string; unavailableCount: number; cards: ListingCard[];
 }) {
-  const homeCards = cards.slice(0, homeCount);
   const scheduled = !!(startAt || endAt);
   return (
-    <Modal open={open} onClose={onClose} title="Mobile Section Preview" description="Prototype preview — does not change any product or event record."
+    <Modal open={open} onClose={onClose} title="Mobile Carousel Preview" description="Prototype preview of the final Mobile Home carousel — no product, class or event record is changed."
       footer={<Button onClick={onClose}>Close</Button>}>
+      {/* State + behaviour indicators */}
       <div className="mb-3 flex flex-wrap gap-2 text-xs">
+        <Badge tone={state === 'published' ? 'green' : 'amber'}>{state === 'published' ? 'Published' : 'Draft'}</Badge>
         <Badge tone={isVisible ? 'green' : 'neutral'}>{isVisible ? 'Shown on Home' : 'Hidden'}</Badge>
+        <Badge tone={infiniteLoop ? 'magenta' : 'neutral'}>{infiniteLoop ? 'Infinite loop: On' : 'Infinite loop: Off'}</Badge>
         {scheduled && <Badge tone="blue">Scheduled{startAt ? ` from ${formatDate(startAt)}` : ''}{endAt ? ` to ${formatDate(endAt)}` : ''}</Badge>}
       </div>
+
+      {/* Unavailable warning lives OUTSIDE the phone frame */}
+      {unavailableCount > 0 && (
+        <p className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {unavailableCount} unavailable {unavailableCount === 1 ? 'listing is' : 'listings are'} hidden from this carousel until republished as public.
+        </p>
+      )}
+
       <div className="mx-auto max-w-[320px] rounded-2xl border border-cream-200 bg-cream-50 p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="truncate font-serif text-base font-medium text-charcoal">{heading || 'Section heading'}</p>
-            {description && <p className="truncate text-xs text-charcoal-muted">{description}</p>}
+        <div className="mb-2 min-w-0">
+          <p className="truncate font-serif text-base font-medium text-charcoal">{heading || 'Section heading'}</p>
+          {description && <p className="truncate text-xs text-charcoal-muted">{description}</p>}
+        </div>
+        {/* One horizontal carousel — a partial next card peeks to signal scroll. */}
+        <div className="relative">
+          <div className="flex gap-2 overflow-x-auto pr-6">
+            {cards.length === 0 ? (
+              <p className="w-full py-6 text-center text-xs text-charcoal-muted">No available listings to show.</p>
+            ) : cards.map((c) => (
+              <div key={c.id} className="w-28 shrink-0 rounded-xl border border-cream-200 bg-white p-2">
+                <div className="mb-1 h-16 rounded-lg bg-cream-100" />
+                <p className="truncate text-xs font-medium text-charcoal">{c.title}</p>
+                <p className="truncate text-[11px] text-charcoal-muted">{c.typeLabel}</p>
+                <p className="truncate text-[11px] text-charcoal-muted">{c.free ? 'Free' : formatMoney(c.price, '₹')}</p>
+              </div>
+            ))}
           </div>
-          <span className="shrink-0 text-xs font-medium text-magenta-600">View All ›</span>
+          {cards.length > 0 && <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-cream-50 to-transparent" />}
         </div>
-        <div className="flex gap-2 overflow-x-auto">
-          {homeCards.length === 0 ? (
-            <p className="py-6 text-center text-xs text-charcoal-muted">No listings selected.</p>
-          ) : homeCards.map((c) => (
-            <div key={c.id} className="w-28 shrink-0 rounded-xl border border-cream-200 bg-white p-2">
-              <div className="mb-1 h-16 rounded-lg bg-cream-100" />
-              <p className="truncate text-xs font-medium text-charcoal">{c.title}</p>
-              <p className="truncate text-[11px] text-charcoal-muted">{c.free ? 'Free' : formatMoney(c.price, '₹')}</p>
-            </div>
-          ))}
-        </div>
-        {cards.length > homeCount && <p className="mt-2 text-center text-[11px] text-charcoal-muted">+{cards.length - homeCount} more under View All</p>}
+        {cards.length > 0 && (
+          <p className="mt-2 text-center text-[11px] text-charcoal-muted">
+            {cards.length} card{cards.length === 1 ? '' : 's'} · swipe horizontally
+            {infiniteLoop ? ' · loops end-to-end continuously' : ' · stops at the last card'}
+          </p>
+        )}
       </div>
     </Modal>
   );

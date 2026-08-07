@@ -20,6 +20,7 @@ export function buildRecommendedSection(now: number): RecommendedSection {
     heading: 'Recommended Shopping',
     description: 'Hand-picked products and classes for the IICA community.',
     isVisible: true,
+    infiniteLoop: true,
     startAt: null,
     endAt: null,
     selectedListings,

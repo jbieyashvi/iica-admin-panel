@@ -24,6 +24,7 @@ export interface RecommendedConfig {
   heading: string;
   description?: string;
   isVisible: boolean;
+  infiniteLoop: boolean; // render-time carousel loop; never duplicates stored data
   startAt?: string | null;
   endAt?: string | null;
   selectedListings: SelectedListing[];
@@ -42,6 +43,3 @@ export interface RecommendedSection extends RecommendedConfig {
   updatedBy: string;
   published?: PublishedSnapshot | null; // last published config shown on mobile
 }
-
-// The number of leading items rendered on the Home screen before "View All".
-export const HOME_PREVIEW_COUNT = 8;
