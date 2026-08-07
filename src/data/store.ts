@@ -148,6 +148,16 @@ function migrateHomeContent(s: DataState): DataState {
   let rec = rootStripped.recommendedSection;
   if (rec) {
     let next = strip(rec, [...OBSOLETE, ...RECOMMENDED_LEGACY])!;
+    // Backfill Scroll Direction (legacy configs default to Horizontal) on the
+    // working config and its published snapshot.
+    if (next.scrollDirection !== 'horizontal' && next.scrollDirection !== 'vertical') {
+      changed = true;
+      next = { ...next, scrollDirection: 'horizontal' };
+    }
+    if (next.published && next.published.scrollDirection !== 'horizontal' && next.published.scrollDirection !== 'vertical') {
+      changed = true;
+      next = { ...next, published: { ...next.published, scrollDirection: 'horizontal' } };
+    }
     if (next.published) {
       const cleanedPub = strip(next.published, RECOMMENDED_LEGACY);
       if (cleanedPub !== next.published) next = { ...next, published: cleanedPub };

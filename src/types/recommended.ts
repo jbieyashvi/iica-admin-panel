@@ -18,14 +18,21 @@ export interface SelectedListing {
   displayOrder: number;
 }
 
+// How the Mobile section renders its selected listings.
+//  - horizontal: infinite swipeable carousel (loops end↔start; clones at render
+//    time only, never duplicated in storage).
+//  - vertical: finite progressive list/grid (loads in pages, no looping).
+export type ScrollDirection = 'horizontal' | 'vertical';
+
 // Editable working config + the last-published snapshot (so a Draft save never
 // changes what the Mobile App currently shows).
 // Visibility, scheduling and infinite-loop are no longer Admin-configurable:
-// the Mobile carousel is permanently infinite, and Draft/Published is the only
-// content state (a published config is available to Mobile, a draft is not).
+// horizontal is infinite by definition, vertical is finite, and Draft/Published
+// is the only content state (a published config is available to Mobile).
 export interface RecommendedConfig {
   heading: string;
   description?: string;
+  scrollDirection: ScrollDirection;
   selectedListings: SelectedListing[];
 }
 

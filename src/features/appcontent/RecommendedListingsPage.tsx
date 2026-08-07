@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Smartphone, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ArrowUpDown, ExternalLink, Plus, Search, Smartphone, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Field, Input, Select } from '../../components/ui/Field';
@@ -12,7 +12,7 @@ import { toast } from '../../components/ui/toast';
 import { RESTRICTED_HINT } from '../../lib/abilities';
 import { formatMoney } from '../../lib/format';
 import { buildListingCatalog, resolveListing, LISTING_TYPE_LABEL } from '../../data/recommendedListings';
-import type { ListingType, SelectedListing } from '../../types/recommended';
+import type { ListingType, ScrollDirection, SelectedListing } from '../../types/recommended';
 import type { ListingCard } from '../../data/recommendedListings';
 
 const TYPES: ListingType[] = ['physical_product', 'digital_product', 'masterclass', 'event', 'second_hand_instrument', 'donation'];
@@ -35,6 +35,7 @@ export function RecommendedListingsPage() {
   // Working (draft) state, initialised from the stored section.
   const [heading, setHeading] = useState(section.heading);
   const [description, setDescription] = useState(section.description ?? '');
+  const [scrollDirection, setScrollDirection] = useState<ScrollDirection>(section.scrollDirection ?? 'horizontal');
   const [selected, setSelected] = useState<SelectedListing[]>(
     [...section.selectedListings].sort((a, b) => a.displayOrder - b.displayOrder),
   );
@@ -83,7 +84,7 @@ export function RecommendedListingsPage() {
   });
   const clearAll = () => { setSelected([]); setClearOpen(false); toast('Selection cleared. Save Draft or Publish to apply.'); };
 
-  const config = () => ({ heading: heading.trim(), description: description.trim() || undefined, selectedListings: selected });
+  const config = () => ({ heading: heading.trim(), description: description.trim() || undefined, scrollDirection, selectedListings: selected });
 
   const unavailableCount = selectedCards.filter(({ card }) => !card || !card.available).length;
 
@@ -116,7 +117,7 @@ export function RecommendedListingsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-serif text-xl font-medium text-charcoal">Recommended Listings</h2>
-          <p className="text-sm text-charcoal-muted">The primary curated Mobile Home carousel. Mix products, classes, events, instruments and donations under an editable heading (e.g. Festival Specials, Weekend Workshops, Everything Under ₹250). Events appear on Home only when selected here.</p>
+          <p className="text-sm text-charcoal-muted">The primary curated Mobile Home section. Mix products, classes, events, instruments and donations under an editable heading, shown as a horizontal carousel or a progressive vertical list. Events appear on Home only when selected here.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={<Smartphone className="h-4 w-4" />} onClick={() => setPreviewOpen(true)}>Preview Mobile Section</Button>
@@ -141,6 +142,21 @@ export function RecommendedListingsPage() {
             <Input value={description} maxLength={160} onChange={(e) => setDescription(e.target.value)} placeholder="Optional supporting text shown under the heading." />
           </Field>
         </div>
+        {/* Scroll Direction — how the Mobile section renders the selected listings. */}
+        <Field label="Scroll direction" required hint={scrollDirection === 'horizontal' ? 'Cards move left and right in a swipeable, infinite carousel.' : 'Cards appear in a vertical list/grid and load progressively (finite end).'}>
+          <div role="radiogroup" aria-label="Scroll direction" className="inline-flex overflow-hidden rounded-lg border border-cream-200">
+            {([
+              { key: 'horizontal' as const, label: 'Horizontal', icon: <ArrowLeftRight className="h-4 w-4" /> },
+              { key: 'vertical' as const, label: 'Vertical', icon: <ArrowUpDown className="h-4 w-4" /> },
+            ]).map((opt, i) => (
+              <button key={opt.key} type="button" role="radio" aria-checked={scrollDirection === opt.key} disabled={!canManage}
+                onClick={() => setScrollDirection(opt.key)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 text-sm disabled:opacity-50 ${i > 0 ? 'border-l border-cream-200' : ''} ${scrollDirection === opt.key ? 'bg-magenta-500 text-white' : 'bg-white text-charcoal hover:bg-cream-100'}`}>
+                {opt.icon}{opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -239,29 +255,50 @@ export function RecommendedListingsPage() {
 
       {/* Mobile preview */}
       <MobilePreview open={previewOpen} onClose={() => setPreviewOpen(false)}
-        heading={heading} description={description} state={section.state} unavailableCount={unavailableCount}
+        heading={heading} description={description} state={section.state} scrollDirection={scrollDirection} unavailableCount={unavailableCount}
         cards={selectedCards.map((x) => x.card).filter((c): c is ListingCard => !!c && c.available)} />
     </div>
   );
 }
 
-function MobilePreview({ open, onClose, heading, description, state, unavailableCount, cards }: {
+// Progressive vertical preview: mirrors the Mobile "load 6, then more as you
+// approach the end, finite stop" behaviour so Admin sees the real pattern.
+const VERTICAL_PAGE = 6;
+
+function MobilePreview({ open, onClose, heading, description, state, scrollDirection, unavailableCount, cards }: {
   open: boolean; onClose: () => void; heading: string; description: string;
-  state: 'draft' | 'published'; unavailableCount: number; cards: ListingCard[];
+  state: 'draft' | 'published'; scrollDirection: ScrollDirection; unavailableCount: number; cards: ListingCard[];
 }) {
+  const [visible, setVisible] = useState(VERTICAL_PAGE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Reset the progressive counter whenever the preview opens or direction flips.
+  const [seenKey, setSeenKey] = useState('');
+  const key = `${open}-${scrollDirection}`;
+  if (key !== seenKey) { setSeenKey(key); setVisible(VERTICAL_PAGE); setLoadingMore(false); }
+
+  const horizontal = scrollDirection === 'horizontal';
+  const shown = horizontal ? cards : cards.slice(0, visible);
+  const hasMore = !horizontal && visible < cards.length;
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    // Small delay only to visualise the loading state in the prototype preview.
+    window.setTimeout(() => { setVisible((v) => Math.min(cards.length, v + VERTICAL_PAGE)); setLoadingMore(false); }, 350);
+  };
+
   return (
-    <Modal open={open} onClose={onClose} title="Mobile Carousel Preview" description="Prototype preview of the final Mobile Home carousel — no product, class or event record is changed."
+    <Modal open={open} onClose={onClose} title="Mobile Section Preview" description="Prototype preview of the final Mobile section — no product, class or event record is changed."
       footer={<Button onClick={onClose}>Close</Button>}>
-      {/* State + fixed carousel behaviour */}
+      {/* State + direction behaviour */}
       <div className="mb-3 flex flex-wrap gap-2 text-xs">
         <Badge tone={state === 'published' ? 'green' : 'amber'}>{state === 'published' ? 'Published — available to Mobile' : 'Draft — not on Mobile'}</Badge>
-        <Badge tone="magenta">Infinite carousel</Badge>
+        <Badge tone="magenta">{horizontal ? 'Infinite horizontal carousel' : 'Progressive vertical list'}</Badge>
       </div>
 
       {/* Unavailable warning lives OUTSIDE the phone frame */}
       {unavailableCount > 0 && (
         <p className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {unavailableCount} unavailable {unavailableCount === 1 ? 'listing is' : 'listings are'} hidden from this carousel until republished as public.
+          {unavailableCount} unavailable {unavailableCount === 1 ? 'listing is' : 'listings are'} hidden from the Mobile section until republished as public.
         </p>
       )}
 
@@ -270,23 +307,48 @@ function MobilePreview({ open, onClose, heading, description, state, unavailable
           <p className="truncate font-serif text-base font-medium text-charcoal">{heading || 'Section heading'}</p>
           {description && <p className="truncate text-xs text-charcoal-muted">{description}</p>}
         </div>
-        {/* One horizontal carousel — a partial next card peeks to signal scroll. */}
-        <div className="relative">
-          <div className="flex gap-2 overflow-x-auto pr-6">
-            {cards.length === 0 ? (
-              <p className="w-full py-6 text-center text-xs text-charcoal-muted">No available listings to show.</p>
-            ) : cards.map((c) => (
-              <div key={c.id} className="w-28 shrink-0 rounded-xl border border-cream-200 bg-white p-2">
-                <div className="mb-1 h-16 rounded-lg bg-cream-100" />
-                <p className="truncate text-xs font-medium text-charcoal">{c.title}</p>
-                <p className="truncate text-[11px] text-charcoal-muted">{c.typeLabel}</p>
-                <p className="truncate text-[11px] text-charcoal-muted">{c.free ? 'Free' : formatMoney(c.price, '₹')}</p>
-              </div>
-            ))}
+
+        {cards.length === 0 ? (
+          <p className="py-6 text-center text-xs text-charcoal-muted">No available listings to show.</p>
+        ) : horizontal ? (
+          /* Horizontal: one row, partial next card peeks to signal swipe. */
+          <div className="relative">
+            <div className="flex gap-2 overflow-x-auto pr-6">
+              {shown.map((c) => (
+                <div key={c.id} className="w-28 shrink-0 rounded-xl border border-cream-200 bg-white p-2">
+                  <div className="mb-1 h-16 rounded-lg bg-cream-100" />
+                  <p className="truncate text-xs font-medium text-charcoal">{c.title}</p>
+                  <p className="truncate text-[11px] text-charcoal-muted">{c.typeLabel}</p>
+                  <p className="truncate text-[11px] text-charcoal-muted">{c.free ? 'Free' : formatMoney(c.price, '₹')}</p>
+                </div>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-cream-50 to-transparent" />
           </div>
-          {cards.length > 0 && <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-cream-50 to-transparent" />}
-        </div>
-        {cards.length > 0 && (
+        ) : (
+          /* Vertical: two-column grid, page scrolls; progressive "Load more". */
+          <div>
+            <div className="grid grid-cols-2 gap-2">
+              {shown.map((c) => (
+                <div key={c.id} className="rounded-xl border border-cream-200 bg-white p-2">
+                  <div className="mb-1 h-16 rounded-lg bg-cream-100" />
+                  <p className="truncate text-xs font-medium text-charcoal">{c.title}</p>
+                  <p className="truncate text-[11px] text-charcoal-muted">{c.typeLabel}</p>
+                  <p className="truncate text-[11px] text-charcoal-muted">{c.free ? 'Free' : formatMoney(c.price, '₹')}</p>
+                </div>
+              ))}
+            </div>
+            {hasMore ? (
+              <button onClick={loadMore} disabled={loadingMore} className="mt-2 w-full rounded-lg border border-cream-200 bg-white py-1.5 text-[11px] font-medium text-charcoal-muted hover:bg-cream-100 disabled:opacity-60">
+                {loadingMore ? 'Loading…' : `Load more (${cards.length - visible} left)`}
+              </button>
+            ) : (
+              <p className="mt-2 text-center text-[11px] text-charcoal-muted">End of list · {cards.length} listing{cards.length === 1 ? '' : 's'}</p>
+            )}
+          </div>
+        )}
+
+        {cards.length > 0 && horizontal && (
           <p className="mt-2 text-center text-[11px] text-charcoal-muted">
             {cards.length} card{cards.length === 1 ? '' : 's'} · swipe horizontally · loops end-to-end continuously
           </p>
