@@ -37,7 +37,7 @@ import type {
   ProductType,
 } from '../types/products';
 import type { CollaborationSettings } from '../types/collaborations';
-import type { BannerLinkType, BannerRecord } from '../types/banners';
+import type { BannerLinkType, BannerPlacement, BannerRecord } from '../types/banners';
 import type { CommissionConfig, CommissionOverride, PayoutRecord, PayoutStatus, RevenueType } from '../types/payouts';
 import type { AdminAccountStatus, AdminUserRecord } from '../types/admins';
 import type { AdminRole } from '../types';
@@ -162,8 +162,28 @@ function migrateHomeContent(s: DataState): DataState {
     if (cleaned.some((r, i) => r !== resumes[i])) resumes = cleaned;
   }
 
+  // Banners — backfill Placement (legacy banners default to Home) and the
+  // per-carousel display orders. Never delete or duplicate a record; existing
+  // title/image/linked content/dates/status/order are preserved.
+  let banners = rootStripped.banners;
+  if (Array.isArray(banners) && banners.some((b) => !('placement' in (b as object)) || (b as BannerRecord).homeDisplayOrder === undefined)) {
+    changed = true;
+    banners = banners.map((b) => {
+      const rec = b as BannerRecord & Record<string, unknown>;
+      const placement: BannerPlacement = (rec.placement as BannerPlacement) ?? 'home';
+      const inHome = placement === 'home' || placement === 'home_and_shop';
+      const inShop = placement === 'shop' || placement === 'home_and_shop';
+      return {
+        ...rec,
+        placement,
+        homeDisplayOrder: rec.homeDisplayOrder !== undefined ? (rec.homeDisplayOrder as number | null) : (inHome ? rec.displayOrder : null),
+        shopDisplayOrder: rec.shopDisplayOrder !== undefined ? (rec.shopDisplayOrder as number | null) : (inShop ? rec.displayOrder : null),
+      } as BannerRecord;
+    });
+  }
+
   if (!changed) return s;
-  const migrated = { ...rootStripped, recommendedSection: rec, guestResumes: resumes };
+  const migrated = { ...rootStripped, recommendedSection: rec, guestResumes: resumes, banners };
   writeStorage(STORAGE_KEY, migrated);
   return migrated;
 }
@@ -1138,9 +1158,30 @@ export function deleteReview(reviewId: string, _reason: string, _actor: AdminAct
 function commitBanners(list: BannerRecord[]) {
   commit({ ...state, banners: list });
 }
-// Re-number displayOrder 1..n by current order to avoid duplicate/step gaps.
-function normalizeOrder(list: BannerRecord[]): BannerRecord[] {
-  return [...list].sort((a, b) => a.displayOrder - b.displayOrder).map((b, i) => ({ ...b, displayOrder: i + 1 }));
+
+const bInHome = (b: BannerRecord) => b.placement === 'home' || b.placement === 'home_and_shop';
+const bInShop = (b: BannerRecord) => b.placement === 'shop' || b.placement === 'home_and_shop';
+
+// Re-number both carousels independently plus the legacy overall displayOrder.
+// Home order is sequential 1..n across Home + Home&Shop banners; Shop likewise.
+// A banner not in a carousel gets null for that carousel's order.
+function normalizeBannerOrders(list: BannerRecord[]): BannerRecord[] {
+  const byId = new Map(list.map((b) => [b.id, { ...b }]));
+  const assign = (inCarousel: (b: BannerRecord) => boolean, key: 'homeDisplayOrder' | 'shopDisplayOrder') => {
+    const members = [...byId.values()].filter(inCarousel).sort((a, b) => {
+      const oa = a[key] ?? Number.POSITIVE_INFINITY;
+      const ob = b[key] ?? Number.POSITIVE_INFINITY;
+      if (oa !== ob) return oa - ob;
+      return a.displayOrder - b.displayOrder; // stable tie-break by legacy order
+    });
+    byId.forEach((b) => { if (!inCarousel(b)) b[key] = null; });
+    members.forEach((b, i) => { byId.get(b.id)![key] = i + 1; });
+  };
+  assign(bInHome, 'homeDisplayOrder');
+  assign(bInShop, 'shopDisplayOrder');
+  // Legacy overall order — stable by current displayOrder.
+  [...byId.values()].sort((a, b) => a.displayOrder - b.displayOrder).forEach((b, i) => { byId.get(b.id)!.displayOrder = i + 1; });
+  return [...byId.values()];
 }
 
 export interface BannerInput {
@@ -1149,6 +1190,7 @@ export interface BannerInput {
   image: string;
   label: string;
   ctaLabel: string;
+  placement: BannerPlacement;
   linkType: BannerLinkType;
   linkedId?: string | null;
   linkedName?: string | null;
@@ -1160,36 +1202,50 @@ export interface BannerInput {
 
 export function addBanner(input: BannerInput, _actor: AdminActor): BannerRecord {
   const order = state.banners.reduce((m, b) => Math.max(m, b.displayOrder), 0) + 1;
+  // Append to the end of each relevant carousel.
+  const homeMax = state.banners.reduce((m, b) => Math.max(m, b.homeDisplayOrder ?? 0), 0);
+  const shopMax = state.banners.reduce((m, b) => Math.max(m, b.shopDisplayOrder ?? 0), 0);
   const banner: BannerRecord = {
     id: uid('ban'),
     ...input,
     linkedId: input.linkedId ?? null,
     linkedName: input.linkedName ?? null,
     externalUrl: input.externalUrl ?? null,
+    homeDisplayOrder: bInHome({ placement: input.placement } as BannerRecord) ? homeMax + 1 : null,
+    shopDisplayOrder: bInShop({ placement: input.placement } as BannerRecord) ? shopMax + 1 : null,
     displayOrder: order,
     createdAt: now(),
     updatedAt: now(),
   };
-  commitBanners(normalizeOrder([...state.banners, banner]));
+  commitBanners(normalizeBannerOrders([...state.banners, banner]));
   return banner;
 }
 
 export function updateBanner(id: string, patch: BannerInput, _actor: AdminActor) {
   const b = state.banners.find((x) => x.id === id);
   if (!b) return;
+  const placementChanged = b.placement !== patch.placement;
+  // When a banner newly joins a carousel, append it to the end of that carousel.
+  const homeMax = state.banners.reduce((m, x) => Math.max(m, x.homeDisplayOrder ?? 0), 0);
+  const shopMax = state.banners.reduce((m, x) => Math.max(m, x.shopDisplayOrder ?? 0), 0);
+  const nowInHome = bInHome({ placement: patch.placement } as BannerRecord);
+  const nowInShop = bInShop({ placement: patch.placement } as BannerRecord);
   const next: BannerRecord = {
     ...b,
     ...patch,
     linkedId: patch.linkedId ?? null,
     linkedName: patch.linkedName ?? null,
     externalUrl: patch.externalUrl ?? null,
+    homeDisplayOrder: nowInHome ? (b.homeDisplayOrder ?? homeMax + 1) : null,
+    shopDisplayOrder: nowInShop ? (b.shopDisplayOrder ?? shopMax + 1) : null,
     updatedAt: now(),
   };
-  commitBanners(state.banners.map((x) => (x.id === id ? next : x)));
+  const list = state.banners.map((x) => (x.id === id ? next : x));
+  commitBanners(placementChanged ? normalizeBannerOrders(list) : list);
 }
 
 export function deleteBanner(id: string, _actor: AdminActor) {
-  commitBanners(normalizeOrder(state.banners.filter((b) => b.id !== id)));
+  commitBanners(normalizeBannerOrders(state.banners.filter((b) => b.id !== id)));
 }
 
 // Toggle active. An expired banner cannot be activated without new dates.
@@ -1201,14 +1257,22 @@ export function toggleBanner(id: string, _actor: AdminActor): boolean {
   return true;
 }
 
-export function moveBanner(id: string, dir: 'up' | 'down', _actor: AdminActor) {
-  const sorted = normalizeOrder(state.banners);
-  const idx = sorted.findIndex((b) => b.id === id);
+// Reorder a banner WITHIN one carousel only — the other carousel is untouched.
+export function moveBanner(id: string, dir: 'up' | 'down', carousel: 'home' | 'shop', _actor: AdminActor) {
+  const key = carousel === 'home' ? 'homeDisplayOrder' : 'shopDisplayOrder';
+  const inCar = carousel === 'home' ? bInHome : bInShop;
+  const members = state.banners.filter(inCar).sort((a, b) => (a[key] ?? 0) - (b[key] ?? 0));
+  const idx = members.findIndex((b) => b.id === id);
   if (idx < 0) return;
   const swap = dir === 'up' ? idx - 1 : idx + 1;
-  if (swap < 0 || swap >= sorted.length) return;
-  [sorted[idx].displayOrder, sorted[swap].displayOrder] = [sorted[swap].displayOrder, sorted[idx].displayOrder];
-  commitBanners(normalizeOrder(sorted));
+  if (swap < 0 || swap >= members.length) return;
+  const a = members[idx].id, c = members[swap].id;
+  const ao = members[idx][key], co = members[swap][key];
+  commitBanners(state.banners.map((b) => {
+    if (b.id === a) return { ...b, [key]: co, updatedAt: now() };
+    if (b.id === c) return { ...b, [key]: ao };
+    return b;
+  }));
 }
 
 // ===========================================================================

@@ -9,8 +9,9 @@ import { toast } from '../../components/ui/toast';
 import {
   BANNER_IMAGES, bannerImageCss, LINK_TYPES, LINK_TYPE_LABEL,
   BANNER_STATUS_LABEL, BANNER_STATUS_TONE, computeBannerStatus, isValidHttpUrl,
+  PLACEMENTS, BANNER_PLACEMENT_OPTION_LABEL,
 } from '../../config/bannerLabels';
-import type { BannerLinkType, BannerRecord } from '../../types/banners';
+import type { BannerLinkType, BannerPlacement, BannerRecord } from '../../types/banners';
 
 const toDateInput = (iso: string) => (iso ? iso.slice(0, 10) : '');
 
@@ -25,6 +26,7 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
   const [image, setImage] = useState(BANNER_IMAGES[0].key);
   const [label, setLabel] = useState('');
   const [ctaLabel, setCtaLabel] = useState('');
+  const [placement, setPlacement] = useState<BannerPlacement>('home');
   const [linkType, setLinkType] = useState<BannerLinkType>('none');
   const [linkedId, setLinkedId] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
@@ -43,6 +45,7 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
     setImage(banner?.image ?? BANNER_IMAGES[0].key);
     setLabel(banner?.label ?? '');
     setCtaLabel(banner?.ctaLabel ?? '');
+    setPlacement(banner?.placement ?? 'home');
     setLinkType(banner?.linkType ?? 'none');
     setLinkedId(banner?.linkedId ?? '');
     setExternalUrl(banner?.externalUrl ?? '');
@@ -63,8 +66,13 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
 
   const needsLinked = linkType === 'creator' || linkType === 'event' || linkType === 'product';
 
-  // Live status preview from the chosen dates + active flag.
-  const previewStatus = computeBannerStatus({ active, startDate: new Date(startDate).toISOString(), endDate: new Date(endDate).toISOString() } as BannerRecord);
+  // Live status preview from the chosen dates + active flag. Guard against a
+  // partially-typed/empty date (new Date('') would throw "Invalid time value").
+  const safeIso = (d: string) => { const t = new Date(d).getTime(); return Number.isNaN(t) ? null : new Date(t).toISOString(); };
+  const sIso = safeIso(startDate), eIso = safeIso(endDate);
+  const previewStatus = sIso && eIso
+    ? computeBannerStatus({ active, startDate: sIso, endDate: eIso } as BannerRecord)
+    : active ? 'active' : 'inactive';
 
   const submit = () => {
     if (!title.trim()) return setError('Banner title is required.');
@@ -81,6 +89,7 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
       image,
       label: label.trim(),
       ctaLabel: linkType === 'none' ? '' : ctaLabel.trim() || 'Learn More',
+      placement,
       linkType,
       linkedId: needsLinked ? linkedId : null,
       linkedName,
@@ -124,6 +133,12 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
                 className={`h-9 w-14 rounded-md border-2 ${image === img.key ? 'border-magenta-500' : 'border-transparent'}`} style={{ background: img.css }} />
             ))}
           </div>
+        </Field>
+
+        <Field label="Banner placement" htmlFor="bf-placement" required hint="Which Mobile carousel(s) this banner appears in.">
+          <Select id="bf-placement" value={placement} onChange={(e) => setPlacement(e.target.value as BannerPlacement)}>
+            {PLACEMENTS.map((p) => <option key={p} value={p}>{BANNER_PLACEMENT_OPTION_LABEL[p]}</option>)}
+          </Select>
         </Field>
 
         <div className="grid grid-cols-2 gap-4">

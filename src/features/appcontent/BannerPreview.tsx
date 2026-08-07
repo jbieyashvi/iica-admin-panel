@@ -6,11 +6,13 @@ import { Button } from '../../components/ui/Button';
 import { bannerImageCss, bannerCtaRoute } from '../../config/bannerLabels';
 import type { BannerRecord } from '../../types/banners';
 
-// Renders the mobile Home top carousel exactly as it would appear: only the
-// live banners (Active + within their date window), sorted by display order.
-export function BannerPreview({ open, banners, focusId, onClose }: { open: boolean; banners: BannerRecord[]; focusId?: string | null; onClose: () => void }) {
+// Renders a mobile banner carousel (Home or Shop) exactly as it would appear:
+// the caller passes only the live banners for that carousel, already in the
+// correct per-carousel order.
+export function BannerPreview({ open, carousel, banners, focusId, onClose }: { open: boolean; carousel: 'home' | 'shop'; banners: BannerRecord[]; focusId?: string | null; onClose: () => void }) {
   const navigate = useNavigate();
-  const live = [...banners].sort((a, b) => a.displayOrder - b.displayOrder);
+  const live = banners;
+  const carouselLabel = carousel === 'home' ? 'Home' : 'Shop';
   const [idx, setIdx] = useState(0);
   const multiple = live.length > 1;
 
@@ -41,11 +43,11 @@ export function BannerPreview({ open, banners, focusId, onClose }: { open: boole
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Mobile Home Preview" description="Top carousel as shown on the mobile Home screen. Only Active, in-window banners appear.">
+    <Modal open={open} onClose={onClose} title={`Mobile ${carouselLabel} Preview`} description={`${carouselLabel} carousel as shown in the User App. Only Active, in-window banners for this placement with valid linked content appear.`}>
       {live.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
           <Smartphone className="h-8 w-8 text-charcoal-muted" />
-          <p className="text-sm text-charcoal-muted">No banners are currently live. The carousel is hidden on the mobile Home screen.</p>
+          <p className="text-sm text-charcoal-muted">No banners are currently live in the {carouselLabel} carousel. It is hidden in the User App.</p>
         </div>
       ) : (
         <div className="mx-auto w-full max-w-[300px]">
@@ -78,7 +80,7 @@ export function BannerPreview({ open, banners, focusId, onClose }: { open: boole
                 ))}
               </div>
             )}
-            <div className="px-2 pb-2 pt-1 text-center text-[10px] text-charcoal-muted">Quick Actions · Explore the Catalogue · Featured Profiles</div>
+            <div className="px-2 pb-2 pt-1 text-center text-[10px] text-charcoal-muted">{carousel === 'home' ? 'Quick Actions · Explore the Catalogue · Featured Profiles' : 'Shop · Categories · New Arrivals · Wishlist'}</div>
           </div>
           <p className="mt-3 text-center text-xs text-charcoal-muted">
             {live.length === 1 ? 'One active banner — no pagination, no auto-slide.' : `${live.length} active banners — swipe + auto-rotation enabled.`}

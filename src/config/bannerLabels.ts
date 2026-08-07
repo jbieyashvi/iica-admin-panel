@@ -1,6 +1,31 @@
-import type { BannerLinkType, BannerRecord, BannerStatus } from '../types/banners';
+import type { BannerLinkType, BannerPlacement, BannerRecord, BannerStatus } from '../types/banners';
 
 type Tone = 'neutral' | 'magenta' | 'green' | 'amber' | 'red' | 'blue';
+
+// ---- Placement (Home / Shop / both) ----------------------------------------
+
+export const PLACEMENTS: BannerPlacement[] = ['home', 'shop', 'home_and_shop'];
+
+// Compact label for the table badge.
+export const BANNER_PLACEMENT_LABEL: Record<BannerPlacement, string> = {
+  home: 'Home',
+  shop: 'Shop',
+  home_and_shop: 'Home & Shop',
+};
+// Longer label for the form radio/select options.
+export const BANNER_PLACEMENT_OPTION_LABEL: Record<BannerPlacement, string> = {
+  home: 'Home Page',
+  shop: 'Shop Page',
+  home_and_shop: 'Home & Shop',
+};
+export const BANNER_PLACEMENT_TONE: Record<BannerPlacement, Tone> = {
+  home: 'blue',
+  shop: 'magenta',
+  home_and_shop: 'green',
+};
+
+export const bannerInHome = (b: BannerRecord): boolean => b.placement === 'home' || b.placement === 'home_and_shop';
+export const bannerInShop = (b: BannerRecord): boolean => b.placement === 'shop' || b.placement === 'home_and_shop';
 
 export const BANNER_STATUS_LABEL: Record<BannerStatus, string> = {
   active: 'Active',

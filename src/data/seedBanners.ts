@@ -9,6 +9,9 @@ interface BSpec {
   image: string;
   label: string;
   cta: string;
+  placement: BannerRecord['placement'];
+  homeOrder: number | null;
+  shopOrder: number | null;
   linkType: BannerRecord['linkType'];
   linkedId?: string;
   linkedName?: string;
@@ -19,12 +22,14 @@ interface BSpec {
 }
 
 // Connected to existing seeded creators, events and products by shared IDs.
+// Placement demonstrates all three cases (Home-only, Shop-only, Home & Shop)
+// with independent per-carousel ordering.
 const SPECS: BSpec[] = [
-  { id: 'ban_1', title: 'Meet Ananya Rao', supporting: 'Explore vivid canvases from one of IICA’s featured artists.', image: 'violet', label: 'Artist Spotlight', cta: 'View Profile', linkType: 'creator', linkedId: 'usr_ananya', linkedName: 'Ananya Rao', startOffset: -6, endOffset: 20, active: true },
-  { id: 'ban_2', title: 'Ragas of Dusk — Live', supporting: 'An unforgettable evening of classical music at NCPA.', image: 'sunset', label: 'Featured Event', cta: 'Get Tickets', linkType: 'event', linkedId: 'evt_ragas', linkedName: 'Ragas of Dusk', startOffset: -3, endOffset: 18, active: true },
-  { id: 'ban_3', title: 'Handcrafted Folk Art Journal', supporting: 'A limited-run journal with a hand-painted cover.', image: 'gold', label: 'Shop Feature', cta: 'Shop Now', linkType: 'product', linkedId: 'prod_folkjournal', linkedName: 'Handcrafted Folk Art Journal', startOffset: 4, endOffset: 30, active: true },
-  { id: 'ban_4', title: 'IICA Creator Awards 2026', supporting: 'Nominations are now open. Celebrate India’s finest creators.', image: 'forest', label: 'Announcement', cta: 'Learn More', linkType: 'external', externalUrl: 'https://iica.app/awards', startOffset: -10, endOffset: 40, active: false },
-  { id: 'ban_5', title: 'Bharatanatyam Foundations', supporting: 'A masterclass with Meera Kulkarni — now closed.', image: 'ocean', label: 'Masterclass', cta: 'View Masterclass', linkType: 'product', linkedId: 'prod_bharatanatyam', linkedName: 'Bharatanatyam Foundations', startOffset: -40, endOffset: -5, active: true },
+  { id: 'ban_1', title: 'Meet Ananya Rao', supporting: 'Explore vivid canvases from one of IICA’s featured artists.', image: 'violet', label: 'Artist Spotlight', cta: 'View Profile', placement: 'home', homeOrder: 1, shopOrder: null, linkType: 'creator', linkedId: 'usr_ananya', linkedName: 'Ananya Rao', startOffset: -6, endOffset: 20, active: true },
+  { id: 'ban_2', title: 'Ragas of Dusk — Live', supporting: 'An unforgettable evening of classical music at NCPA.', image: 'sunset', label: 'Featured Event', cta: 'Get Tickets', placement: 'home', homeOrder: 2, shopOrder: null, linkType: 'event', linkedId: 'evt_ragas', linkedName: 'Ragas of Dusk', startOffset: -3, endOffset: 18, active: true },
+  { id: 'ban_3', title: 'Handcrafted Folk Art Journal', supporting: 'A limited-run journal with a hand-painted cover.', image: 'gold', label: 'Shop Feature', cta: 'Shop Now', placement: 'shop', homeOrder: null, shopOrder: 1, linkType: 'product', linkedId: 'prod_folkjournal', linkedName: 'Handcrafted Folk Art Journal', startOffset: 4, endOffset: 30, active: true },
+  { id: 'ban_4', title: 'IICA Creator Awards 2026', supporting: 'Nominations are now open. Celebrate India’s finest creators.', image: 'forest', label: 'Announcement', cta: 'Learn More', placement: 'home_and_shop', homeOrder: 3, shopOrder: 2, linkType: 'external', externalUrl: 'https://iica.app/awards', startOffset: -10, endOffset: 40, active: false },
+  { id: 'ban_5', title: 'Bharatanatyam Foundations', supporting: 'A masterclass with Meera Kulkarni — now closed.', image: 'ocean', label: 'Masterclass', cta: 'View Masterclass', placement: 'shop', homeOrder: null, shopOrder: 3, linkType: 'product', linkedId: 'prod_bharatanatyam', linkedName: 'Bharatanatyam Foundations', startOffset: -40, endOffset: -5, active: true },
 ];
 
 export function buildBanners(now: number): BannerRecord[] {
@@ -35,6 +40,7 @@ export function buildBanners(now: number): BannerRecord[] {
     image: s.image,
     label: s.label,
     ctaLabel: s.cta,
+    placement: s.placement,
     linkType: s.linkType,
     linkedId: s.linkedId ?? null,
     linkedName: s.linkedName ?? null,
@@ -42,6 +48,8 @@ export function buildBanners(now: number): BannerRecord[] {
     startDate: new Date(now + s.startOffset * DAY).toISOString(),
     endDate: new Date(now + s.endOffset * DAY).toISOString(),
     active: s.active,
+    homeDisplayOrder: s.homeOrder,
+    shopDisplayOrder: s.shopOrder,
     displayOrder: i + 1,
     createdAt: new Date(now - (30 - i) * DAY).toISOString(),
     updatedAt: new Date(now - (5 - i) * DAY).toISOString(),
