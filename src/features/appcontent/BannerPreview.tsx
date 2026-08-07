@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Smartphone } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Smartphone } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
-import { bannerImageCss, bannerCtaRoute } from '../../config/bannerLabels';
+import { bannerCtaRoute, bannerObjectPosition } from '../../config/bannerLabels';
 import type { BannerRecord } from '../../types/banners';
 
 // Renders a mobile banner carousel (Home or Shop) exactly as it would appear:
@@ -56,13 +56,16 @@ export function BannerPreview({ open, carousel, banners, focusId, onClose }: { o
             <div className="mb-2 flex items-center justify-between px-2 pt-1 text-[10px] text-charcoal-muted">
               <span>9:41</span><span>IICA</span>
             </div>
-            <div className="relative overflow-hidden rounded-2xl" style={{ background: bannerImageCss(current.image) }}>
-              <div className="flex min-h-[150px] flex-col justify-end bg-charcoal/25 p-4 text-white">
-                {current.label && <span className="mb-1 inline-block w-fit rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-medium">{current.label}</span>}
-                <p className="font-serif text-base font-medium leading-tight">{current.title}</p>
-                <p className="mt-0.5 text-[11px] text-white/90">{current.supportingText}</p>
+            <div className="relative aspect-[2/1] overflow-hidden rounded-2xl bg-cream-200">
+              {current.imageUrl && <img src={current.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: bannerObjectPosition(current.imagePosition) }} />}
+              {/* Readability overlay (presentation only, never part of the file) */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/10" />
+              <div className="absolute inset-0 flex flex-col justify-end gap-0.5 p-4 text-white">
+                {current.label && <span className="text-[10px] font-semibold uppercase tracking-widest text-white/90">{current.label}</span>}
+                <p className="font-serif text-base font-medium leading-tight drop-shadow">{current.title}</p>
+                {current.supportingText && <p className="max-w-[85%] text-[11px] text-white/90 drop-shadow">{current.supportingText}</p>}
                 {current.linkType !== 'none' && (
-                  <button onClick={() => openCta(current)} className="mt-2 w-fit rounded-md bg-white px-3 py-1 text-[11px] font-semibold text-charcoal hover:bg-cream-100">{current.ctaLabel || 'Learn More'}</button>
+                  <button onClick={() => openCta(current)} className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-md bg-white px-3 py-1 text-[11px] font-semibold text-charcoal hover:bg-cream-100">{current.ctaLabel || 'Learn More'} <ArrowRight className="h-3 w-3" /></button>
                 )}
               </div>
               {multiple && (

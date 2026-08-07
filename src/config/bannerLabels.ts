@@ -1,4 +1,4 @@
-import type { BannerLinkType, BannerPlacement, BannerRecord, BannerStatus } from '../types/banners';
+import type { BannerImagePosition, BannerLinkType, BannerPlacement, BannerRecord, BannerStatus } from '../types/banners';
 
 type Tone = 'neutral' | 'magenta' | 'green' | 'amber' | 'red' | 'blue';
 
@@ -50,16 +50,28 @@ export const LINK_TYPE_LABEL: Record<BannerLinkType, string> = {
 
 export const LINK_TYPES: BannerLinkType[] = ['creator', 'event', 'product', 'external', 'none'];
 
-// Prototype gradient placeholders (no real image upload).
-export const BANNER_IMAGES = [
-  { key: 'sunset', label: 'Sunset', css: 'linear-gradient(135deg,#f6a5c0,#a64d79)' },
-  { key: 'ocean', label: 'Ocean', css: 'linear-gradient(135deg,#7ec8e3,#3a6ea5)' },
-  { key: 'gold', label: 'Gold', css: 'linear-gradient(135deg,#f5d76e,#c9a227)' },
-  { key: 'forest', label: 'Forest', css: 'linear-gradient(135deg,#9fd8a0,#3c7a52)' },
-  { key: 'violet', label: 'Violet', css: 'linear-gradient(135deg,#c7a6e8,#6a3fa0)' },
-  { key: 'charcoal', label: 'Charcoal', css: 'linear-gradient(135deg,#6b7280,#1f2937)' },
-];
-export const bannerImageCss = (key: string) => BANNER_IMAGES.find((i) => i.key === key)?.css ?? BANNER_IMAGES[0].css;
+// ---- Image upload constraints (real upload, no gradient placeholders) -------
+
+export const BANNER_ACCEPTED_MIME = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const BANNER_ACCEPT_ATTR = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
+export const BANNER_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+export const BANNER_MIN_W = 800;
+export const BANNER_MIN_H = 400;
+export const BANNER_REC_W = 1200;
+export const BANNER_REC_H = 600;
+export const BANNER_IMAGE_HINT = 'Recommended: 1200 × 600 px, JPG/PNG/WebP, maximum 5 MB.';
+
+// Character limits for the text overlay fields.
+export const BANNER_LABEL_MAX = 30;
+export const BANNER_TITLE_MAX = 50;
+export const BANNER_SUPPORT_MAX = 100;
+export const BANNER_CTA_MAX = 24;
+
+export const bannerHasImage = (b: BannerRecord): boolean => !!b.imageUrl;
+
+// CSS object-position from the stored focal value.
+export const bannerObjectPosition = (pos: BannerImagePosition): string =>
+  pos === 'left' ? 'left center' : pos === 'right' ? 'right center' : 'center';
 
 // Derived status from the active flag + date window. Expired never stays Active.
 export function computeBannerStatus(b: BannerRecord, now = Date.now()): BannerStatus {
@@ -71,9 +83,10 @@ export function computeBannerStatus(b: BannerRecord, now = Date.now()): BannerSt
   return 'active';
 }
 
-// A banner is publicly visible in the mobile carousel only when Active + in window.
+// A banner is publicly visible in a mobile carousel only when Active + in window
+// AND it has an uploaded image (legacy "Missing image" banners never render).
 export function isBannerLive(b: BannerRecord, now = Date.now()): boolean {
-  return computeBannerStatus(b, now) === 'active';
+  return bannerHasImage(b) && computeBannerStatus(b, now) === 'active';
 }
 
 // CTA route for connected IICA content (external handled separately).

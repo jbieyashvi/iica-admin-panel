@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { ArrowRight, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -6,24 +7,33 @@ import { Field, Input, Select, Textarea } from '../../components/ui/Field';
 import { useData, addBanner, updateBanner } from '../../data/store';
 import { useActor } from '../../lib/useActor';
 import { toast } from '../../components/ui/toast';
+import { processBannerImage } from '../../lib/bannerImage';
 import {
-  BANNER_IMAGES, bannerImageCss, LINK_TYPES, LINK_TYPE_LABEL,
-  BANNER_STATUS_LABEL, BANNER_STATUS_TONE, computeBannerStatus, isValidHttpUrl,
-  PLACEMENTS, BANNER_PLACEMENT_OPTION_LABEL,
+  LINK_TYPES, LINK_TYPE_LABEL, BANNER_STATUS_LABEL, BANNER_STATUS_TONE, computeBannerStatus,
+  isValidHttpUrl, PLACEMENTS, BANNER_PLACEMENT_OPTION_LABEL, bannerObjectPosition,
+  BANNER_IMAGE_HINT, BANNER_ACCEPT_ATTR, BANNER_LABEL_MAX, BANNER_TITLE_MAX,
+  BANNER_SUPPORT_MAX, BANNER_CTA_MAX,
 } from '../../config/bannerLabels';
-import type { BannerLinkType, BannerPlacement, BannerRecord } from '../../types/banners';
+import type { BannerImagePosition, BannerLinkType, BannerPlacement, BannerRecord } from '../../types/banners';
 
 const toDateInput = (iso: string) => (iso ? iso.slice(0, 10) : '');
+const fmtBytes = (n?: number) => (n == null ? '' : n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+const POSITIONS: BannerImagePosition[] = ['left', 'center', 'right'];
 
 export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecord | null; mode: 'add' | 'edit'; onClose: () => void }) {
   const { users, events, products } = useData();
   const { actor } = useActor();
 
   const creators = users.filter((u) => u.accountType === 'creator');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
   const [supporting, setSupporting] = useState('');
-  const [image, setImage] = useState(BANNER_IMAGES[0].key);
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageName, setImageName] = useState<string | undefined>(undefined);
+  const [imageMimeType, setImageMimeType] = useState<string | undefined>(undefined);
+  const [imageSize, setImageSize] = useState<number | undefined>(undefined);
+  const [imagePosition, setImagePosition] = useState<BannerImagePosition>('center');
   const [label, setLabel] = useState('');
   const [ctaLabel, setCtaLabel] = useState('');
   const [placement, setPlacement] = useState<BannerPlacement>('home');
@@ -34,6 +44,8 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
   const [endDate, setEndDate] = useState('');
   const [active, setActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [seenKey, setSeenKey] = useState<string | null>(null);
 
   const open = mode === 'add' || !!banner;
@@ -42,7 +54,11 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
     setSeenKey(key);
     setTitle(banner?.title ?? '');
     setSupporting(banner?.supportingText ?? '');
-    setImage(banner?.image ?? BANNER_IMAGES[0].key);
+    setImageUrl(banner?.imageUrl ?? '');
+    setImageName(banner?.imageName);
+    setImageMimeType(banner?.imageMimeType);
+    setImageSize(banner?.imageSize);
+    setImagePosition(banner?.imagePosition ?? 'center');
     setLabel(banner?.label ?? '');
     setCtaLabel(banner?.ctaLabel ?? '');
     setPlacement(banner?.placement ?? 'home');
@@ -53,6 +69,8 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
     setEndDate(toDateInput(banner?.endDate ?? new Date(Date.now() + 14 * 86400000).toISOString()));
     setActive(banner?.active ?? true);
     setError(null);
+    setUploading(false);
+    setDragOver(false);
   }
   if (!open) return null;
 
@@ -65,30 +83,58 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
         : [];
 
   const needsLinked = linkType === 'creator' || linkType === 'event' || linkType === 'product';
+  const hasCta = linkType !== 'none';
 
-  // Live status preview from the chosen dates + active flag. Guard against a
-  // partially-typed/empty date (new Date('') would throw "Invalid time value").
   const safeIso = (d: string) => { const t = new Date(d).getTime(); return Number.isNaN(t) ? null : new Date(t).toISOString(); };
   const sIso = safeIso(startDate), eIso = safeIso(endDate);
   const previewStatus = sIso && eIso
     ? computeBannerStatus({ active, startDate: sIso, endDate: eIso } as BannerRecord)
     : active ? 'active' : 'inactive';
 
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const res = await processBannerImage(file);
+    setUploading(false);
+    if (!res.ok || !res.image) { setError(res.error ?? 'Could not process the image.'); return; }
+    setImageUrl(res.image.dataUrl);
+    setImageName(file.name);
+    setImageMimeType(res.image.mimeType);
+    setImageSize(res.image.size);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    void handleFile(e.dataTransfer.files?.[0]);
+  };
+
+  const removeImage = () => {
+    setImageUrl(''); setImageName(undefined); setImageMimeType(undefined); setImageSize(undefined);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
   const submit = () => {
+    if (!imageUrl) return setError('A banner image is required. Upload a JPG, PNG or WebP.');
     if (!title.trim()) return setError('Banner title is required.');
-    if (!image) return setError('Banner image is required.');
     if (!startDate || !endDate) return setError('Start and end dates are required.');
     if (new Date(startDate).getTime() > new Date(endDate).getTime()) return setError('Start date cannot be after end date.');
     if (needsLinked && !linkedId) return setError('Select the linked content for this CTA.');
     if (linkType === 'external' && !isValidHttpUrl(externalUrl.trim())) return setError('Enter a valid http(s) URL for the external announcement.');
+    if (hasCta && !ctaLabel.trim()) return setError('A CTA label is required when the banner links to content.');
 
     const linkedName = needsLinked ? linkOptions.find((o) => o.id === linkedId)?.name ?? null : null;
     const input = {
       title: title.trim(),
       supportingText: supporting.trim(),
-      image,
+      imageUrl,
+      imageName,
+      imageMimeType,
+      imageSize,
+      imagePosition,
       label: label.trim(),
-      ctaLabel: linkType === 'none' ? '' : ctaLabel.trim() || 'Learn More',
+      ctaLabel: hasCta ? ctaLabel.trim() : '',
       placement,
       linkType,
       linkedId: needsLinked ? linkedId : null,
@@ -106,34 +152,80 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
 
   return (
     <Modal open={open} onClose={onClose} title={mode === 'add' ? 'Add Banner' : 'Edit Banner'} size="lg"
-      description="Only Active banners within their date window appear in the mobile Home carousel."
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>{mode === 'add' ? 'Add Banner' : 'Save Changes'}</Button></>}>
+      description="Only Active, in-window banners with an uploaded image appear in the mobile carousels."
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit} disabled={uploading}>{mode === 'add' ? 'Add Banner' : 'Save Changes'}</Button></>}>
       {error && <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="space-y-4">
-        {/* Mini preview */}
-        <div className="overflow-hidden rounded-xl" style={{ background: bannerImageCss(image) }}>
-          <div className="bg-charcoal/25 p-4 text-white">
-            {label && <span className="inline-block rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-medium">{label}</span>}
-            <p className="mt-1 font-serif text-lg font-medium">{title || 'Banner title'}</p>
-            <p className="text-xs text-white/90">{supporting || 'Short supporting text'}</p>
-            {linkType !== 'none' && <span className="mt-2 inline-block rounded-md bg-white px-2.5 py-1 text-xs font-medium text-charcoal">{ctaLabel || 'Learn More'}</span>}
+        {/* Live mobile preview — text is a UI overlay, never baked into the image. */}
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-charcoal-muted">Live mobile preview</p>
+          <div className="relative aspect-[2/1] w-full overflow-hidden rounded-2xl bg-cream-100">
+            {imageUrl ? (
+              <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: bannerObjectPosition(imagePosition) }} />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-charcoal-muted">
+                <ImageIcon className="h-6 w-6" />
+                <span className="text-xs">Upload an image to preview the banner</span>
+              </div>
+            )}
+            {/* Readability overlay (presentation only) */}
+            {imageUrl && <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/10" />}
+            <div className="absolute inset-0 flex flex-col justify-end gap-0.5 p-4 text-white">
+              {label && <span className="text-[10px] font-semibold uppercase tracking-widest text-white/90">{label}</span>}
+              <p className="font-serif text-lg font-medium leading-tight drop-shadow">{title || 'Banner title'}</p>
+              {supporting && <p className="max-w-[80%] text-xs text-white/90 drop-shadow">{supporting}</p>}
+              {hasCta && (
+                <span className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-charcoal">
+                  {ctaLabel || 'Learn More'} <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Banner title" htmlFor="bf-title" required><Input id="bf-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="Small label" htmlFor="bf-label" hint="e.g. Artist Spotlight"><Input id="bf-label" value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
-        </div>
-        <Field label="Short supporting text" htmlFor="bf-support"><Textarea id="bf-support" rows={2} value={supporting} onChange={(e) => setSupporting(e.target.value)} /></Field>
+        {/* Image upload */}
+        <Field label="Banner image" required hint={BANNER_IMAGE_HINT}>
+          <input ref={fileRef} type="file" accept={BANNER_ACCEPT_ATTR} className="hidden"
+            onChange={(e) => { void handleFile(e.target.files?.[0]); }} />
+          {!imageUrl ? (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onDrop}
+              className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors ${dragOver ? 'border-magenta-400 bg-magenta-50/40' : 'border-cream-200 bg-cream-100/40'}`}
+            >
+              {uploading ? <Loader2 className="h-5 w-5 animate-spin text-magenta-500" /> : <Upload className="h-5 w-5 text-charcoal-muted" />}
+              <p className="text-sm text-charcoal">{uploading ? 'Processing image…' : 'Drag & drop an image here'}</p>
+              <Button type="button" size="sm" variant="secondary" disabled={uploading} onClick={() => fileRef.current?.click()}>Browse Files</Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-cream-200 p-2.5">
+              <img src={imageUrl} alt="" className="h-12 w-20 shrink-0 rounded-md object-cover" style={{ objectPosition: bannerObjectPosition(imagePosition) }} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-charcoal">{imageName ?? 'Uploaded image'}</p>
+                <p className="text-xs text-charcoal-muted">{imageMimeType ?? 'image'}{imageSize ? ` · ${fmtBytes(imageSize)}` : ''}</p>
+              </div>
+              <Button type="button" size="sm" variant="secondary" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? 'Processing…' : 'Replace'}</Button>
+              <button type="button" onClick={removeImage} className="rounded-md p-1.5 text-charcoal-muted hover:bg-red-50 hover:text-red-600" aria-label="Remove image"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          )}
+        </Field>
 
-        <Field label="Mobile banner image" htmlFor="bf-image" required hint="Prototype gradient placeholder — no upload.">
-          <div className="flex flex-wrap gap-2">
-            {BANNER_IMAGES.map((img) => (
-              <button key={img.key} type="button" onClick={() => setImage(img.key)} title={img.label}
-                className={`h-9 w-14 rounded-md border-2 ${image === img.key ? 'border-magenta-500' : 'border-transparent'}`} style={{ background: img.css }} />
+        {/* Focal position (only useful with an image) */}
+        <Field label="Image focus" hint="Where to anchor the crop when the image is not exactly 2:1.">
+          <div className="inline-flex overflow-hidden rounded-lg border border-cream-200">
+            {POSITIONS.map((p, i) => (
+              <button key={p} type="button" disabled={!imageUrl} onClick={() => setImagePosition(p)}
+                className={`px-3 py-1.5 text-sm capitalize disabled:opacity-40 ${i > 0 ? 'border-l border-cream-200' : ''} ${imagePosition === p ? 'bg-magenta-500 text-white' : 'bg-white text-charcoal hover:bg-cream-100'}`}>{p}</button>
             ))}
           </div>
         </Field>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Banner title" htmlFor="bf-title" required hint={`${title.length}/${BANNER_TITLE_MAX}`}><Input id="bf-title" maxLength={BANNER_TITLE_MAX} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label="Small label" htmlFor="bf-label" hint={`${label.length}/${BANNER_LABEL_MAX} · e.g. Artist Spotlight`}><Input id="bf-label" maxLength={BANNER_LABEL_MAX} value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
+        </div>
+        <Field label="Short supporting text" htmlFor="bf-support" hint={`${supporting.length}/${BANNER_SUPPORT_MAX}`}><Textarea id="bf-support" rows={2} maxLength={BANNER_SUPPORT_MAX} value={supporting} onChange={(e) => setSupporting(e.target.value)} /></Field>
 
         <Field label="Banner placement" htmlFor="bf-placement" required hint="Which Mobile carousel(s) this banner appears in.">
           <Select id="bf-placement" value={placement} onChange={(e) => setPlacement(e.target.value as BannerPlacement)}>
@@ -147,8 +239,8 @@ export function BannerFormModal({ banner, mode, onClose }: { banner: BannerRecor
               {LINK_TYPES.map((t) => <option key={t} value={t}>{LINK_TYPE_LABEL[t]}</option>)}
             </Select>
           </Field>
-          <Field label="CTA label" htmlFor="bf-cta" hint={linkType === 'none' ? 'No CTA for “No Link”' : undefined}>
-            <Input id="bf-cta" value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} disabled={linkType === 'none'} placeholder="e.g. View Profile" />
+          <Field label="CTA label" htmlFor="bf-cta" required={hasCta} hint={hasCta ? `${ctaLabel.length}/${BANNER_CTA_MAX}` : 'No CTA for “No Link”'}>
+            <Input id="bf-cta" maxLength={BANNER_CTA_MAX} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} disabled={!hasCta} placeholder="e.g. Read the story" />
           </Field>
         </div>
 

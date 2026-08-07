@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowDown, ArrowUp, Eye, Pencil, Plus, Power, Smartphone, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Eye, ImageOff, Pencil, Plus, Power, Smartphone, Trash2 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Tabs } from '../../components/ui/Tabs';
 import { Button } from '../../components/ui/Button';
@@ -23,7 +23,7 @@ import { formatDate } from '../../lib/format';
 import {
   BANNER_STATUS_LABEL, BANNER_STATUS_TONE, LINK_TYPE_LABEL,
   BANNER_PLACEMENT_LABEL, BANNER_PLACEMENT_TONE, bannerInHome, bannerInShop,
-  bannerImageCss, computeBannerStatus, isBannerLive,
+  bannerHasImage, bannerObjectPosition, computeBannerStatus, isBannerLive,
 } from '../../config/bannerLabels';
 import type { BannerRecord } from '../../types/banners';
 
@@ -206,8 +206,15 @@ function BannersTab() {
                   <tr key={b.id} className="group hover:bg-cream-100/50">
                     <td className="px-4 py-3">
                       <button onClick={() => openPreview(previewFrom, b.id)} className="flex items-center gap-2 text-left">
-                        <span className="h-9 w-14 shrink-0 rounded-md" style={{ background: bannerImageCss(b.image) }} />
-                        <span className="text-xs text-charcoal-muted">{b.label || '—'}</span>
+                        {bannerHasImage(b) ? (
+                          <img src={b.imageUrl} alt="" className="h-9 w-14 shrink-0 rounded-md object-cover" style={{ objectPosition: bannerObjectPosition(b.imagePosition) }} />
+                        ) : (
+                          <span className="flex h-9 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-cream-200 bg-cream-100 text-charcoal-muted"><ImageOff className="h-4 w-4" /></span>
+                        )}
+                        <span className="min-w-0">
+                          <span className="block max-w-[120px] truncate text-xs text-charcoal-muted">{b.label || '—'}</span>
+                          {!bannerHasImage(b) && <span className="block text-[11px] font-medium text-amber-700">Missing image</span>}
+                        </span>
                       </button>
                     </td>
                     <td className="px-4 py-3"><span className="block max-w-[180px] truncate font-medium text-charcoal">{b.title}</span></td>

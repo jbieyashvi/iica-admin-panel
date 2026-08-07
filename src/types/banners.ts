@@ -10,6 +10,9 @@ export type BannerLinkType = 'creator' | 'event' | 'product' | 'external' | 'non
 // Where a banner appears in the Mobile App.
 export type BannerPlacement = 'home' | 'shop' | 'home_and_shop';
 
+// Focal position used for object-position when the image is not exactly 2:1.
+export type BannerImagePosition = 'left' | 'center' | 'right';
+
 // Derived status (never stored directly): from active flag + date window.
 export type BannerStatus = 'active' | 'scheduled' | 'inactive' | 'expired';
 
@@ -17,7 +20,14 @@ export interface BannerRecord {
   id: string;
   title: string;
   supportingText: string;
-  image: string; // placeholder key (no real upload in the prototype)
+  // Uploaded banner image. In the prototype this is a compressed data URL held in
+  // localStorage (production requires backend/object-storage). An empty string
+  // means "Missing image" — the banner is kept in Admin but excluded from Mobile.
+  imageUrl: string;
+  imageName?: string;
+  imageMimeType?: string;
+  imageSize?: number; // bytes of the stored (compressed) preview
+  imagePosition: BannerImagePosition; // focal crop when not exactly 2:1
   label: string; // small eyebrow label, e.g. "Artist Spotlight"
   ctaLabel: string;
   placement: BannerPlacement; // Home / Shop / both

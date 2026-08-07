@@ -37,7 +37,7 @@ import type {
   ProductType,
 } from '../types/products';
 import type { CollaborationSettings } from '../types/collaborations';
-import type { BannerLinkType, BannerPlacement, BannerRecord } from '../types/banners';
+import type { BannerImagePosition, BannerLinkType, BannerPlacement, BannerRecord } from '../types/banners';
 import type { CommissionConfig, CommissionOverride, PayoutRecord, PayoutStatus, RevenueType } from '../types/payouts';
 import type { AdminAccountStatus, AdminUserRecord } from '../types/admins';
 import type { AdminRole } from '../types';
@@ -162,22 +162,33 @@ function migrateHomeContent(s: DataState): DataState {
     if (cleaned.some((r, i) => r !== resumes[i])) resumes = cleaned;
   }
 
-  // Banners — backfill Placement (legacy banners default to Home) and the
-  // per-carousel display orders. Never delete or duplicate a record; existing
-  // title/image/linked content/dates/status/order are preserved.
+  // Banners — backfill Placement (legacy banners default to Home) + per-carousel
+  // order, AND migrate the old gradient `image` key to the new image-upload model.
+  // Gradient placeholders are dropped (never rendered as a fake image): the record
+  // is marked "Missing image" (imageUrl '') so Admin can re-upload; everything else
+  // (title / label / supporting / CTA / linked content / dates / status / order) is
+  // preserved. Records are never deleted or duplicated.
   let banners = rootStripped.banners;
-  if (Array.isArray(banners) && banners.some((b) => !('placement' in (b as object)) || (b as BannerRecord).homeDisplayOrder === undefined)) {
+  if (Array.isArray(banners) && banners.some((b) => {
+    const r = b as unknown as Record<string, unknown>;
+    return !('placement' in r) || r.homeDisplayOrder === undefined || !('imageUrl' in r) || r.imagePosition === undefined || 'image' in r;
+  })) {
     changed = true;
     banners = banners.map((b) => {
-      const rec = b as BannerRecord & Record<string, unknown>;
+      const rec = { ...(b as unknown as Record<string, unknown>) };
       const placement: BannerPlacement = (rec.placement as BannerPlacement) ?? 'home';
       const inHome = placement === 'home' || placement === 'home_and_shop';
       const inShop = placement === 'shop' || placement === 'home_and_shop';
+      // Old gradient key → drop; only a real data-URL is treated as an image.
+      const legacyImg = typeof rec.imageUrl === 'string' && rec.imageUrl.startsWith('data:') ? rec.imageUrl : '';
+      delete rec.image;
       return {
         ...rec,
         placement,
-        homeDisplayOrder: rec.homeDisplayOrder !== undefined ? (rec.homeDisplayOrder as number | null) : (inHome ? rec.displayOrder : null),
-        shopDisplayOrder: rec.shopDisplayOrder !== undefined ? (rec.shopDisplayOrder as number | null) : (inShop ? rec.displayOrder : null),
+        imageUrl: legacyImg,
+        imagePosition: (rec.imagePosition as BannerImagePosition) ?? 'center',
+        homeDisplayOrder: rec.homeDisplayOrder !== undefined ? (rec.homeDisplayOrder as number | null) : (inHome ? (rec.displayOrder as number) : null),
+        shopDisplayOrder: rec.shopDisplayOrder !== undefined ? (rec.shopDisplayOrder as number | null) : (inShop ? (rec.displayOrder as number) : null),
       } as BannerRecord;
     });
   }
@@ -1187,7 +1198,11 @@ function normalizeBannerOrders(list: BannerRecord[]): BannerRecord[] {
 export interface BannerInput {
   title: string;
   supportingText: string;
-  image: string;
+  imageUrl: string;
+  imageName?: string;
+  imageMimeType?: string;
+  imageSize?: number;
+  imagePosition: BannerImagePosition;
   label: string;
   ctaLabel: string;
   placement: BannerPlacement;
